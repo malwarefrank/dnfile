@@ -20,6 +20,27 @@ Features
 * Easy to use.  Developed with IDE autocompletion in mind.
 
 
+Quick Start
+-----------
+
+.. code-block:: shell
+
+   pip install dnfile
+
+Then create a simple program that loads a .NET binary, parses it, and displays
+information about the streams and Metadata Tables.
+
+.. code-block:: python
+
+   import sys
+   import dnfile
+
+   filepath = sys.argv[1]
+
+   pe = dnfile.dnPE(filepath)
+   pe.print_info()
+
+
 TODO
 ----
 
