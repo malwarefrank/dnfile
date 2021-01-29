@@ -105,7 +105,7 @@ class dnPE(_PE):
             for s in self.net.metadata.streams_list:
                 if isinstance(s, stream.MetaDataTables):
                     s: stream.MetaDataTables
-                    dump.add_lines(self.net.mdtables.struct.dump())
+                    dump.add_lines(s.struct.dump())
                     dump.add_newline()
                     if hasattr(s, "tables_list") and s.tables_list:
                         for t in s.tables_list:
