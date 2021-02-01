@@ -18,7 +18,7 @@ from pefile import Structure
 from pefile import DataContainer
 from pefile import MAX_STRING_LENGTH
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from . import errors, mdtable, base
 from .utils import read_compressed_int
@@ -58,7 +58,7 @@ class StringsHeap(base.ClrHeap):
 
 
 class BinaryHeap(base.ClrHeap):
-    def get_with_size(self, index):
+    def get_with_size(self, index) -> Tuple[bytes, int]:
         if index >= len(self.__data__):
             raise IndexError("index out of range")
 
@@ -72,7 +72,7 @@ class BinaryHeap(base.ClrHeap):
         data = self.__data__[offset : offset + data_length]
         return data, length_size + data_length
 
-    def get(self, index):
+    def get(self, index) -> bytes:
         data, _ = self.get_with_size(index)
         return data
 
@@ -81,8 +81,35 @@ class BlobHeap(BinaryHeap):
     pass
 
 
+class UserString(object):
+    """
+    The #US or UserStrings stream should contain UTF-16 strings.
+    Each entry in the stream includes a byte indicating whether
+    any Unicode characters require handling beyond that normally
+    provided for 8-bit encoding sets.
+
+    Reference ECMA-335, Partition II Section 24.2.4
+    """
+    value: str = None
+    Flag: int = None
+
+    __data__: bytes = None
+
+    def __init__(self, data: bytes, encoding="utf-16"):
+        self.__data__ = data
+        if len(data) % 2 == 1:
+            self.Flag = data[-1]
+            data = data[:-1]
+        else:
+            # TODO error/warn
+            pass
+        self.value = data.decode(encoding)
+
+
 class UserStringHeap(BinaryHeap):
-    pass
+    def get_us(self, index, max_length=MAX_STRING_LENGTH, encoding="utf-16") -> UserString:
+        data = self.get(index)
+        return UserString(data)
 
 
 class GuidHeap(base.ClrHeap):
