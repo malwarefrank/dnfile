@@ -13,7 +13,7 @@ Copyright (c) 2020-2021 MalwareFrank
 """
 
 __author__ = """MalwareFrank"""
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 
 import struct as _struct
