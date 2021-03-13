@@ -386,14 +386,22 @@ class ClrMetaDataTable(collections.abc.Sequence):
         """
         self._table_data = data
         if len(data) < self.row_size * self.num_rows:
-            # TODO error/warn
-            pass
+            # error/warn
+            raise errors.dnFormatError(
+                "Error parsing table {}, len(data)={}  row_size={}  num_rows={}".format(
+                    self.name, len(data), self.row_size, self.num_rows
+                )
+            )
         offset = 0
         # iterate through rows, stopping at num_rows or when there is not enough data left
         for i in range(self.num_rows):
-            if offset + self.row_size < len(data):
-                # TODO error/warn
-                break
+            if len(data) < offset + self.row_size:
+                # error/warn
+                raise errors.dnFormatError(
+                    "Error parsing row {} for table {}, len(data)={}  row_size={}  offset={}".format(
+                        i, self.name, len(data), self.row_size, offset
+                    )
+                )
             self.rows[i].set_data(
                 data[offset : offset + self.row_size], offset=self.rva + offset
             )
