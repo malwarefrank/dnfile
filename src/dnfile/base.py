@@ -215,7 +215,7 @@ class MDTableRow(abc.ABC):
                 except (IndexError, TypeError):
                     o = None
                     # TODO error/warn
-                setattr(self, attr_name, None)
+                setattr(self, attr_name, o)
         # if flags
         if self._struct_flags:
             for struct_name, (attr_name, attr_class) in self._struct_flags.items():
