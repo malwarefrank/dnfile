@@ -2,6 +2,11 @@
 History
 =======
 
+0.7.1 (2021)
+------------
+
+* bugfix: coded index always None
+
 0.7.0 (2021)
 ------------
 
