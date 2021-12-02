@@ -464,7 +464,7 @@ class CodedIndex(MDTableIndex):
         for t in tables_list:
             if t.name == table_name:
                 self.table = t
-                if self.row_index > t.num_rows - 1:
+                if self.row_index > t.num_rows:
                     # TODO error/warn
                     self.row = None
                     return
