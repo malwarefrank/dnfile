@@ -2,6 +2,11 @@
 History
 =======
 
+0.8.0 (2021)
+------------
+
+* bugfix: Metadata Table indexes (i.e. indexes into other tables) were off by one
+
 0.7.1 (2021)
 ------------
 
