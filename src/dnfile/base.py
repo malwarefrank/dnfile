@@ -450,7 +450,10 @@ class MDTableIndex(object):
         for t in tables_list:
             if isinstance(t, self._table_class):
                 self.table = t
-                # TODO error checking
+                if self.row_index > t.num_rows:
+                    # TODO error/warn
+                    self.row = None
+                    return
                 self.row = t.rows[self.row_index - 1]
 
 
