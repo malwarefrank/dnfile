@@ -451,7 +451,7 @@ class MDTableIndex(object):
             if isinstance(t, self._table_class):
                 self.table = t
                 # TODO error checking
-                self.row = t.rows[self.row_index]
+                self.row = t.rows[self.row_index - 1]
 
 
 class CodedIndex(MDTableIndex):
@@ -468,4 +468,4 @@ class CodedIndex(MDTableIndex):
                     # TODO error/warn
                     self.row = None
                     return
-                self.row = t.rows[self.row_index]
+                self.row = t.rows[self.row_index - 1]
