@@ -226,7 +226,10 @@ class MetaDataTables(base.ClrStream):
 
         STRINGS_MASK = 0x01
         GUIDS_MASK = 0x02
-        BLOBS_MASK = 0x03
+        BLOBS_MASK = 0x04
+        DELTA_ONLY_MASK = 0x20
+        EXTRA_DATA_MASK = 0x40
+        HAS_DELETE_MASK = 0x80
         MAX_TABLES = 64
 
         warnings = list()
@@ -259,6 +262,8 @@ class MetaDataTables(base.ClrStream):
         self.strings_offset_size = strings_offset_size
         self.guids_offset_size = guids_offset_size
         self.blobs_offset_size = blobs_offset_size
+        
+        has_extra_data = header_struct.HeapOffsetSizes & EXTRA_DATA_MASK == EXTRA_DATA_MASK
 
         #### heaps
         strings_heap: StringsHeap = None
@@ -291,6 +296,11 @@ class MetaDataTables(base.ClrStream):
                 table_rowcounts[i] = self.get_dword_at_rva(cur_rva)
                 # increment to next dword
                 cur_rva += 4
+        
+        # consume an extra dword if the extra data bit is set
+        if header_struct.HeapOffsetSizes & EXTRA_DATA_MASK == EXTRA_DATA_MASK:
+            cur_rva += 4
+        
         # initialize all tables
         for i in range(MAX_TABLES):
             # if table bit is set
