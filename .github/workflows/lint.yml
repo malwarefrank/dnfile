@@ -13,5 +13,6 @@ jobs:
       with:
         python-version: "3.8"
     - name: Install dependencies
-      run: pip install -e .
-    # doesn't do anything yet.
+      run: pip install -e .[test]
+    - name: Lint with pycodestyle
+      run: pycodestyle --show-source --show-pep8 dnfile tests
