@@ -20,9 +20,7 @@ for fname in sys.argv[1:]:
             # make note of the table name
             res_table = row.ResolutionScope.table.name
             # and resolve it to a string
-            res_name = getattr(row.ResolutionScope.row, "Name") or getattr(
-                row.ResolutionScope.row, "TypeName"
-            )
+            res_name = getattr(row.ResolutionScope.row, "Name") or getattr(row.ResolutionScope.row, "TypeName")
         else:
             # otherwise
             res_table = None

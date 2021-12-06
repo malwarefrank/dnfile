@@ -28,6 +28,7 @@ class GenericStream(base.ClrStream):
     """
     A generic CLR Stream of unknown type.
     """
+
     pass
 
 
@@ -64,9 +65,7 @@ class BinaryHeap(base.ClrHeap):
 
         offset = index
         # read compressed int length
-        data_length, length_size = read_compressed_int(
-            self.__data__[offset : offset + 4]
-        )
+        data_length, length_size = read_compressed_int(self.__data__[offset : offset + 4])
         # read data
         offset = offset + length_size
         data = self.__data__[offset : offset + data_length]
@@ -90,6 +89,7 @@ class UserString(object):
 
     Reference ECMA-335, Partition II Section 24.2.4
     """
+
     value: str = None
     Flag: int = None
 
@@ -135,9 +135,7 @@ class GuidHeap(base.ClrHeap):
         part4 = _hexlify(data[10:16])
         part3 = part3.decode("ascii")
         part4 = part4.decode("ascii")
-        return "{:08x}-{:04x}-{:04x}-{}-{}".format(
-            parts[0], parts[1], parts[2], part3, part4
-        )
+        return "{:08x}-{:04x}-{:04x}-{}-{}".format(parts[0], parts[1], parts[2], part3, part4)
 
 
 class MDTablesStruct(Structure):
@@ -184,42 +182,42 @@ class MetaDataTables(base.ClrStream):
 
     # from https://www.ntcore.com/files/dotnetformat.htm
     # and https://referencesource.microsoft.com/System.AddIn/System/Addin/MiniReflection/MetadataReader/Metadata.cs.html#123
-    Module:                 mdtable.Module = None
-    TypeRef:                mdtable.TypeRef = None
-    TypeDef:                mdtable.TypeDef = None
-    Field:                  mdtable.Field = None
-    MethodDef:              mdtable.MethodDef = None
-    Param:                  mdtable.Param = None
-    InterfaceImpl:          mdtable.InterfaceImpl = None
-    MemberRef:              mdtable.MemberRef = None
-    Constant:               mdtable.Constant = None
-    CustomAttribute:        mdtable.CustomAttribute = None
-    FieldMarshal:           mdtable.FieldMarshal = None
-    DeclSecurity:           mdtable.DeclSecurity = None
-    ClassLayout:            mdtable.ClassLayout = None
-    FieldLayout:            mdtable.FieldLayout = None
-    StandAloneSig:          mdtable.StandAloneSig = None
-    EventMap:               mdtable.EventMap = None
-    Event:                  mdtable.Event = None
-    PropertyMap:            mdtable.PropertyMap = None
-    Property:               mdtable.Property = None
-    MethodSemantics:        mdtable.MethodSemantics = None
-    MethodImpl:             mdtable.MethodImpl = None
-    ModuleRef:              mdtable.ModuleRef = None
-    TypeSpec:               mdtable.TypeSpec = None
-    ImplMap:                mdtable.ImplMap = None
-    FieldRva:               mdtable.FieldRva = None
-    Assembly:               mdtable.Assembly = None
-    AssemblyProcessor:      mdtable.AssemblyProcessor = None
-    AssemblyOS:             mdtable.AssemblyOS = None
-    AssemblyRef:            mdtable.AssemblyRef = None
-    AssemblyRefProcessor:   mdtable.AssemblyRefProcessor = None
-    AssemblyRefOS:          mdtable.AssemblyRefOS = None
-    File:                   mdtable.File = None
-    ExportedType:           mdtable.ExportedType = None
-    ManifestResource:       mdtable.ManifestResource = None
-    NestedClass:            mdtable.NestedClass = None
-    GenericParam:           mdtable.GenericParam = None
+    Module: mdtable.Module = None
+    TypeRef: mdtable.TypeRef = None
+    TypeDef: mdtable.TypeDef = None
+    Field: mdtable.Field = None
+    MethodDef: mdtable.MethodDef = None
+    Param: mdtable.Param = None
+    InterfaceImpl: mdtable.InterfaceImpl = None
+    MemberRef: mdtable.MemberRef = None
+    Constant: mdtable.Constant = None
+    CustomAttribute: mdtable.CustomAttribute = None
+    FieldMarshal: mdtable.FieldMarshal = None
+    DeclSecurity: mdtable.DeclSecurity = None
+    ClassLayout: mdtable.ClassLayout = None
+    FieldLayout: mdtable.FieldLayout = None
+    StandAloneSig: mdtable.StandAloneSig = None
+    EventMap: mdtable.EventMap = None
+    Event: mdtable.Event = None
+    PropertyMap: mdtable.PropertyMap = None
+    Property: mdtable.Property = None
+    MethodSemantics: mdtable.MethodSemantics = None
+    MethodImpl: mdtable.MethodImpl = None
+    ModuleRef: mdtable.ModuleRef = None
+    TypeSpec: mdtable.TypeSpec = None
+    ImplMap: mdtable.ImplMap = None
+    FieldRva: mdtable.FieldRva = None
+    Assembly: mdtable.Assembly = None
+    AssemblyProcessor: mdtable.AssemblyProcessor = None
+    AssemblyOS: mdtable.AssemblyOS = None
+    AssemblyRef: mdtable.AssemblyRef = None
+    AssemblyRefProcessor: mdtable.AssemblyRefProcessor = None
+    AssemblyRefOS: mdtable.AssemblyRefOS = None
+    File: mdtable.File = None
+    ExportedType: mdtable.ExportedType = None
+    ManifestResource: mdtable.ManifestResource = None
+    NestedClass: mdtable.NestedClass = None
+    GenericParam: mdtable.GenericParam = None
     GenericParamConstraint: mdtable.GenericParamConstraint = None
 
     def parse(self, streams: List[base.ClrStream]):
@@ -309,11 +307,7 @@ class MetaDataTables(base.ClrStream):
                 )
                 if not table:
                     # delay error/warning
-                    warnings.append(
-                        "Invalid .NET metadata table list @ {} rva:{}".format(
-                            i, cur_rva
-                        )
-                    )
+                    warnings.append("Invalid .NET metadata table list @ {} rva:{}".format(i, cur_rva))
                     # Everything up to this point has been saved in the object and is accessible,
                     # but more can be parsed, so we delay raising exception.
                 # table number
@@ -330,9 +324,7 @@ class MetaDataTables(base.ClrStream):
         # here, cur_rva points to start of table rows
         for table in self.tables_list:
             if table.row_size > 0 and table.num_rows > 0:
-                table_data = self.get_data_at_rva(
-                    cur_rva, table.row_size * table.num_rows
-                )
+                table_data = self.get_data_at_rva(cur_rva, table.row_size * table.num_rows)
                 # parse structures (populates .struct for each row)
                 table.parse_rows(table_data)
                 table.rva = cur_rva

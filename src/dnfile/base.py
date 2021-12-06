@@ -107,13 +107,9 @@ class MDTableRow(abc.ABC):
     _struct_guids: Dict[str, str] = None
     _struct_blobs: Dict[str, str] = None
     _struct_asis: Dict[str, str] = None
-    _struct_codedindexes: Dict[
-        str, Tuple[str, Type["CodedIndex"]]
-    ] = None  # also CodedIndex subclass
+    _struct_codedindexes: Dict[str, Tuple[str, Type["CodedIndex"]]] = None  # also CodedIndex subclass
     _struct_indexes: Dict[str, Tuple[str, str]] = None  # also Metadata table name
-    _struct_flags: Dict[
-        str, Tuple[str, Type[enums.ClrFlags]]
-    ] = None  # also ClrFlags subclass
+    _struct_flags: Dict[str, Tuple[str, Type[enums.ClrFlags]]] = None  # also ClrFlags subclass
     _struct_lists: Dict[str, Tuple[str, str]] = None  # also Metadata table name
 
     def __init__(
@@ -402,9 +398,7 @@ class ClrMetaDataTable(collections.abc.Sequence):
                         i, self.name, len(data), self.row_size, offset
                     )
                 )
-            self.rows[i].set_data(
-                data[offset : offset + self.row_size], offset=self.rva + offset
-            )
+            self.rows[i].set_data(data[offset : offset + self.row_size], offset=self.rva + offset)
             offset += self.row_size
 
     def parse(self, l: List["ClrMetaDataTable"]):
