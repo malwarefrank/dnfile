@@ -18,6 +18,7 @@ setup_requirements = [
 
 test_requirements = [
     "pytest>=3",
+    "isort==5.2.0",
 ]
 
 setup(
@@ -47,6 +48,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
+    extras_require={'test': test_requirements},
     url="https://github.com/malwarefrank/dnfile",
     version="0.8.0",
     zip_safe=False,
