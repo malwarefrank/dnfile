@@ -7,9 +7,9 @@ Copyright (c) 2020-2021 MalwareFrank
 
 
 import abc
-import collections
 import struct as _struct
-from typing import Tuple, List, Dict, Optional, Type
+import collections
+from typing import Dict, List, Type, Tuple, Optional
 
 from pefile import Structure
 

@@ -12,15 +12,12 @@ Copyright (c) 2020-2021 MalwareFrank
 
 import copy as _copymod
 import struct as _struct
+from typing import Dict, List, Tuple
 from binascii import hexlify as _hexlify
 
-from pefile import Structure
-from pefile import DataContainer
-from pefile import MAX_STRING_LENGTH
+from pefile import MAX_STRING_LENGTH, Structure, DataContainer
 
-from typing import Dict, List, Tuple
-
-from . import errors, mdtable, base
+from . import base, errors, mdtable
 from .utils import read_compressed_int
 
 

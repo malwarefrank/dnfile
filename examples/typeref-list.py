@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import sys
-import dnfile
 
+import dnfile
 
 for fname in sys.argv[1:]:
     # load .NET executable
