@@ -263,8 +263,6 @@ class MetaDataTables(base.ClrStream):
         self.guids_offset_size = guids_offset_size
         self.blobs_offset_size = blobs_offset_size
         
-        has_extra_data = header_struct.HeapOffsetSizes & EXTRA_DATA_MASK == EXTRA_DATA_MASK
-
         #### heaps
         strings_heap: StringsHeap = None
         guid_heap: GuidHeap = None
