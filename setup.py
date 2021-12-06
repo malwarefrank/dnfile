@@ -18,6 +18,7 @@ setup_requirements = [
 
 test_requirements = [
     "pytest>=3",
+    "pycodestyle==2.8.0",
 ]
 
 setup(
