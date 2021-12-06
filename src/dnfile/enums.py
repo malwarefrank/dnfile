@@ -73,6 +73,7 @@ class CorHeaderEnum(_enum.IntEnum):
     CLR_TRACKDEBUGDATA      = 0x00010000
     CLR_PREFER_32BIT        = 0x00020000
 
+
 class ClrHeaderFlags(object):
     corhdr_enum = CorHeaderEnum
 
@@ -91,7 +92,7 @@ class ClrHeaderFlags(object):
         for m in CorHeaderEnum:
             if m.value & value:
                 setattr(self, m.name, True)
-    
+
     def __iter__(self):
         for name in _getvars(self):
             if name.startswith("CLR_"):
@@ -114,20 +115,24 @@ class CorTypeVisibility(_enum.IntEnum):
     tdNestedFamANDAssem     =   0x00000006
     tdNestedFamORAssem      =   0x00000007
 
+
 class CorTypeLayout(_enum.IntEnum):
     tdAutoLayout            =   0x00000000
     tdSequentialLayout      =   0x00000008
     tdExplicitLayout        =   0x00000010
 
+
 class CorTypeSemantics(_enum.IntEnum):
     tdClass                 =   0x00000000
     tdInterface             =   0x00000020
+
 
 class CorTypeStringFormat(_enum.IntEnum):
     tdAnsiClass             =   0x00000000
     tdUnicodeClass          =   0x00010000
     tdAutoClass             =   0x00020000
     tdCustomFormatClass     =   0x00030000
+
 
 class CorTypeAttrFlags(_enum.IntEnum):
     tdAbstract              =   0x00000080
@@ -141,6 +146,7 @@ class CorTypeAttrFlags(_enum.IntEnum):
     tdBeforeFieldInit       =   0x00100000
     tdForwarder             =   0x00200000
 
+
 class CorTypeAttr(ClrMetaDataEnum):
     tdVisibilityMask        =   0x00000007
     enumVisibility          =   CorTypeVisibility
@@ -150,15 +156,16 @@ class CorTypeAttr(ClrMetaDataEnum):
 
     tdClassSemanticsMask    =   0x00000020
     enumClassSemantics      =   CorTypeSemantics
- 
+
     enumFlags               =   CorTypeAttrFlags
- 
+
     tdStringFormatMask      =   0x00030000
     enumStringFormat        =   CorTypeStringFormat
 
     tdCustomFormatMask      =   0x00C00000
- 
+
     tdReservedMask          =   0x00040800
+
 
 class ClrTypeAttr(ClrFlags):
     tdNotPublic             = False
@@ -176,15 +183,15 @@ class ClrTypeAttr(ClrFlags):
 
     tdClass                 = False
     tdInterface             = False
- 
+
     tdAbstract              = False
     tdSealed                = False
     tdSpecialName           = False
- 
+
     tdImport                = False
     tdSerializable          = False
     tdWindowsRuntime        = False
- 
+
     tdAnsiClass             = False
     tdUnicodeClass          = False
     tdAutoClass             = False
@@ -194,7 +201,7 @@ class ClrTypeAttr(ClrFlags):
 
     tdBeforeFieldInit       = False
     tdForwarder             = False
- 
+
     tdRTSpecialName         = False
     tdHasSecurity           = False
 
@@ -221,6 +228,7 @@ class CorFieldAccess(_enum.IntEnum):
     fdPublic                    =   0x0006      # Accessibly by anyone who has visibility to this scope.
     fdUnknown1                  =   0x0007
 
+
 class CorFieldAttrFlags(_enum.IntEnum):
     fdStatic                    =   0x0010      # Defined on type, else per instance.
     fdInitOnly                  =   0x0020      # Field may only be initialized, not written to after init.
@@ -238,6 +246,7 @@ class CorFieldAttrFlags(_enum.IntEnum):
     fdHasFieldMarshal           =   0x1000      # Field has marshalling information.
     fdHasDefault                =   0x8000      # Field has default.
 
+
 class CorFieldAttr(ClrMetaDataEnum):
     fdFieldAccessMask           =   0x0007      # member access mask - Use this mask to retrieve accessibility information.
     enumAccess                  =   CorFieldAccess
@@ -246,6 +255,7 @@ class CorFieldAttr(ClrMetaDataEnum):
 
     # Reserved flags for runtime use only.
     fdReservedMask              =   0x9500
+
 
 class ClrFieldAttr(ClrFlags):
     fdPrivateScope              = False         # Member not referenceable.
@@ -291,6 +301,7 @@ class CorMethodMemberAccess(_enum.IntEnum):
     mdPublic                    =   0x0006      # Accessibly by anyone who has visibility to this scope.
     mdUnknown1                  =   0x0007
 
+
 class CorMethodAttrFlags(_enum.IntEnum):
     # method contract attributes.
     mdStatic                    =   0x0010      # Defined on type, else per instance.
@@ -312,9 +323,11 @@ class CorMethodAttrFlags(_enum.IntEnum):
     mdHasSecurity               =   0x4000      # Method has security associate with it.
     mdRequireSecObject          =   0x8000      # Method calls another method containing security code.
 
+
 class CorMethodVtableLayout(_enum.IntEnum):
     mdReuseSlot                 =   0x0000      # The default.
     mdNewSlot                   =   0x0100      # Method always gets a new slot in the vtable.
+
 
 class CorMethodAttr(ClrMetaDataEnum):
     # member access mask - Use this mask to retrieve accessibility information.
@@ -329,6 +342,7 @@ class CorMethodAttr(ClrMetaDataEnum):
 
     # Reserved flags for runtime use only.
     mdReservedMask              =   0xd000
+
 
 class ClrMethodAttr(ClrFlags):
     mdPrivateScope              = False         # Member not referenceable.
@@ -366,8 +380,8 @@ class ClrMethodAttr(ClrFlags):
 
     corhdr_enum = CorMethodAttr
     _masks = {
-       "mdMemberAccessMask": CorMethodMemberAccess,
-       "mdVtableLayoutMask": CorMethodVtableLayout,
+        "mdMemberAccessMask": CorMethodMemberAccess,
+        "mdVtableLayoutMask": CorMethodVtableLayout,
     }
     _flags = (CorMethodAttrFlags, )
 
@@ -378,9 +392,11 @@ class CorMethodCodeType(_enum.IntEnum):
     miOPTIL             =   0x0002      # Method impl is OPTIL
     miRuntime           =   0x0003      # Method impl is provided by the runtime.
 
+
 class CorMethodManaged(_enum.IntEnum):
     miUnmanaged         =   0x0004      # Method impl is unmanaged, otherwise managed.
     miManaged           =   0x0000      # Method impl is managed.
+
 
 class CorMethodImplFlags(_enum.IntEnum):
     miForwardRef        =   0x0010      # Indicates method is defined; used primarily in merge scenarios.
@@ -390,6 +406,7 @@ class CorMethodImplFlags(_enum.IntEnum):
 
     miSynchronized      =   0x0020      # Method is single threaded through the body.
     miNoInlining        =   0x0008      # Method may not be inlined.
+
 
 class CorMethodImpl(ClrMetaDataEnum):
     # code impl mask
@@ -403,6 +420,7 @@ class CorMethodImpl(ClrMetaDataEnum):
     enumFlags               =   CorMethodImplFlags
 
     miMaxMethodImplVal  =   0xffff      # Range check value
+
 
 class ClrMethodImpl(ClrFlags):
     miIL                = False         # Method impl is IL.
@@ -444,6 +462,7 @@ class CorParamAttrFlags(_enum.IntEnum):
     pdHasDefault                =   0x1000     # Param has default value.
     pdHasFieldMarshal           =   0x2000     # Param has FieldMarshal.
 
+
 class CorParamAttr(ClrMetaDataEnum):
     enumFlags                       =   CorParamAttrFlags
 
@@ -451,6 +470,7 @@ class CorParamAttr(ClrMetaDataEnum):
     pdReservedMask              =   0xf000
 
     pdUnused                    =   0xcfe0
+
 
 class ClrParamAttr(ClrFlags):
     pdIn                        =   False   # Param is [In]
@@ -469,11 +489,13 @@ class CorEventAttrFlags(_enum.IntEnum):
     evSpecialName           =   0x0200     # event is special. Name describes how.
     evRTSpecialName         =   0x0400     # Runtime(metadata internal APIs) should check name encoding.
 
+
 class CorEventAttr(ClrMetaDataEnum):
     enumFlags                   =   CorEventAttrFlags
 
     # Reserved flags for Runtime use only.
     evReservedMask          =   0x0400
+
 
 class ClrEventAttr(ClrFlags):
     evSpecialName           = False     # event is special. Name describes how.
@@ -492,6 +514,7 @@ class CorPropertyAttrFlags(_enum.IntEnum):
     prRTSpecialName         =   0x0400     # Runtime(metadata internal APIs) should check name encoding.
     prHasDefault            =   0x1000     # Property has default
 
+
 class CorPropertyAttr(ClrMetaDataEnum):
     enumFlags                   =   CorPropertyAttrFlags
 
@@ -499,6 +522,7 @@ class CorPropertyAttr(ClrMetaDataEnum):
     prReservedMask          =   0xf400
 
     prUnused                =   0xe9ff
+
 
 class ClrPropertyAttr(ClrFlags):
     prSpecialName           = False     # property is special.  Name describes how.
@@ -519,8 +543,10 @@ class CorMethodSematicsFlags(_enum.IntEnum):
     msRemoveOn  =   0x0010      # RemoveOn method for event
     msFire      =   0x0020      # Fire method for event
 
+
 class CorMethodSemanticsAttr(ClrMetaDataEnum):
     enumFlags       =   CorMethodSematicsFlags
+
 
 class ClrMethodSemanticsAttr(ClrFlags):
     msSetter    = False     # Setter for property
@@ -540,15 +566,18 @@ class CorPinvokeMapCharSet(_enum.IntEnum):
     pmCharSetUnicode    = 0x0004
     pmCharSetAuto       = 0x0006
 
+
 class CorPinvokeBestFit(_enum.IntEnum):
     pmBestFitUseAssem   = 0x0000
     pmBestFitEnabled    = 0x0010
     pmBestFitDisabled   = 0x0020
 
+
 class CorPinvokeThrowOnUnmappableChar(_enum.IntEnum):
     pmThrowOnUnmappableCharUseAssem   = 0x0000
     pmThrowOnUnmappableCharEnabled    = 0x1000
     pmThrowOnUnmappableCharDisabled   = 0x2000
+
 
 class CorPinvokeCallConv(_enum.IntEnum):
     pmCallConvWinapi    = 0x0100    # Pinvoke will use native callconv appropriate to target windows platform.
@@ -559,9 +588,11 @@ class CorPinvokeCallConv(_enum.IntEnum):
     pmUnknown1          = 0x0600
     pmUnknown2          = 0x0700
 
+
 class CorPinvokeMapFlags(_enum.IntEnum):
     pmNoMangle          = 0x0001    # Pinvoke is to use the member name as specified.
     pmSupportsLastError = 0x0040    # Information about target function. Not relevant for fields.
+
 
 class CorPinvokeMap(ClrMetaDataEnum):
     enumFlags               = CorPinvokeMapFlags
@@ -581,6 +612,7 @@ class CorPinvokeMap(ClrMetaDataEnum):
     enumCallConv        = CorPinvokeCallConv
 
     pmMaxValue          = 0xFFFF
+
 
 class ClrPinvokeMap(ClrFlags):
     pmNoMangle          = False     # Pinvoke is to use the member name as specified.
@@ -628,6 +660,7 @@ class CorAssemblyFlagsEnum(_enum.IntEnum):
 
     afPA_Specified          =   0x0080      # Propagate PA flags to AssemblyRef record
 
+
 class CorAssemblyFlagsPA(_enum.IntEnum):
     afPA_None               =   0x0000      # Processor Architecture unspecified
     afPA_MSIL               =   0x0010      # Processor Architecture: neutral (PE32)
@@ -638,18 +671,20 @@ class CorAssemblyFlagsPA(_enum.IntEnum):
     afPA_Unknown2           =   0x0060
     afPA_Unknown3           =   0x0070
 
+
 class CorAssemblyFlags(ClrMetaDataEnum):
     enumFlags = CorAssemblyFlagsEnum
-    
+
     afPA_Mask               =   0x0070      # Bits describing the processor architecture
     enumPA                  = CorAssemblyFlagsPA
 
     afPA_FullMask           =   0x00F0      # Bits describing the PA incl. Specified
     afPA_Shift              =   0x0004      # NOT A FLAG, shift count in PA flags <--> index conversion
 
+
 class ClrAssemblyFlags(ClrFlags):
     afPublicKey             = False         # The assembly ref holds the full (unhashed) public key.
-    
+
     afPA_None               = False         # Processor Architecture unspecified
     afPA_MSIL               = False         # Processor Architecture: neutral (PE32)
     afPA_x86                = False         # Processor Architecture: x86 (PE32)
@@ -657,11 +692,12 @@ class ClrAssemblyFlags(ClrFlags):
     afPA_AMD64              = False         # Processor Architecture: AMD X64 (PE32+)
     afPA_Specified          = False         # Propagate PA flags to AssemblyRef record
 
-    afEnableJITcompileTracking  = False     # From "DebuggableAttribute".
-    afDisableJITcompileOptimizer= False     # From "DebuggableAttribute".
+    afEnableJITcompileTracking   = False     # From "DebuggableAttribute".
+    afDisableJITcompileOptimizer = False     # From "DebuggableAttribute".
 
-    afRetargetable          = False         # The assembly can be retargeted (at runtime) to an
-                                            #  assembly from a different publisher.
+    # The assembly can be retargeted (at runtime) to an
+    # assembly from a different publisher.
+    afRetargetable          = False
 
     corhdr_enum = CorAssemblyFlags
     _masks = {
@@ -674,9 +710,11 @@ class CorFileFlagsEnum(_enum.IntEnum):
     ffContainsMetaData      =   0x0000      # This is not a resource file
     ffContainsNoMetaData    =   0x0001      # This is a resource file or other non-metadata-containing file
 
+
 class CorFileFlags(ClrMetaDataEnum):
     ffContainsMask  =   0x0001
     enumContains    =   CorFileFlagsEnum
+
 
 class ClrFileFlags(ClrFlags):
     ffContainsMetaData      = False     # This is not a resource file
@@ -697,9 +735,11 @@ class CorManifestResourceVisibility(_enum.IntEnum):
     mrUnknown4              =   0x0006
     mrUnknown5              =   0x0007
 
+
 class CorManifestResourceFlags(ClrMetaDataEnum):
     mrVisibilityMask        =   0x0007
     enumVisibility          =   CorManifestResourceVisibility
+
 
 class ClrManifestResourceFlags(ClrFlags):
     mrPublic                = False     # The Resource is exported from the Assembly.
@@ -712,19 +752,21 @@ class ClrManifestResourceFlags(ClrFlags):
 
 
 class CorGenericParamVariance(_enum.IntEnum):
-    # Variance of type parameters only applicable to generic parameters 
+    # Variance of type parameters only applicable to generic parameters
     # for generic interfaces and delegates
-    gpNonVariant            =   0x0000 
+    gpNonVariant            =   0x0000
     gpCovariant             =   0x0001
     gpContravariant         =   0x0002
     gpUnknown1              =   0x0003
 
+
 class CorGenericParamSpecialConstraint(_enum.IntEnum):
     # Special constraints applicable to any type parameters
-    gpNoSpecialConstraint               =   0x0000      
+    gpNoSpecialConstraint               =   0x0000
     gpReferenceTypeConstraint           =   0x0004  # type argument must be a reference type
     gpNotNullableValueTypeConstraint    =   0x0008  # type argument must be a value type but not Nullable
     gpDefaultConstructorConstraint      =   0x0010  # type argument must have a public default constructor
+
 
 class CorGenericParamAttr(ClrMetaDataEnum):
     gpVarianceMask          =   0x0003
@@ -733,16 +775,17 @@ class CorGenericParamAttr(ClrMetaDataEnum):
     gpSpecialConstraintMask     =   0x001C
     enumSpecialConstraint       =   CorGenericParamSpecialConstraint
 
+
 class ClrGenericParamAttr(ClrFlags):
 
-    # Variance of type parameters only applicable to generic parameters 
+    # Variance of type parameters only applicable to generic parameters
     # for generic interfaces and delegates
-    gpNonVariant            = False 
+    gpNonVariant            = False
     gpCovariant             = False
     gpContravariant         = False
 
     # Special constraints applicable to any type parameters
-    gpNoSpecialConstraint               = False      
+    gpNoSpecialConstraint               = False
     gpReferenceTypeConstraint           = False     # type argument must be a reference type
     gpNotNullableValueTypeConstraint    = False     # type argument must be a value type but not Nullable
     gpDefaultConstructorConstraint      = False     # type argument must have a public default constructor
@@ -750,7 +793,7 @@ class ClrGenericParamAttr(ClrFlags):
     corhdr_enum = CorGenericParamAttr
     _masks = {
         "gpVarianceMask": corhdr_enum.enumVariance,
-        #"gpSpecialConstraintMask": corhdr_enum.enumSpecialConstraint,
+        # "gpSpecialConstraintMask": corhdr_enum.enumSpecialConstraint,
     }
     _flags = (CorGenericParamSpecialConstraint, )
 

@@ -44,7 +44,7 @@ setup(
     keywords="dnfile",
     name="dnfile",
     packages=find_packages(where="src", include=["dnfile", "dnfile.*"]),
-    package_dir={"":"src"},
+    package_dir={"": "src"},
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,

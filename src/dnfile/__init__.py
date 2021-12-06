@@ -16,6 +16,7 @@ __author__ = """MalwareFrank"""
 __version__ = "0.8.0"
 
 
+import codecs
 import struct as _struct
 import copy as _copymod
 from typing import List, Dict
@@ -48,8 +49,6 @@ def handler(err):
     ]
     return (u"".join([elm[0].format(elm[1]) for elm in values]), end)
 
-
-import codecs
 
 codecs.register_error("backslashreplace_", handler)
 
@@ -118,7 +117,7 @@ class dnPE(_PE):
                                 ("RowSize", t.row_size),
                             ):
                                 dump.add_line(
-                                    "{0:<20}{1}".format(label+":",str(value)),
+                                    "{0:<20}{1}".format(label  + ":", str(value)),
                                     indent=2,
                                 )
                             dump.add_newline()
@@ -193,7 +192,7 @@ class dnPE(_PE):
             clr_entry_offset = dd_offset + (
                 DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR"] * dir_entry_size
             )
-            data = self.__data__[clr_entry_offset : clr_entry_offset + dir_entry_size]
+            data = self.__data__[clr_entry_offset:clr_entry_offset + dir_entry_size]
             dir_entry = self.__unpack_data__(
                 self.__IMAGE_DATA_DIRECTORY_format__, data, file_offset=clr_entry_offset
             )
@@ -297,9 +296,9 @@ class ClrMetaData(DataContainer):
             file_offset=pe.get_offset_from_rva(metadata_rva)
         )
         metadata_struct.__unpack__(struct_data)
-        #metadata_struct = pe.__unpack_data__(
-        #    struct_format, struct_data, pe.get_offset_from_rva(metadata_rva)
-        #)
+        # metadata_struct = pe.__unpack_data__(
+        #     struct_format, struct_data, pe.get_offset_from_rva(metadata_rva)
+        # )
         # add variable-length version field
         if metadata_struct.VersionLength > 0:
             struct_format[1].append(
@@ -389,7 +388,7 @@ class ClrStruct(Structure):
     ExportAddressTableJumpsSize: int = None
     ManagedNativeHeaderRva: int = None
     ManagedNativeHeaderSize: int = None
-    
+
 
 class ClrData(DataContainer):
     """Holds CLR (.NET) header data.
@@ -502,7 +501,7 @@ class ClrStreamFactory(object):
         [
             "I,Offset",
             "I,Size",
-            #'?,Name',
+            # '?,Name',
         ],
     )
 

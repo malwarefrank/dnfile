@@ -65,11 +65,11 @@ class BinaryHeap(base.ClrHeap):
         offset = index
         # read compressed int length
         data_length, length_size = read_compressed_int(
-            self.__data__[offset : offset + 4]
+            self.__data__[offset:offset + 4]
         )
         # read data
         offset = offset + length_size
-        data = self.__data__[offset : offset + data_length]
+        data = self.__data__[offset:offset + data_length]
         return data, length_size + data_length
 
     def get(self, index) -> bytes:
@@ -126,7 +126,7 @@ class GuidHeap(base.ClrHeap):
         if offset + size > len(self.__data__):
             raise IndexError("index out of range")
 
-        data = self.__data__[offset : offset + size]
+        data = self.__data__[offset:offset + size]
         if as_bytes:
             return data
         # convert to string
