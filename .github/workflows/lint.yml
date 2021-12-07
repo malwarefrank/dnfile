@@ -15,4 +15,4 @@ jobs:
     - name: Install dependencies
       run: pip install -e .[test]
     - name: Lint with pycodestyle
-      run: pycodestyle --show-source --show-pep8 src/dnfile examples
+      run: pycodestyle --show-source src/dnfile examples
