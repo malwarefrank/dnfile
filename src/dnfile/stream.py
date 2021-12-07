@@ -262,7 +262,7 @@ class MetaDataTables(base.ClrStream):
         self.strings_offset_size = strings_offset_size
         self.guids_offset_size = guids_offset_size
         self.blobs_offset_size = blobs_offset_size
-        
+
         #### heaps
         strings_heap: StringsHeap = None
         guid_heap: GuidHeap = None
@@ -294,11 +294,11 @@ class MetaDataTables(base.ClrStream):
                 table_rowcounts[i] = self.get_dword_at_rva(cur_rva)
                 # increment to next dword
                 cur_rva += 4
-        
+
         # consume an extra dword if the extra data bit is set
         if header_struct.HeapOffsetSizes & EXTRA_DATA_MASK == EXTRA_DATA_MASK:
             cur_rva += 4
-        
+
         # initialize all tables
         for i in range(MAX_TABLES):
             # if table bit is set
