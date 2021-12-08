@@ -50,7 +50,7 @@ class Formatter:
 
     def hexdump(self, buf: bytes, address=0):
         for chunk_offset in range(0, len(buf), 0x10):
-            chunk = buf[chunk_offset:chunk_offset+0x10]
+            chunk = buf[chunk_offset:chunk_offset + 0x10]
 
             self._write_indent()
             self._s.write("0x%08x:  " % (address + chunk_offset))
