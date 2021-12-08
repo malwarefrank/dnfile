@@ -42,3 +42,23 @@ def test_streams():
 
     assert b"#Foo" not in dn.net.metadata.streams
     assert not hasattr(dn.net, "foo")
+
+
+def test_tables():
+    path = fixtures.get_data_path_by_name("hello-world.exe")
+
+    dn = dnfile.dnPE(path)
+
+    for table in ["Module", "TypeRef", "TypeDef", "MethodDef", "Param", "MemberRef", "CustomAttribute", "Assembly", "AssemblyRef"]:
+        assert hasattr(dn.net.mdtables, table)
+
+    assert not hasattr(dn.net.mdtables, "foo")
+
+
+def test_module():
+    path = fixtures.get_data_path_by_name("hello-world.exe")
+
+    dn = dnfile.dnPE(path)
+
+    assert dn.net.mdtables.Module.rows[0].Name == "1-hello-world.exe"
+
