@@ -153,6 +153,10 @@ class TypeDefRow(MDTableRow):
     _struct_flags = {
         "Flags": ("Flags", enums.ClrTypeAttr),
     }
+    _struct_lists = {
+        "FieldList_Index": ("FieldList", "Field"),
+        "MethodList_Index": ("MethodList", "MethodDef"),
+    }
 
     def _init_format(self):
         extends_size = self._clr_coded_index_struct_size(
@@ -286,6 +290,9 @@ class MethodDefRow(MDTableRow):
     }
     _struct_blobs = {
         "Signature_BlobIndex": "Signature",
+    }
+    _struct_lists = {
+        "ParamList_Index": ("ParamList", "Param"),
     }
 
     def _init_format(self):

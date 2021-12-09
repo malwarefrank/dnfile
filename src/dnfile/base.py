@@ -247,9 +247,51 @@ class MDTableRow(abc.ABC):
                         setattr(self, attr_name, None)
                         # TODO error/warn
         # if lists
-        if self._struct_lists:
-            # TODO
-            pass
+        if self._struct_lists and tables:
+            for struct_name, (attr_name, table_name) in self._struct_lists.items():
+                table = None
+                for t in tables:
+                    # TODO(wb): use an index here
+                    if t.name == table_name:
+                        table = t
+
+                if not table:
+                    # target table is not present,
+                    # such as is there is no Field table in hello-world.exe,
+                    # so the references below must, by defintion, be empty.
+                    setattr(self, attr_name, [])
+                    continue
+
+                run = []
+
+                run_start_index = getattr(self.struct, struct_name, None)
+                if run_start_index is not None:
+                    max_row = table.num_rows
+                    if next_row is not None:
+                        # then we read from the target table, 
+                        # from the row referenced by this row,
+                        # until the row referenced by the next row (`next_row`),
+                        # or the end of the table.
+                        next_row_reference = getattr(next_row.struct, struct_name, None)
+                        run_end_index = max_row
+                        if next_row_reference is not None:
+                            run_end_index = min(next_row_reference, max_row)
+
+                    else:
+                        # then we read from the target table,
+                        # from the row referenced by this row,
+                        # until the end of the table.
+                        run_end_index = max_row
+
+                    # when this run starts at the last index,
+                    # start == end and end == max_row.
+                    # otherwise, if start == end, then run is empty.
+                    if (run_start_index != run_end_index) or (run_end_index == max_row):
+                        # row indexes are 1-indexed, so our range goes to end+1
+                        for row_index in range(run_start_index, run_end_index + 1):
+                            run.append(table.get_with_row_index(row_index))
+
+                setattr(self, attr_name, run)
 
     def _table_name2num(self, name, tables: List["ClrMetaDataTable"]):
         for t in tables:
