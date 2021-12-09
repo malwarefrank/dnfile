@@ -165,7 +165,7 @@ class MDTableRow(abc.ABC):
         self.struct = self._struct_class(format=self._format, file_offset=offset)
         self.struct.__unpack__(data)
 
-    def parse(self, tables: List["ClrMetaDataTable"]):
+    def parse(self, tables: List["ClrMetaDataTable"], next_row: Optional["MDTableRow"]):
         """
         Parse the row data and set object attributes.  Should only be called after all rows of all tables
         have been initialized, i.e. parse_rows() has been called on each table in the tables list.
@@ -407,7 +407,7 @@ class ClrMetaDataTable(collections.abc.Sequence):
             )
             offset += self.row_size
 
-    def parse(self, table: List["ClrMetaDataTable"]):
+    def parse(self, tables: List["ClrMetaDataTable"]):
         """
         Fully parse the table, resolving references to heaps, indexes into other
         tables, and coded indexes into other tables.
@@ -417,9 +417,13 @@ class ClrMetaDataTable(collections.abc.Sequence):
         """
 
         # for each row in table
-        for r in self.rows:
+        for i, r in enumerate(self.rows):
+            next_row = None
+            if i + 1 < len(self.rows):
+                next_row = self.rows[i + 1]
+
             # fully parse the row
-            r.parse(table)
+            r.parse(tables, next_row=next_row)
 
     def __getitem__(self, index: int):
         return self.rows[index]
