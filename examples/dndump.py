@@ -184,7 +184,7 @@ def render_pe(ostream: Formatter, dn):
                                 # such as Lists, see:
                                 # https://github.com/malwarefrank/dnfile/blob/cc97eca757da9f4c850188eb02ea6f72ecefeea7/src/dnfile/base.py#L250-L252
                                 logger.warning("not implemented: %s.%s", table.name, field)
-                                value = "<TODO: not implemented in dnlib>"
+                                value = "<TODO: not implemented in dnfile>"
                             else:
                                 if isinstance(v, dnfile.base.CodedIndex):
                                     value = "ref table %s[%d]" % (v.table.name, v.row_index)
