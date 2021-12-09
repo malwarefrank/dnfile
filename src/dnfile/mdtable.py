@@ -153,6 +153,9 @@ class TypeDefRow(MDTableRow):
     _struct_flags = {
         "Flags": ("Flags", enums.ClrTypeAttr),
     }
+    _struct_codedindexes = {
+        "Extends_CodedIndex": ("Extends", codedindex.TypeDefOrRef),
+    }
     _struct_lists = {
         "FieldList_Index": ("FieldList", "Field"),
         "MethodList_Index": ("MethodList", "MethodDef"),
