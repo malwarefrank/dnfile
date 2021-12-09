@@ -79,12 +79,12 @@ def test_typedef_extends():
     assert extends.table.name == "TypeRef"
     assert extends.row_index == 5
 
-    superclass = extends.table.get_with_row_index(extends.row_index)
+    superclass = extends.row
     assert superclass.TypeNamespace == "System"
     assert superclass.TypeName == "Object"
 
     assert superclass.ResolutionScope.table.name == "AssemblyRef"
-    assembly = superclass.ResolutionScope.table.get_with_row_index(superclass.ResolutionScope.row_index)
+    assembly = superclass.ResolutionScope.row
     assert assembly.Name == "mscorlib"
 
 
@@ -106,8 +106,8 @@ def test_typedef_members():
     # HelloWorld has two methods: Main and .ctor
     assert len(typedefs[1].MethodList) == 2
 
-    assert typedefs[1].MethodList[0].Name == "Main"
-    assert typedefs[1].MethodList[1].Name == ".ctor"
+    assert typedefs[1].MethodList[0].row.Name == "Main"
+    assert typedefs[1].MethodList[1].row.Name == ".ctor"
 
 
 def test_method_params():
@@ -124,4 +124,4 @@ def test_method_params():
     # instance default void '.ctor' ()  cil managed 
     assert len(methods[1].ParamList) == 0
 
-    methods[0].ParamList[0].Name == "args"
+    methods[0].ParamList[0].row.Name == "args"
