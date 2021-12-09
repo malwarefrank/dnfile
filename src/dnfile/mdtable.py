@@ -156,6 +156,8 @@ class TypeDefRow(MDTableRow):
     _struct_lists = {
         "FieldList_Index": ("FieldList", "Field"),
         "MethodList_Index": ("MethodList", "MethodDef"),
+    _struct_codedindexes = {
+        "Extends_CodedIndex": ("Extends", codedindex.TypeDefOrRef),
     }
 
     def _init_format(self):
