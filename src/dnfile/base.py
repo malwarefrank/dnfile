@@ -267,7 +267,7 @@ class MDTableRow(abc.ABC):
                 if run_start_index is not None:
                     max_row = table.num_rows
                     if next_row is not None:
-                        # then we read from the target table, 
+                        # then we read from the target table,
                         # from the row referenced by this row,
                         # until the row referenced by the next row (`next_row`),
                         # or the end of the table.
