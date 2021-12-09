@@ -241,8 +241,7 @@ class MDTableRow(abc.ABC):
                 if table:
                     i = getattr(self.struct, struct_name, None)
                     if i is not None and i <= table.num_rows:
-                        row = table.get_with_row_index(i)
-                        setattr(self, attr_name, row)
+                        setattr(self, attr_name, MDTableIndexRef(table, row_index))
                     else:
                         setattr(self, attr_name, None)
                         # TODO error/warn
@@ -289,7 +288,7 @@ class MDTableRow(abc.ABC):
                     if (run_start_index != run_end_index) or (run_end_index == max_row):
                         # row indexes are 1-indexed, so our range goes to end+1
                         for row_index in range(run_start_index, run_end_index + 1):
-                            run.append(table.get_with_row_index(row_index))
+                            run.append(MDTableIndexRef(table, row_index))
 
                 setattr(self, attr_name, run)
 
@@ -496,21 +495,6 @@ class MDTableIndex(object):
     row_index: int
     row: MDTableRow
 
-    _table_class: Type[ClrMetaDataTable]
-
-    # TODO: figure out how and when to recursively resolve refs, and detect cycles
-
-    def __init__(self, value, tables_list: List[ClrMetaDataTable]):
-        self.row_index = value
-        for t in tables_list:
-            if isinstance(t, self._table_class):
-                self.table = t
-                if self.row_index > t.num_rows:
-                    # TODO error/warn
-                    self.row = None
-                    return
-                self.row = t.rows[self.row_index - 1]
-
 
 class CodedIndex(MDTableIndex):
     tag_bits: int
@@ -527,3 +511,10 @@ class CodedIndex(MDTableIndex):
                     self.row = None
                     return
                 self.row = t.rows[self.row_index - 1]
+
+
+class MDTableIndexRef(MDTableIndex):
+    def __init__(self, table, row_index):
+        self.table = table
+        self.row_index = row_index
+        self.row = table.get_with_row_index(row_index)
