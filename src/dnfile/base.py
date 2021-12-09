@@ -427,6 +427,15 @@ class ClrMetaDataTable(collections.abc.Sequence):
     def __len__(self):
         return len(self.rows)
 
+    def get_with_row_index(self, row_index: int):
+        """
+        fetch the row with the given row index.
+        remember: row indices, at least those encoded within a .NET file, are 1-based.
+        so, you should prefer to use this method when you get a reference to a row.
+        use `__getitem__` when you want 0-based indexing.
+        """
+        return self[row_index - 1]
+
 
 class MDTableIndex(object):
     """
