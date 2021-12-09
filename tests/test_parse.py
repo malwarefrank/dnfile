@@ -1,6 +1,6 @@
-import dnfile
-
 import fixtures
+
+import dnfile
 
 
 def test_metadata():

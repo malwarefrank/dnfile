@@ -17,7 +17,6 @@ import dnfile
 import dnfile.base
 import dnfile.enums
 
-
 logger = logging.getLogger(__name__)
 
 
