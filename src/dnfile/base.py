@@ -63,7 +63,7 @@ class ClrStream(abc.ABC):
     def get_data_at_offset(self, offset, size):
         if size == 0 or offset >= self.sizeof():
             return b""
-        return self.__data__[offset : offset + size]
+        return self.__data__[offset:offset + size]
 
     def get_data_at_rva(self, rva, size):
         offset = rva - self.rva
@@ -403,11 +403,11 @@ class ClrMetaDataTable(collections.abc.Sequence):
                     )
                 )
             self.rows[i].set_data(
-                data[offset : offset + self.row_size], offset=self.rva + offset
+                data[offset:offset + self.row_size], offset=self.rva + offset
             )
             offset += self.row_size
 
-    def parse(self, l: List["ClrMetaDataTable"]):
+    def parse(self, table: List["ClrMetaDataTable"]):
         """
         Fully parse the table, resolving references to heaps, indexes into other
         tables, and coded indexes into other tables.
@@ -419,7 +419,7 @@ class ClrMetaDataTable(collections.abc.Sequence):
         # for each row in table
         for r in self.rows:
             # fully parse the row
-            r.parse(l)
+            r.parse(table)
 
     def __getitem__(self, index: int):
         return self.rows[index]

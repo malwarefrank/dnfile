@@ -19,6 +19,7 @@ setup_requirements = [
 test_requirements = [
     "pytest>=3",
     "isort==5.2.0",
+    "pycodestyle==2.8.0",
 ]
 
 setup(
@@ -44,7 +45,7 @@ setup(
     keywords="dnfile",
     name="dnfile",
     packages=find_packages(where="src", include=["dnfile", "dnfile.*"]),
-    package_dir={"":"src"},
+    package_dir={"": "src"},
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,

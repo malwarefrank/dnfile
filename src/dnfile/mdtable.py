@@ -152,6 +152,9 @@ class TypeDefRow(MDTableRow):
     _struct_flags = {
         "Flags": ("Flags", enums.ClrTypeAttr),
     }
+    _struct_codedindexes = {
+        "Extends_CodedIndex": ("Extends", codedindex.TypeDefOrRef),
+    }
 
     def _init_format(self):
         extends_size = self._clr_coded_index_struct_size(

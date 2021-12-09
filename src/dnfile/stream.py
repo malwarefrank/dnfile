@@ -62,11 +62,11 @@ class BinaryHeap(base.ClrHeap):
         offset = index
         # read compressed int length
         data_length, length_size = read_compressed_int(
-            self.__data__[offset : offset + 4]
+            self.__data__[offset:offset + 4]
         )
         # read data
         offset = offset + length_size
-        data = self.__data__[offset : offset + data_length]
+        data = self.__data__[offset:offset + data_length]
         return data, length_size + data_length
 
     def get(self, index) -> bytes:
@@ -123,7 +123,7 @@ class GuidHeap(base.ClrHeap):
         if offset + size > len(self.__data__):
             raise IndexError("index out of range")
 
-        data = self.__data__[offset : offset + size]
+        data = self.__data__[offset:offset + size]
         if as_bytes:
             return data
         # convert to string
@@ -223,7 +223,10 @@ class MetaDataTables(base.ClrStream):
 
         STRINGS_MASK = 0x01
         GUIDS_MASK = 0x02
-        BLOBS_MASK = 0x03
+        BLOBS_MASK = 0x04
+        DELTA_ONLY_MASK = 0x20
+        EXTRA_DATA_MASK = 0x40
+        HAS_DELETE_MASK = 0x80
         MAX_TABLES = 64
 
         warnings = list()
@@ -288,6 +291,11 @@ class MetaDataTables(base.ClrStream):
                 table_rowcounts[i] = self.get_dword_at_rva(cur_rva)
                 # increment to next dword
                 cur_rva += 4
+
+        # consume an extra dword if the extra data bit is set
+        if header_struct.HeapOffsetSizes & EXTRA_DATA_MASK == EXTRA_DATA_MASK:
+            cur_rva += 4
+
         # initialize all tables
         for i in range(MAX_TABLES):
             # if table bit is set

@@ -16,3 +16,21 @@ jobs:
       run: pip install -e .[test]
     - name: Lint with isort
       run: isort --profile black --length-sort --line-width 120 -c .
+    - name: Lint with pycodestyle
+      run: pycodestyle --show-source src/dnfile examples
+
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout dnfile
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.8"
+    - name: Install dependencies
+      run: pip install -e .[test]
+    - name: Run tests
+      run: pytest -v tests/
