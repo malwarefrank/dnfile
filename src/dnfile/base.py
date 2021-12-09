@@ -250,7 +250,6 @@ class MDTableRow(abc.ABC):
             for struct_name, (attr_name, table_name) in self._struct_lists.items():
                 table = None
                 for t in tables:
-                    # TODO(wb): use an index here
                     if t.name == table_name:
                         table = t
 
