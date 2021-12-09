@@ -234,14 +234,14 @@ class MDTableRow(abc.ABC):
         # if indexes
         if self._struct_indexes and tables:
             for struct_name, (attr_name, table_name) in self._struct_indexes.items():
-                table_object = None
+                table = None
                 for t in tables:
                     if t.name == table_name:
-                        table_object = t
-                if table_object:
+                        table = t
+                if table:
                     i = getattr(self.struct, struct_name, None)
-                    if i is not None and i < t.num_rows:
-                        row = t.rows[i]
+                    if i is not None and i <= table.num_rows:
+                        row = table.get_with_row_index(i)
                         setattr(self, attr_name, row)
                     else:
                         setattr(self, attr_name, None)
