@@ -28,19 +28,15 @@ class StreamStruct(Structure):
 
 
 class ClrStream(abc.ABC):
-    struct: StreamStruct
-    rva: int
-    __data__: bytes
-
     def __init__(
         self,
         metadata_rva: int,
         stream_struct: StreamStruct,
         stream_data: bytes,
     ):
-        self.struct = stream_struct
-        self.rva = metadata_rva + stream_struct.Offset
-        self.__data__ = stream_data
+        self.struct: StreamStruct = stream_struct
+        self.rva: int = metadata_rva + stream_struct.Offset
+        self.__data__: bytes = stream_data
         self._stream_table_entry_size = stream_struct.sizeof()
         self._data_size = len(stream_data)
 
