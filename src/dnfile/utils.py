@@ -31,8 +31,7 @@ def read_compressed_int(data):
     Returns tuple: value, number of bytes read
     """
     if not data:
-        # TODO: error
-        return None
+        raise ValueError("no data")
     if data[0] & 0x80 == 0:
         # values 0x00 to 0x7f
         return data[0], 1
@@ -48,7 +47,8 @@ def read_compressed_int(data):
         value |= data[2] << 8
         value |= data[3]
         return value, 4
-    # TODO: error
+    else:
+        raise ValueError("invalid compressed int")
 
 
 def two_way_dict(pairs):

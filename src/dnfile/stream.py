@@ -55,17 +55,22 @@ class StringsHeap(base.ClrHeap):
 
 class BinaryHeap(base.ClrHeap):
     def get_with_size(self, index) -> Tuple[bytes, int]:
+        if self.__data__ is None:
+            raise ValueError("no data")
+
         if index >= len(self.__data__):
             raise IndexError("index out of range")
 
         offset = index
+
         # read compressed int length
-        data_length, length_size = read_compressed_int(
-            self.__data__[offset:offset + 4]
-        )
+        buf = self.__data__[offset:offset + 4]
+        data_length, length_size = read_compressed_int(buf)
+
         # read data
         offset = offset + length_size
         data = self.__data__[offset:offset + data_length]
+
         return data, length_size + data_length
 
     def get(self, index) -> bytes:
