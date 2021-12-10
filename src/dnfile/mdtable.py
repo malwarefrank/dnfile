@@ -11,7 +11,7 @@ REFERENCES
 
 Copyright (c) 2020-2021 MalwareFrank
 """
-from typing import TYPE_CHECKING, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Dict, List, Type, Optional
 
 from . import enums, utils, errors, codedindex
 from .base import RowStruct, MDTableRow, MDTableIndex, ClrMetaDataTable
