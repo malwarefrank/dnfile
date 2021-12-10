@@ -1294,8 +1294,10 @@ class AssemblyRow(MDTableRow):
     _struct_class = AssemblyRowStruct
 
     _struct_flags = {
-        "HashAlgId": ("HashAlgId", enums.AssemblyHashAlgorithm),
         "Flags": ("Flags", enums.ClrAssemblyFlags),
+    }
+    _struct_enums = {
+        "HashAlgId": ("HashAlgId", enums.AssemblyHashAlgorithm),
     }
     _struct_asis = {
         "MajorVersion": "MajorVersion",

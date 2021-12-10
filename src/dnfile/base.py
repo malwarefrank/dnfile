@@ -5,10 +5,11 @@
 Copyright (c) 2020-2021 MalwareFrank
 """
 import abc
+import enum
 import struct as _struct
 import typing
 import logging
-from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Generic, TypeVar, Optional, Sequence
+from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Generic, TypeVar, Optional, Sequence, Union
 
 from pefile import Structure
 
@@ -139,6 +140,7 @@ class MDTableRow(abc.ABC):
     #  - guids: resolve via GUID table
     #  - blobs: resolve via Blob table
     #  - flags: resolve via flags provided as subclass properties
+    #  - enums: resolve via enums provided as subclass properties
     #  - indexes: resolve via given table name
     #  - lists: resolve many items via given table name
     #  - codedindexes: resolve via candidate list of tables
@@ -149,6 +151,7 @@ class MDTableRow(abc.ABC):
     _struct_codedindexes: Dict[str, Tuple[str, Type["CodedIndex"]]]  # also CodedIndex subclass
     _struct_indexes: Dict[str, Tuple[str, str]]                      # also Metadata table name
     _struct_flags: Dict[str, Tuple[str, Type[enums.ClrFlags]]]       # also ClrFlags subclass
+    _struct_enums: Dict[str, Tuple[str, Type[enum.IntEnum]]]         # also enum.IntEnum subclassA
     _struct_lists: Dict[str, Tuple[str, str]]                        # also Metadata table name
 
     def __init__(
@@ -278,14 +281,27 @@ class MDTableRow(abc.ABC):
                 # Set the flags according to the Flags member
                 v = getattr(self.struct, struct_name, None)
                 if v is None:
-                    logger.warning("failed to fetch flag: unable to parse data")
+                    logger.warning("failed to fetch flag: no data")
                     continue
 
                 try:
-                    flag_object = flag_class(v)
-                    setattr(self, attr_name, flag_object)
+                    setattr(self, attr_name, flag_class(v))
                 except ValueError:
-                    logger.warning("failed to fetch flag: unable to parse data")
+                    logger.warning("failed to fetch flag: invalid flag data")
+
+        # if enums
+        if hasattr(self.__class__, "_struct_enums"):
+            for struct_name, (attr_name, enum_class) in self.__class__._struct_enums.items():
+                # Set the value according to the Enum member
+                v = getattr(self.struct, struct_name, None)
+                if v is None:
+                    logger.warning("failed to fetch enum: no data")
+                    continue
+
+                try:
+                    setattr(self, attr_name, enum_class(v))
+                except ValueError:
+                    logger.warning("failed to fetch enum: invalid enum data")
 
         # if indexes
         if hasattr(self.__class__, "_struct_indexes") and tables:
