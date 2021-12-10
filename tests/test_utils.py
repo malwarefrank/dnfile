@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
+import pytest
 
-import dnfile
+import dnfile.utils
 
 
 def test_compressed_int():
@@ -12,11 +13,13 @@ def test_compressed_int():
 
 
 def test_struct_char():
-    assert None is dnfile.utils.num_bytes_to_struct_char(42)
+    with pytest.raises(ValueError):
+        dnfile.utils.num_bytes_to_struct_char(42)
     assert "Q" == dnfile.utils.num_bytes_to_struct_char(8)
     assert "Q" == dnfile.utils.num_bytes_to_struct_char(5)
     assert "I" == dnfile.utils.num_bytes_to_struct_char(4)
     assert "I" == dnfile.utils.num_bytes_to_struct_char(3)
     assert "H" == dnfile.utils.num_bytes_to_struct_char(2)
     assert "B" == dnfile.utils.num_bytes_to_struct_char(1)
-    assert None is dnfile.utils.num_bytes_to_struct_char(0)
+    with pytest.raises(ValueError):
+        dnfile.utils.num_bytes_to_struct_char(0)

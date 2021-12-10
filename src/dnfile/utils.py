@@ -64,13 +64,14 @@ def num_bytes_to_struct_char(n: int) -> str:
         4 = I
     """
     if n > 8:
-        return None
-    if n > 4:
+        raise ValueError("invalid format specifier: " + str(n))
+    elif n > 4:
         return "Q"
-    if n > 2:
+    elif n > 2:
         return "I"
-    if n > 1:
+    elif n > 1:
         return "H"
-    if n == 1:
+    elif n == 1:
         return "B"
-    return None
+    else:
+        raise ValueError("invalid format specifier: " + str(n))
