@@ -14,6 +14,8 @@ jobs:
         python-version: "3.8"
     - name: Install dependencies
       run: pip install -e .[test]
+    - name: Lint with isort
+      run: isort --profile black --length-sort --line-width 120 -c .
     - name: Lint with pycodestyle
       run: pycodestyle --show-source src/dnfile examples
 

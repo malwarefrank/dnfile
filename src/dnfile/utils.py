@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import functools as _functools
 import copy as _copymod
+import functools as _functools
 
 from pefile import Structure
 

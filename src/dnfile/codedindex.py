@@ -12,10 +12,9 @@ REFERENCES
 Copyright (c) 2020-2021 MalwareFrank
 """
 
-from typing import Tuple, List
+from typing import List, Tuple
 
 from .base import CodedIndex
-
 
 # TODO add table_numbers to all
 

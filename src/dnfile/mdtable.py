@@ -15,9 +15,8 @@ Copyright (c) 2020-2021 MalwareFrank
 
 from typing import List, Type
 
-from .base import MDTableRow, ClrMetaDataTable, RowStruct, ClrHeap
-from . import utils, codedindex, enums
-
+from . import enums, utils, codedindex
+from .base import ClrHeap, RowStruct, MDTableRow, ClrMetaDataTable
 
 #### Module Table
 #
