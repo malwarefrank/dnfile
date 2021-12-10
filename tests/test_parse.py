@@ -73,7 +73,7 @@ def test_typedef_extends():
     assert typedefs[1].TypeName == "HelloWorld"
 
     #   .class public auto ansi beforefieldinit HelloWorld
-  	#      extends [mscorlib]System.Object
+    #      extends [mscorlib]System.Object
 
     extends = typedefs[1].Extends
     assert extends.table.name == "TypeRef"
@@ -119,9 +119,9 @@ def test_method_params():
     assert methods[0].Name == "Main"
     assert methods[1].Name == ".ctor"
 
-    # default void Main (string[] args)  cil managed 
+    # default void Main (string[] args)  cil managed
     assert len(methods[0].ParamList) == 1
-    # instance default void '.ctor' ()  cil managed 
+    # instance default void '.ctor' ()  cil managed
     assert len(methods[1].ParamList) == 0
 
     methods[0].ParamList[0].row.Name == "args"

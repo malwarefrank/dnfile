@@ -17,7 +17,7 @@ jobs:
     - name: Lint with isort
       run: isort --profile black --length-sort --line-width 120 -c .
     - name: Lint with pycodestyle
-      run: pycodestyle --show-source src/dnfile examples
+      run: pycodestyle --show-source src/dnfile examples tests
 
   test:
     runs-on: ubuntu-20.04
