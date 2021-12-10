@@ -241,7 +241,7 @@ class MDTableRow(abc.ABC):
                 if table:
                     i = getattr(self.struct, struct_name, None)
                     if i is not None and i <= table.num_rows:
-                        setattr(self, attr_name, MDTableIndexRef(table, row_index))
+                        setattr(self, attr_name, MDTableIndexRef(table, i))
                     else:
                         setattr(self, attr_name, None)
                         # TODO error/warn
