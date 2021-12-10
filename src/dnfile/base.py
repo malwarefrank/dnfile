@@ -47,6 +47,7 @@ class ClrStream(abc.ABC):
         self._stream_table_entry_size = stream_struct.sizeof()
         self._data_size = len(stream_data)
 
+    @abc.abstractmethod
     def parse(self, streams: List):
         """
         Parse the stream.
@@ -87,6 +88,7 @@ class ClrStream(abc.ABC):
 
 
 class ClrHeap(ClrStream):
+    @abc.abstractmethod
     def get(self, index):
         raise NotImplementedError()
 
