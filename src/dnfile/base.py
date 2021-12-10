@@ -7,6 +7,7 @@ Copyright (c) 2020-2021 MalwareFrank
 
 
 import abc
+import logging
 import struct as _struct
 import collections
 import collections.abc
@@ -18,6 +19,10 @@ from . import enums, errors
 
 if TYPE_CHECKING:
     from . import streams
+
+
+logger = logging.getLogger(__name__)
+
 
 class StreamStruct(Structure):
     Name: bytes
@@ -516,15 +521,18 @@ class CodedIndex(MDTableIndex):
         self.row = None
         self.row_index = value >> self.tag_bits
         for t in tables_list:
+            # TODO: use an index here
             if t.name == table_name:
                 self.table = t
+
                 if self.row_index > t.num_rows:
-                    # TODO error/warn
+                    logger.warning("invalid row index: table: %s, index: %d", table_name, self.row_index)
                     self.row = None
                 else:
                     self.row = t.get_with_row_index(self.row_index)
 
                 return
+
 
 class MDTableIndexRef(MDTableIndex):
     def __init__(self, table, row_index):
