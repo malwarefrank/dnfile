@@ -4,14 +4,11 @@
 
 Copyright (c) 2020-2021 MalwareFrank
 """
-
-
 import abc
 import logging
 import struct as _struct
-import collections
-import collections.abc
-from typing import Dict, List, Type, Tuple, Optional, TYPE_CHECKING
+import typing
+from typing import Dict, List, Type, Tuple, Optional, TypeVar, Generic, Sequence, TYPE_CHECKING
 
 from pefile import Structure
 
@@ -47,7 +44,6 @@ class ClrStream(abc.ABC):
         self._stream_table_entry_size = stream_struct.sizeof()
         self._data_size = len(stream_data)
 
-    @abc.abstractmethod
     def parse(self, streams: List):
         """
         Parse the stream.
@@ -349,12 +345,75 @@ class MDTablesStruct(Structure):
     MaskSorted: int
 
 
-class ClrMetaDataTable(collections.abc.Sequence):
+# This type describes the type of row that a table contains.
+# For example, the Module table contains ModuleRows,
+# so it inherits like this:
+#
+#     class Module(ClrMetaDataTable[ModuleRow]):
+#         ...
+#
+# This lets us specify that `dnfile.mdtables.Module[0]` is a ModuleRow
+# and therefore has properties Name, Generation, etc.
+#
+# Instances of these types must be subclasses of MDTableRow.
+RowType = TypeVar('RowType', bound=MDTableRow)
+
+
+class MDTableIndex(Generic[RowType]):
+    """
+    An index into a Metadata Table.
+
+    Attributes:
+        table           Table object.
+        row_index       Index number of the row.
+        row             The referenced row or None if invalid.
+    """
+
+    table: "ClrMetaDataTable"
+    row_index: int
+    row: Optional[RowType]
+
+
+class CodedIndex(MDTableIndex[RowType]):
+    """
+    Subclasses should be sure to set the following attributes:
+      - tag_bits        Number of bits used to specify the table name index.
+      - table_names     Candidate list of table names.
+    """
+    tag_bits: int
+    table_names: Sequence[str]
+
+    def __init__(self, value, tables_list: List["ClrMetaDataTable"]):
+        table_name = self.table_names[value & (2 ** self.tag_bits - 1)]
+        self.row = None
+        self.row_index = value >> self.tag_bits
+        for t in tables_list:
+            # TODO: use an index here
+            if t.name == table_name:
+                self.table = t
+
+                if self.row_index > t.num_rows:
+                    logger.warning("invalid row index: table: %s, index: %d", table_name, self.row_index)
+                    self.row = None
+                else:
+                    self.row = t.get_with_row_index(self.row_index)
+
+                return
+
+
+class MDTableIndexRef(MDTableIndex[RowType]):
+    def __init__(self, table, row_index):
+        self.table = table
+        self.row_index = row_index
+        self.row = table.get_with_row_index(row_index)
+
+
+class ClrMetaDataTable(typing.Sequence[RowType]):
     """
     An abstract class for Metadata tables.  Rows can be accessed
-    directly like a list with bracket [] syntax.
+     directly like a list with bracket [] syntax.
     Use `get_with_row_index` when you have a Rid/token/row_index,
-    since these are 1-indexed.
+     since these are 1-indexed.
     Use bracket [] syntax when you want 0-indexing.
 
     Subclasses should make sure to set the following attributes:
@@ -369,13 +428,14 @@ class ClrMetaDataTable(collections.abc.Sequence):
     name: str = None
     num_rows: int = 0
     row_size: int = 0
-    rows: List[MDTableRow] = None
     is_sorted = False
+    rows: List[RowType]
+    # TODO: where is this ever set???
     rva: int = 0
 
     _format: Tuple = None
     _flags: Tuple = None
-    _row_class: Type[MDTableRow] = None
+    _row_class: Type[RowType]
     _table_data: bytes
 
     def __init__(
@@ -420,8 +480,8 @@ class ClrMetaDataTable(collections.abc.Sequence):
 
     def _init_rows(self):
         if self._row_class:
-            for i in range(self.num_rows):
-                r: MDTableRow
+            for _ in range(self.num_rows):
+                r: RowType
                 r = self._row_class(
                     self._tables_rowcounts,
                     self._strings_offset_size,
@@ -479,21 +539,21 @@ class ClrMetaDataTable(collections.abc.Sequence):
         """
 
         # for each row in table
-        for i, r in enumerate(self.rows):
+        for i, row in enumerate(self.rows):
             next_row = None
             if i + 1 < len(self.rows):
                 next_row = self.rows[i + 1]
 
             # fully parse the row
-            r.parse(tables, next_row=next_row)
+            row.parse(tables, next_row=next_row)
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> RowType:
         return self.rows[index]
 
     def __len__(self):
         return len(self.rows)
 
-    def get_with_row_index(self, row_index: int):
+    def get_with_row_index(self, row_index: int) -> RowType:
         """
         fetch the row with the given row index.
         remember: row indices, at least those encoded within a .NET file, are 1-based.
@@ -501,46 +561,3 @@ class ClrMetaDataTable(collections.abc.Sequence):
         use `__getitem__` when you want 0-based indexing.
         """
         return self[row_index - 1]
-
-
-class MDTableIndex(object):
-    """
-    An index into a Metadata Table.
-
-    Attributes:
-        table           Table object.
-        row_index       Index number of the row.
-    """
-
-    table: ClrMetaDataTable
-    row_index: int
-    row: Optional[MDTableRow]
-
-
-class CodedIndex(MDTableIndex):
-    tag_bits: int
-    table_names: Tuple[str]
-
-    def __init__(self, value, tables_list: List[ClrMetaDataTable]):
-        table_name = self.table_names[value & (2 ** self.tag_bits - 1)]
-        self.row = None
-        self.row_index = value >> self.tag_bits
-        for t in tables_list:
-            # TODO: use an index here
-            if t.name == table_name:
-                self.table = t
-
-                if self.row_index > t.num_rows:
-                    logger.warning("invalid row index: table: %s, index: %d", table_name, self.row_index)
-                    self.row = None
-                else:
-                    self.row = t.get_with_row_index(self.row_index)
-
-                return
-
-
-class MDTableIndexRef(MDTableIndex):
-    def __init__(self, table, row_index):
-        self.table = table
-        self.row_index = row_index
-        self.row = table.get_with_row_index(row_index)

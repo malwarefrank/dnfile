@@ -1,6 +1,7 @@
 import fixtures
 
 import dnfile
+from dnfile.mdtable import TypeRefRow, AssemblyRefRow
 
 
 def test_metadata():
@@ -60,7 +61,7 @@ def test_module():
 
     dn = dnfile.dnPE(path)
 
-    assert dn.net.mdtables.Module.rows[0].Name == "1-hello-world.exe"
+    assert dn.net.mdtables.Module[0].Name == "1-hello-world.exe"
 
 
 def test_typedef_extends():
@@ -68,7 +69,7 @@ def test_typedef_extends():
 
     dn = dnfile.dnPE(path)
 
-    typedefs = dn.net.mdtables.TypeDef.rows
+    typedefs = dn.net.mdtables.TypeDef
     assert typedefs[0].TypeName == "<Module>"
     assert typedefs[1].TypeName == "HelloWorld"
 
@@ -80,11 +81,13 @@ def test_typedef_extends():
     assert extends.row_index == 5
 
     superclass = extends.row
+    assert isinstance(superclass, TypeRefRow)
     assert superclass.TypeNamespace == "System"
     assert superclass.TypeName == "Object"
 
     assert superclass.ResolutionScope.table.name == "AssemblyRef"
     assembly = superclass.ResolutionScope.row
+    assert isinstance(assembly, AssemblyRefRow)
     assert assembly.Name == "mscorlib"
 
 
@@ -93,7 +96,7 @@ def test_typedef_members():
 
     dn = dnfile.dnPE(path)
 
-    typedefs = dn.net.mdtables.TypeDef.rows
+    typedefs = dn.net.mdtables.TypeDef
     assert typedefs[0].TypeName == "<Module>"
     assert typedefs[1].TypeName == "HelloWorld"
 
@@ -115,7 +118,7 @@ def test_method_params():
 
     dn = dnfile.dnPE(path)
 
-    methods = dn.net.mdtables.MethodDef.rows
+    methods = dn.net.mdtables.MethodDef
     assert methods[0].Name == "Main"
     assert methods[1].Name == ".ctor"
 
@@ -124,4 +127,6 @@ def test_method_params():
     # instance default void '.ctor' ()  cil managed
     assert len(methods[1].ParamList) == 0
 
-    methods[0].ParamList[0].row.Name == "args"
+    param0 = methods[0].ParamList[0].row
+    assert param0 is not None
+    param0.Name == "args"

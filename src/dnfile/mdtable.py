@@ -11,12 +11,10 @@ REFERENCES
 
 Copyright (c) 2020-2021 MalwareFrank
 """
+from typing import List
 
-
-from typing import List, Type
-
-from . import enums, utils, codedindex
-from .base import ClrHeap, RowStruct, MDTableRow, ClrMetaDataTable
+from . import enums, utils, codedindex, errors
+from .base import ClrHeap, RowStruct, MDTableRow, ClrMetaDataTable, MDTableIndexRef
 
 #### Module Table
 #
@@ -65,7 +63,7 @@ class ModuleRow(MDTableRow):
         )
 
 
-class Module(ClrMetaDataTable):
+class Module(ClrMetaDataTable[ModuleRow]):
     name = "Module"
     number = 0
 
@@ -114,7 +112,7 @@ class TypeRefRow(MDTableRow):
         )
 
 
-class TypeRef(ClrMetaDataTable):
+class TypeRef(ClrMetaDataTable[TypeRefRow]):
     name = "TypeRef"
     number = 1
 
@@ -181,7 +179,7 @@ class TypeDefRow(MDTableRow):
         )
 
 
-class TypeDef(ClrMetaDataTable):
+class TypeDef(ClrMetaDataTable[TypeDefRow]):
     name = "TypeDef"
     number = 2
 
@@ -275,7 +273,7 @@ class MethodDefRow(MDTableRow):
     Flags: enums.ClrMethodAttr
     Name: str
     Signature: bytes
-    ParamList: List["ParamRow"]
+    ParamList: List[MDTableIndexRef["ParamRow"]]
 
     struct: MethodDefRowStruct
     _struct_class = MethodDefRowStruct
@@ -314,7 +312,7 @@ class MethodDefRow(MDTableRow):
         )
 
 
-class MethodDef(ClrMetaDataTable):
+class MethodDef(ClrMetaDataTable[MethodDefRow]):
     name = "MethodDef"
     number = 6
 
@@ -371,7 +369,7 @@ class ParamRow(MDTableRow):
         )
 
 
-class Param(ClrMetaDataTable):
+class Param(ClrMetaDataTable[ParamRow]):
     name = "Param"
     number = 8
 
@@ -388,7 +386,7 @@ class InterfaceImplRowStruct(RowStruct):
 
 
 class InterfaceImplRow(MDTableRow):
-    Class: TypeDefRow
+    Class: MDTableIndexRef[TypeDefRow]
     Interface: codedindex.TypeDefOrRef
 
     struct: InterfaceImplRowStruct
@@ -413,7 +411,7 @@ class InterfaceImplRow(MDTableRow):
         )
 
 
-class InterfaceImpl(ClrMetaDataTable):
+class InterfaceImpl(ClrMetaDataTable[InterfaceImplRow]):
     name = "InterfaceImpl"
     number = 9
 
@@ -465,7 +463,7 @@ class MemberRefRow(MDTableRow):
         )
 
 
-class MemberRef(ClrMetaDataTable):
+class MemberRef(ClrMetaDataTable[MemberRefRow]):
     name = "MemberRef"
     number = 10
 
@@ -522,7 +520,7 @@ class ConstantRow(MDTableRow):
         )
 
 
-class Constant(ClrMetaDataTable):
+class Constant(ClrMetaDataTable[ConstantRow]):
     name = "Constant"
     number = 11
 
@@ -577,7 +575,7 @@ class CustomAttributeRow(MDTableRow):
         )
 
 
-class CustomAttribute(ClrMetaDataTable):
+class CustomAttribute(ClrMetaDataTable[CustomAttributeRow]):
     name = "CustomAttribute"
     number = 12
 
@@ -622,7 +620,7 @@ class FieldMarshalRow(MDTableRow):
         )
 
 
-class FieldMarshal(ClrMetaDataTable):
+class FieldMarshal(ClrMetaDataTable[FieldMarshalRow]):
     name = "FieldMarshal"
     number = 13
 
@@ -673,7 +671,7 @@ class DeclSecurityRow(MDTableRow):
         )
 
 
-class DeclSecurity(ClrMetaDataTable):
+class DeclSecurity(ClrMetaDataTable[DeclSecurityRow]):
     name = "DeclSecurity"
     number = 14
 
@@ -693,7 +691,7 @@ class ClassLayoutRowStruct(RowStruct):
 class ClassLayoutRow(MDTableRow):
     PackingSize: int
     ClassSize: int
-    Parent: TypeDefRow
+    Parent: MDTableIndexRef[TypeDefRow]
 
     struct: ClassLayoutRowStruct
     _struct_class = ClassLayoutRowStruct
@@ -718,7 +716,7 @@ class ClassLayoutRow(MDTableRow):
         )
 
 
-class ClassLayout(ClrMetaDataTable):
+class ClassLayout(ClrMetaDataTable[ClassLayoutRow]):
     name = "ClassLayout"
     number = 15
 
@@ -736,7 +734,7 @@ class FieldLayoutRowStruct(RowStruct):
 
 class FieldLayoutRow(MDTableRow):
     Offset: int
-    Field: FieldRow
+    Field: MDTableIndexRef[FieldRow]
 
     struct: FieldLayoutRowStruct
     _struct_class = FieldLayoutRowStruct
@@ -744,6 +742,7 @@ class FieldLayoutRow(MDTableRow):
     _struct_asis = {
         "Offset": "Offset",
     }
+    # TODO: should this be a codedindex?
     _struct_indexes = {
         "Field_CodedIndex": ("Field", "Field"),
     }
@@ -759,7 +758,7 @@ class FieldLayoutRow(MDTableRow):
         )
 
 
-class FieldLayout(ClrMetaDataTable):
+class FieldLayout(ClrMetaDataTable[FieldLayoutRow]):
     name = "FieldLayout"
     number = 16
 
@@ -792,7 +791,7 @@ class StandAloneSigRow(MDTableRow):
         )
 
 
-class StandAloneSig(ClrMetaDataTable):
+class StandAloneSig(ClrMetaDataTable[StandAloneSigRow]):
     name = "StandAloneSig"
     number = 17
 
@@ -809,8 +808,8 @@ class EventMapRowStruct(RowStruct):
 
 
 class EventMapRow(MDTableRow):
-    Parent: TypeDefRow = None
-    EventList: List["EventRow"] = None
+    Parent: MDTableIndexRef[TypeDefRow] = None
+    EventList: List[MDTableIndexRef["EventRow"]] = None
 
     struct: EventMapRowStruct
     _struct_class = EventMapRowStruct
@@ -831,7 +830,7 @@ class EventMapRow(MDTableRow):
         )
 
 
-class EventMap(ClrMetaDataTable):
+class EventMap(ClrMetaDataTable[EventMapRow]):
     name = "EventMap"
     number = 18
 
@@ -892,7 +891,7 @@ class EventRow(MDTableRow):
         )
 
 
-class Event(ClrMetaDataTable):
+class Event(ClrMetaDataTable[EventRow]):
     name = "Event"
     number = 20
 
@@ -909,8 +908,8 @@ class PropertyMapRowStruct(RowStruct):
 
 
 class PropertyMapRow(MDTableRow):
-    Parent: TypeDefRow = None
-    PropertyList: List["PropertyRow"] = None
+    Parent: MDTableIndexRef[TypeDefRow] = None
+    PropertyList: List[MDTableIndexRef["PropertyRow"]] = None
 
     struct: PropertyMapRowStruct
     _struct_class = PropertyMapRowStruct
@@ -931,7 +930,7 @@ class PropertyMapRow(MDTableRow):
         )
 
 
-class PropertyMap(ClrMetaDataTable):
+class PropertyMap(ClrMetaDataTable[PropertyMapRow]):
     name = "PropertyMap"
     number = 21
 
@@ -989,7 +988,7 @@ class PropertyRow(MDTableRow):
         )
 
 
-class Property(ClrMetaDataTable):
+class Property(ClrMetaDataTable[PropertyRow]):
     name = "Property"
     number = 23
 
@@ -1008,7 +1007,7 @@ class MethodSemanticsRowStruct(RowStruct):
 
 class MethodSemanticsRow(MDTableRow):
     Semantics: enums.ClrMethodSemanticsAttr
-    Method: "MethodRow"
+    Method: MDTableIndexRef[MethodDefRow]
     Association: codedindex.HasSemantics
 
     struct: MethodSemanticsRowStruct
@@ -1041,7 +1040,7 @@ class MethodSemanticsRow(MDTableRow):
         )
 
 
-class MethodSemantics(ClrMetaDataTable):
+class MethodSemantics(ClrMetaDataTable[MethodSemanticsRow]):
     name = "MethodSemantics"
     number = 24
 
@@ -1059,7 +1058,7 @@ class MethodImplRowStruct(RowStruct):
 
 
 class MethodImplRow(MDTableRow):
-    Class: TypeDefRow
+    Class: MDTableIndexRef[TypeDefRow]
     MethodBody: codedindex.MethodDefOrRef
     MethodDeclaration: codedindex.MethodDefOrRef
 
@@ -1093,7 +1092,7 @@ class MethodImplRow(MDTableRow):
         )
 
 
-class MethodImpl(ClrMetaDataTable):
+class MethodImpl(ClrMetaDataTable[MethodImplRow]):
     name = "MethodImpl"
     number = 25
 
@@ -1126,7 +1125,7 @@ class ModuleRefRow(MDTableRow):
         )
 
 
-class ModuleRef(ClrMetaDataTable):
+class ModuleRef(ClrMetaDataTable[ModuleRefRow]):
     name = "ModuleRef"
     number = 26
 
@@ -1159,7 +1158,7 @@ class TypeSpecRow(MDTableRow):
         )
 
 
-class TypeSpec(ClrMetaDataTable):
+class TypeSpec(ClrMetaDataTable[TypeSpecRow]):
     name = "TypeSpec"
     number = 27
 
@@ -1181,7 +1180,7 @@ class ImplMapRow(MDTableRow):
     MappingFlags: enums.ClrPinvokeMap
     MemberForwarded: codedindex.MemberForwarded
     ImportName: str
-    ImportScope: ModuleRefRow
+    ImportScope: MDTableIndexRef[ModuleRefRow]
 
     struct: ImplMapRowStruct
     _struct_class = ImplMapRowStruct
@@ -1217,7 +1216,7 @@ class ImplMapRow(MDTableRow):
         )
 
 
-class ImplMap(ClrMetaDataTable):
+class ImplMap(ClrMetaDataTable[ImplMapRow]):
     name = "ImplMap"
     number = 28
 
@@ -1235,7 +1234,7 @@ class FieldRvaRowStruct(RowStruct):
 
 class FieldRvaRow(MDTableRow):
     Rva: int
-    Field: FieldRow
+    Field: MDTableIndexRef[FieldRow]
 
     struct: FieldRvaRowStruct
     _struct_class = FieldRvaRowStruct
@@ -1258,7 +1257,7 @@ class FieldRvaRow(MDTableRow):
         )
 
 
-class FieldRva(ClrMetaDataTable):
+class FieldRva(ClrMetaDataTable[FieldRvaRow]):
     name = "FieldRva"
     number = 29
 
@@ -1342,7 +1341,7 @@ class AssemblyRow(MDTableRow):
         )
 
 
-class Assembly(ClrMetaDataTable):
+class Assembly(ClrMetaDataTable[AssemblyRow]):
     name = "Assembly"
     number = 32
 
@@ -1370,7 +1369,7 @@ class AssemblyProcessorRow(MDTableRow):
     }
 
 
-class AssemblyProcessor(ClrMetaDataTable):
+class AssemblyProcessor(ClrMetaDataTable[AssemblyProcessorRow]):
     name = "AssemblyProcessor"
     number = 33
 
@@ -1411,7 +1410,7 @@ class AssemblyOSRow(MDTableRow):
     }
 
 
-class AssemblyOS(ClrMetaDataTable):
+class AssemblyOS(ClrMetaDataTable[AssemblyOSRow]):
     name = "AssemblyOS"
     number = 34
 
@@ -1485,7 +1484,7 @@ class AssemblyRefRow(MDTableRow):
         )
 
 
-class AssemblyRef(ClrMetaDataTable):
+class AssemblyRef(ClrMetaDataTable[AssemblyRefRow]):
     name = "AssemblyRef"
     number = 35
 
@@ -1503,7 +1502,7 @@ class AssemblyRefProcessorRowStruct(RowStruct):
 
 class AssemblyRefProcessorRow(MDTableRow):
     Processor: int
-    AssemblyRef: AssemblyRefRow
+    AssemblyRef: MDTableIndexRef[AssemblyRefRow]
 
     struct: AssemblyRefProcessorRowStruct
     _struct_class = AssemblyRefProcessorRowStruct
@@ -1526,7 +1525,7 @@ class AssemblyRefProcessorRow(MDTableRow):
         )
 
 
-class AssemblyRefProcessor(ClrMetaDataTable):
+class AssemblyRefProcessor(ClrMetaDataTable[AssemblyRefProcessorRow]):
     name = "AssemblyRefProcessor"
     number = 36
 
@@ -1548,7 +1547,7 @@ class AssemblyRefOSRow(MDTableRow):
     OSPlatformId: int
     OSMajorVersion: int
     OSMinorVersion: int
-    AssemblyRef: AssemblyRefRow
+    AssemblyRef: MDTableIndexRef[AssemblyRefRow]
 
     struct: AssemblyRefOSRowStruct
     _struct_class = AssemblyRefOSRowStruct
@@ -1575,7 +1574,7 @@ class AssemblyRefOSRow(MDTableRow):
         )
 
 
-class AssemblyRefOS(ClrMetaDataTable):
+class AssemblyRefOS(ClrMetaDataTable[AssemblyRefOSRow]):
     name = "AssemblyRefOS"
     number = 37
 
@@ -1623,7 +1622,7 @@ class FileRow(MDTableRow):
         )
 
 
-class File(ClrMetaDataTable):
+class File(ClrMetaDataTable[FileRow]):
     name = "File"
     number = 38
 
@@ -1687,7 +1686,7 @@ class ExportedTypeRow(MDTableRow):
         )
 
 
-class ExportedType(ClrMetaDataTable):
+class ExportedType(ClrMetaDataTable[ExportedTypeRow]):
     name = "ExportedType"
     number = 39
 
@@ -1744,7 +1743,7 @@ class ManifestResourceRow(MDTableRow):
         )
 
 
-class ManifestResource(ClrMetaDataTable):
+class ManifestResource(ClrMetaDataTable[ManifestResourceRow]):
     name = "ManifestResource"
     number = 40
 
@@ -1761,8 +1760,8 @@ class NestedClassRowStruct(RowStruct):
 
 
 class NestedClassRow(MDTableRow):
-    NestedClass: TypeDefRow
-    EnclosingClass: TypeDefRow
+    NestedClass: MDTableIndexRef[TypeDefRow]
+    EnclosingClass: MDTableIndexRef[TypeDefRow]
 
     struct: NestedClassRowStruct
     _struct_class = NestedClassRowStruct
@@ -1783,7 +1782,7 @@ class NestedClassRow(MDTableRow):
         )
 
 
-class NestedClass(ClrMetaDataTable):
+class NestedClass(ClrMetaDataTable[NestedClassRow]):
     name = "NestedClass"
     number = 41
 
@@ -1840,7 +1839,7 @@ class GenericParamRow(MDTableRow):
         )
 
 
-class GenericParam(ClrMetaDataTable):
+class GenericParam(ClrMetaDataTable[GenericParamRow]):
     name = "GenericParam"
     number = 42
 
@@ -1885,7 +1884,7 @@ class GenericMethodRow(MDTableRow):
         )
 
 
-class GenericMethod(ClrMetaDataTable):
+class GenericMethod(ClrMetaDataTable[GenericMethodRow]):
     name = "GenericMethod"
     number = 43
 
@@ -1902,7 +1901,7 @@ class GenericParamConstraintRowStruct(RowStruct):
 
 
 class GenericParamConstraintRow(MDTableRow):
-    Owner: GenericParamRow
+    Owner: MDTableIndexRef[GenericParamRow]
     Constraint: codedindex.TypeDefOrRef
 
     struct: GenericParamConstraintRowStruct
@@ -1930,7 +1929,7 @@ class GenericParamConstraintRow(MDTableRow):
         )
 
 
-class GenericParamConstraint(ClrMetaDataTable):
+class GenericParamConstraint(ClrMetaDataTable[GenericParamConstraintRow]):
     name = "GenericParamConstraint"
     number = 44
 
