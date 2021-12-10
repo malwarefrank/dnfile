@@ -15,7 +15,7 @@ from pefile import Structure
 from . import enums, errors
 
 if TYPE_CHECKING:
-    from . import streams
+    from . import stream
 
 
 logger = logging.getLogger(__name__)
@@ -109,18 +109,18 @@ class MDTableRow(abc.ABC):
     _struct_class = Type[RowStruct]
 
     # maps from struct attribute to object attribute
-    _struct_strings: Dict[str, str] = None
-    _struct_guids: Dict[str, str] = None
-    _struct_blobs: Dict[str, str] = None
-    _struct_asis: Dict[str, str] = None
+    _struct_strings: Dict[str, str]
+    _struct_guids: Dict[str, str]
+    _struct_blobs: Dict[str, str]
+    _struct_asis: Dict[str, str]
     _struct_codedindexes: Dict[
         str, Tuple[str, Type["CodedIndex"]]
-    ] = None  # also CodedIndex subclass
-    _struct_indexes: Dict[str, Tuple[str, str]] = None  # also Metadata table name
+    ]  # also CodedIndex subclass
+    _struct_indexes: Dict[str, Tuple[str, str]]  # also Metadata table name
     _struct_flags: Dict[
         str, Tuple[str, Type[enums.ClrFlags]]
-    ] = None  # also ClrFlags subclass
-    _struct_lists: Dict[str, Tuple[str, str]] = None  # also Metadata table name
+    ]  # also ClrFlags subclass
+    _struct_lists: Dict[str, Tuple[str, str]]  # also Metadata table name
 
     def __init__(
         self,
@@ -128,9 +128,9 @@ class MDTableRow(abc.ABC):
         strings_offset_size: int,
         guid_offset_size: int,
         blob_offset_size: int,
-        strings_heap: "streams.StringsHeap",
-        guid_heap: "streams.GuidHeap",
-        blob_heap: "streams.BlobHeap",
+        strings_heap: Optional["stream.StringsHeap"],
+        guid_heap: Optional["stream.GuidHeap"],
+        blob_heap: Optional["stream.BlobHeap"],
     ):
         """
         Given the tables' row counts and heap info.
@@ -142,9 +142,9 @@ class MDTableRow(abc.ABC):
         """
 
         self._tables_rowcnt = tables_rowcounts
-        self._strings = strings_heap
-        self._guids = guid_heap
-        self._blobs = blob_heap
+        self._strings: Optional["stream.StringsHeap"] = strings_heap
+        self._guids: Optional["stream.GuidHeap"] = guid_heap
+        self._blobs: Optional["stream.BlobHeap"] = blob_heap
         self._str_offsz = strings_offset_size
         self._guid_offsz = guid_offset_size
         self._blob_offsz = blob_offset_size
@@ -177,41 +177,53 @@ class MDTableRow(abc.ABC):
         have been initialized, i.e. parse_rows() has been called on each table in the tables list.
         """
         # if there are any fields to copy as-is
-        if self._struct_asis:
+        if hasattr(self, "_struct_asis"):
             for struct_name, attr_name in self._struct_asis.items():
                 setattr(self, attr_name, getattr(self.struct, struct_name, None))
         # if strings
-        if self._struct_strings and self._strings:
+        if hasattr(self, "_struct_strings") and hasattr(self, "_strings"):
             for struct_name, attr_name in self._struct_strings.items():
-                i = getattr(self.struct, struct_name, None)
-                try:
-                    s = self._strings.get(i)
-                except UnicodeDecodeError:
-                    s = self._strings.get(i, as_bytes=True)
-                except IndexError:
+                if self._strings is None:
+                    logger.warning("failed to fetch string: no strings table")
                     s = None
-                    # TODO error/warn
+                else:
+                    i = getattr(self.struct, struct_name, None)
+                    try:
+                        s = self._strings.get(i)
+                    except UnicodeDecodeError:
+                        s = self._strings.get(i, as_bytes=True)
+                    except IndexError:
+                        s = None
+                        # TODO error/warn
                 setattr(self, attr_name, s)
         # if guids
-        if self._struct_guids and self._guids:
+        if hasattr(self, "_struct_guids") and hasattr(self, "_guids"):
             for struct_name, attr_name in self._struct_guids.items():
-                try:
-                    g = self._guids.get(getattr(self.struct, struct_name, None))
-                except (IndexError, TypeError):
+                if self._guids is None:
+                    logger.warning("failed to fetch guid: no guid table")
                     g = None
-                    # TODO error/warn
+                else:
+                    try:
+                        g = self._guids.get(getattr(self.struct, struct_name, None))
+                    except (IndexError, TypeError):
+                        logger.warning("failed to fetch guid: unable to parse data")
+                        g = None
                 setattr(self, attr_name, g)
         # if blobs
-        if self._struct_blobs and self._blobs:
+        if hasattr(self, "_struct_blobs") and hasattr(self, "_blobs"):
             for struct_name, attr_name in self._struct_blobs.items():
-                try:
-                    b = self._blobs.get(getattr(self.struct, struct_name, None))
-                except (IndexError, TypeError):
+                if self._blobs is None:
+                    logger.warning("failed to fetch blob: no blob table")
                     b = None
-                    # TODO error/warn
+                else:
+                    try:
+                        b = self._blobs.get(getattr(self.struct, struct_name, None))
+                    except (IndexError, TypeError):
+                        logger.warning("failed to fetch blob: unable to parse data")
+                        b = None
                 setattr(self, attr_name, b)
         # if coded indexes
-        if self._struct_codedindexes and tables:
+        if hasattr(self, "_struct_codedindexes") and tables:
             for struct_name, (
                 attr_name,
                 attr_class,
@@ -223,7 +235,7 @@ class MDTableRow(abc.ABC):
                     # TODO error/warn
                 setattr(self, attr_name, o)
         # if flags
-        if self._struct_flags:
+        if hasattr(self, "_struct_flags"):
             for struct_name, (attr_name, attr_class) in self._struct_flags.items():
                 # Set the flags according to the Flags member
                 v = getattr(self.struct, struct_name, None)
@@ -238,7 +250,7 @@ class MDTableRow(abc.ABC):
                     # TODO error/warn
                 setattr(self, attr_name, flag_object)
         # if indexes
-        if self._struct_indexes and tables:
+        if hasattr(self, "_struct_indexes") and tables:
             for struct_name, (attr_name, table_name) in self._struct_indexes.items():
                 table = None
                 for t in tables:
@@ -247,12 +259,12 @@ class MDTableRow(abc.ABC):
                 if table:
                     i = getattr(self.struct, struct_name, None)
                     if i is not None and i > 0 and i <= table.num_rows:
-                        setattr(self, attr_name, MDTableIndexRef(table, i))
+                        setattr(self, attr_name, MDTableIndex(table, i))
                     else:
                         setattr(self, attr_name, None)
                         # TODO error/warn
         # if lists
-        if self._struct_lists and tables:
+        if hasattr(self, "_struct_lists") and tables:
             for struct_name, (attr_name, table_name) in self._struct_lists.items():
                 table = None
                 for t in tables:
@@ -293,7 +305,7 @@ class MDTableRow(abc.ABC):
                     if (run_start_index != run_end_index) or (run_end_index == max_row):
                         # row indexes are 1-indexed, so our range goes to end+1
                         for row_index in range(run_start_index, run_end_index + 1):
-                            run.append(MDTableIndexRef(table, row_index))
+                            run.append(MDTableIndex(table, row_index))
 
                 setattr(self, attr_name, run)
 
@@ -416,17 +428,17 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
         _row_class
     """
 
-    number: int = None
-    name: str = None
-    num_rows: int = 0
-    row_size: int = 0
-    is_sorted = False
+    number: int
+    name: str
+    num_rows: int
+    row_size: int
     rows: List[RowType]
+    is_sorted: bool
     # TODO: where is this ever set???
     rva: int = 0
 
-    _format: Tuple = None
-    _flags: Tuple = None
+    _format: Tuple
+    _flags: Tuple
     _row_class: Type[RowType]
     _table_data: bytes
 
@@ -437,9 +449,9 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
         strings_offset_size: int,
         guid_offset_size: int,
         blob_offset_size: int,
-        strings_heap: ClrHeap,
-        guid_heap: ClrHeap,
-        blob_heap: ClrHeap,
+        strings_heap: Optional["stream.StringsHeap"],
+        guid_heap: Optional["stream.GuidHeap"],
+        blob_heap: Optional["stream.BlobHeap"],
     ):
         """
         Given the tables' row counts, sorted flag, and heap info.
@@ -458,9 +470,9 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
         self.num_rows = num_rows
         self.rows = list()
         # store heap info
-        self._strings_heap = strings_heap
-        self._guid_heap = guid_heap
-        self._blob_heap = blob_heap
+        self._strings_heap: Optional["stream.StringsHeap"] = strings_heap
+        self._guid_heap: Optional["stream.GuidHeap"] = guid_heap
+        self._blob_heap: Optional["stream.BlobHeap"] = blob_heap
         self._strings_offset_size = strings_offset_size
         self._guid_offset_size = guid_offset_size
         self._blob_offset_size = blob_offset_size

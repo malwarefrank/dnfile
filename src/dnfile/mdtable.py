@@ -11,21 +11,23 @@ REFERENCES
 
 Copyright (c) 2020-2021 MalwareFrank
 """
-from typing import List
+from typing import List, Optional, TYPE_CHECKING
 
 from . import enums, utils, codedindex, errors
-from .base import ClrHeap, RowStruct, MDTableRow, ClrMetaDataTable, MDTableIndex
+from .base import RowStruct, MDTableRow, ClrMetaDataTable, MDTableIndex
+if TYPE_CHECKING:
+    from . import stream
 
 #### Module Table
 #
 
 
 class ModuleRowStruct(RowStruct):
-    Generation: int = None
-    Name_StringIndex: int = None
-    Mvid_GuidIndex: int = None
-    EncId_GuidIndex: int = None
-    EncBaseId_GuidIndex: int = None
+    Generation: int
+    Name_StringIndex: int
+    Mvid_GuidIndex: int
+    EncId_GuidIndex: int
+    EncBaseId_GuidIndex: int
 
 
 class ModuleRow(MDTableRow):
@@ -75,9 +77,9 @@ class Module(ClrMetaDataTable[ModuleRow]):
 
 
 class TypeRefRowStruct(RowStruct):
-    ResolutionScope_CodedIndex: int = None
-    TypeName_StringIndex: int = None
-    TypeNamespace_StringIndex: int = None
+    ResolutionScope_CodedIndex: int
+    TypeName_StringIndex: int
+    TypeNamespace_StringIndex: int
 
 
 class TypeRefRow(MDTableRow):
@@ -124,12 +126,12 @@ class TypeRef(ClrMetaDataTable[TypeRefRow]):
 
 
 class TypeDefRowStruct(RowStruct):
-    Flags: int = None
-    TypeName_StringIndex: int = None
-    TypeNamespace_StringIndex: int = None
-    Extends_CodedIndex: int = None
-    FieldList_Index: int = None
-    MethodList_Index: int = None
+    Flags: int
+    TypeName_StringIndex: int
+    TypeNamespace_StringIndex: int
+    Extends_CodedIndex: int
+    FieldList_Index: int
+    MethodList_Index: int
 
 
 class TypeDefRow(MDTableRow):
@@ -201,9 +203,9 @@ class FieldPtr(ClrMetaDataTable):
 
 
 class FieldRowStruct(RowStruct):
-    Flags: int = None
-    Name_StringIndex: int = None
-    Signature_BlobIndex: int = None
+    Flags: int
+    Name_StringIndex: int
+    Signature_BlobIndex: int
 
 
 class FieldRow(MDTableRow):
@@ -259,12 +261,12 @@ class MethodPtr(ClrMetaDataTable):
 
 
 class MethodDefRowStruct(RowStruct):
-    Rva: int = None
-    ImplFlags: int = None
-    Flags: int = None
-    Name_StringIndex: int = None
-    Signature_BlobIndex: int = None
-    ParamList_Index: int = None
+    Rva: int
+    ImplFlags: int
+    Flags: int
+    Name_StringIndex: int
+    Signature_BlobIndex: int
+    ParamList_Index: int
 
 
 class MethodDefRow(MDTableRow):
@@ -334,9 +336,9 @@ class ParamPtr(ClrMetaDataTable):
 
 
 class ParamRowStruct(RowStruct):
-    Flags: int = None
-    Sequence: int = None
-    Name_StringIndex: int = None
+    Flags: int
+    Sequence: int
+    Name_StringIndex: int
 
 
 class ParamRow(MDTableRow):
@@ -381,8 +383,8 @@ class Param(ClrMetaDataTable[ParamRow]):
 
 
 class InterfaceImplRowStruct(RowStruct):
-    Class_Index: int = None
-    Interface_CodedIndex: int = None
+    Class_Index: int
+    Interface_CodedIndex: int
 
 
 class InterfaceImplRow(MDTableRow):
@@ -423,9 +425,9 @@ class InterfaceImpl(ClrMetaDataTable[InterfaceImplRow]):
 
 
 class MemberRefRowStruct(RowStruct):
-    Class_CodedIndex: int = None
-    Name_StringIndex: int = None
-    Signature_BlobIndex: int = None
+    Class_CodedIndex: int
+    Name_StringIndex: int
+    Signature_BlobIndex: int
 
 
 class MemberRefRow(MDTableRow):
@@ -477,10 +479,10 @@ class MemberRef(ClrMetaDataTable[MemberRefRow]):
 
 
 class ConstantRowStruct(RowStruct):
-    Type: int = None
-    Padding: int = None
-    Parent_CodedIndex: int = None
-    Value_BlobIndex: int = None
+    Type: int
+    Padding: int
+    Parent_CodedIndex: int
+    Value_BlobIndex: int
 
 
 class ConstantRow(MDTableRow):
@@ -534,9 +536,9 @@ class Constant(ClrMetaDataTable[ConstantRow]):
 
 
 class CustomAttributeRowStruct(RowStruct):
-    Parent_CodedIndex: int = None
-    Type_CodedIndex: int = None
-    Value_BlobIndex: int = None
+    Parent_CodedIndex: int
+    Type_CodedIndex: int
+    Value_BlobIndex: int
 
 
 class CustomAttributeRow(MDTableRow):
@@ -587,8 +589,8 @@ class CustomAttribute(ClrMetaDataTable[CustomAttributeRow]):
 
 
 class FieldMarshalRowStruct(RowStruct):
-    Parent_CodedIndex: int = None
-    NativeType_BlobIndex: int = None
+    Parent_CodedIndex: int
+    NativeType_BlobIndex: int
 
 
 class FieldMarshalRow(MDTableRow):
@@ -632,9 +634,9 @@ class FieldMarshal(ClrMetaDataTable[FieldMarshalRow]):
 
 
 class DeclSecurityRowStruct(RowStruct):
-    Action: int = None
-    Parent_CodedIndex: int = None
-    PermissionSet_BlobIndex: int = None
+    Action: int
+    Parent_CodedIndex: int
+    PermissionSet_BlobIndex: int
 
 
 class DeclSecurityRow(MDTableRow):
@@ -683,9 +685,9 @@ class DeclSecurity(ClrMetaDataTable[DeclSecurityRow]):
 
 
 class ClassLayoutRowStruct(RowStruct):
-    PackingSize: int = None
-    ClassSize: int = None
-    Parent_Index: int = None
+    PackingSize: int
+    ClassSize: int
+    Parent_Index: int
 
 
 class ClassLayoutRow(MDTableRow):
@@ -728,8 +730,8 @@ class ClassLayout(ClrMetaDataTable[ClassLayoutRow]):
 
 
 class FieldLayoutRowStruct(RowStruct):
-    Offset: int = None
-    Field_CodedIndex: int = None
+    Offset: int
+    Field_CodedIndex: int
 
 
 class FieldLayoutRow(MDTableRow):
@@ -770,11 +772,11 @@ class FieldLayout(ClrMetaDataTable[FieldLayoutRow]):
 
 
 class StandAloneSigRowStruct(RowStruct):
-    Signature_BlobIndex: int = None
+    Signature_BlobIndex: int
 
 
 class StandAloneSigRow(MDTableRow):
-    Signature: bytes = None
+    Signature: bytes
 
     struct: StandAloneSigRowStruct
     _struct_class = StandAloneSigRowStruct
@@ -803,13 +805,13 @@ class StandAloneSig(ClrMetaDataTable[StandAloneSigRow]):
 
 
 class EventMapRowStruct(RowStruct):
-    Parent_Index: int = None
-    EventList_Index: int = None
+    Parent_Index: int
+    EventList_Index: int
 
 
 class EventMapRow(MDTableRow):
-    Parent: MDTableIndex[TypeDefRow] = None
-    EventList: List[MDTableIndex["EventRow"]] = None
+    Parent: MDTableIndex[TypeDefRow]
+    EventList: List[MDTableIndex["EventRow"]]
 
     struct: EventMapRowStruct
     _struct_class = EventMapRowStruct
@@ -852,17 +854,17 @@ class EventPtr(ClrMetaDataTable):
 
 
 class EventRowStruct(RowStruct):
-    EventFlags: int = None
-    Name_StringIndex: int = None
-    EventType_CodedIndex: int = None
+    EventFlags: int
+    Name_StringIndex: int
+    EventType_CodedIndex: int
 
 
 class EventRow(MDTableRow):
-    EventFlags: enums.ClrEventAttr = None
-    Name: str = None
-    EventType: codedindex.TypeDefOrRef = None
+    EventFlags: enums.ClrEventAttr
+    Name: str
+    EventType: codedindex.TypeDefOrRef
 
-    struct: EventRowStruct = None
+    struct: EventRowStruct
     _struct_class = EventRowStruct
 
     _struct_flags = {
@@ -903,13 +905,13 @@ class Event(ClrMetaDataTable[EventRow]):
 
 
 class PropertyMapRowStruct(RowStruct):
-    Parent_Index: int = None
-    PropertyList_Index: int = None
+    Parent_Index: int
+    PropertyList_Index: int
 
 
 class PropertyMapRow(MDTableRow):
-    Parent: MDTableIndex[TypeDefRow] = None
-    PropertyList: List[MDTableIndex["PropertyRow"]] = None
+    Parent: MDTableIndex[TypeDefRow]
+    PropertyList: List[MDTableIndex["PropertyRow"]]
 
     struct: PropertyMapRowStruct
     _struct_class = PropertyMapRowStruct
@@ -952,9 +954,9 @@ class PropertyPtr(ClrMetaDataTable):
 
 
 class PropertyRowStruct(RowStruct):
-    Flags: int = None
-    Name_StringIndex: int = None
-    Type_BlobIndex: int = None
+    Flags: int
+    Name_StringIndex: int
+    Type_BlobIndex: int
 
 
 class PropertyRow(MDTableRow):
@@ -1000,9 +1002,9 @@ class Property(ClrMetaDataTable[PropertyRow]):
 
 
 class MethodSemanticsRowStruct(RowStruct):
-    Semantics: int = None
-    Method_Index: int = None
-    Association_CodedIndex: int = None
+    Semantics: int
+    Method_Index: int
+    Association_CodedIndex: int
 
 
 class MethodSemanticsRow(MDTableRow):
@@ -1052,9 +1054,9 @@ class MethodSemantics(ClrMetaDataTable[MethodSemanticsRow]):
 
 
 class MethodImplRowStruct(RowStruct):
-    Class_Index: int = None
-    MethodBody_CodedIndex: int = None
-    MethodDeclaration_CodedIndex: int = None
+    Class_Index: int
+    MethodBody_CodedIndex: int
+    MethodDeclaration_CodedIndex: int
 
 
 class MethodImplRow(MDTableRow):
@@ -1104,7 +1106,7 @@ class MethodImpl(ClrMetaDataTable[MethodImplRow]):
 
 
 class ModuleRefRowStruct(RowStruct):
-    Name_StringIndex: int = None
+    Name_StringIndex: int
 
 
 class ModuleRefRow(MDTableRow):
@@ -1137,7 +1139,7 @@ class ModuleRef(ClrMetaDataTable[ModuleRefRow]):
 
 
 class TypeSpecRowStruct(RowStruct):
-    Signature_BlobIndex: int = None
+    Signature_BlobIndex: int
 
 
 class TypeSpecRow(MDTableRow):
@@ -1170,10 +1172,10 @@ class TypeSpec(ClrMetaDataTable[TypeSpecRow]):
 
 
 class ImplMapRowStruct(RowStruct):
-    MappingFlags: int = None
-    MemberForwarded_CodedIndex: int = None
-    ImportName_StringIndex: int = None
-    ImportScope_Index: int = None
+    MappingFlags: int
+    MemberForwarded_CodedIndex: int
+    ImportName_StringIndex: int
+    ImportScope_Index: int
 
 
 class ImplMapRow(MDTableRow):
@@ -1228,8 +1230,8 @@ class ImplMap(ClrMetaDataTable[ImplMapRow]):
 
 
 class FieldRvaRowStruct(RowStruct):
-    Rva: int = None
-    Field_Index: int = None
+    Rva: int
+    Field_Index: int
 
 
 class FieldRvaRow(MDTableRow):
@@ -1279,15 +1281,15 @@ class Unused31(ClrMetaDataTable):
 
 
 class AssemblyRowStruct(RowStruct):
-    HashAlgId: int = None
-    MajorVersion: int = None
-    MinorVersion: int = None
-    BuildNumber: int = None
-    RevisionNumber: int = None
-    Flags: int = None
-    PublicKey_BlobIndex: int = None
-    Name_StringIndex: int = None
-    Culture_StringIndex: int = None
+    HashAlgId: int
+    MajorVersion: int
+    MinorVersion: int
+    BuildNumber: int
+    RevisionNumber: int
+    Flags: int
+    PublicKey_BlobIndex: int
+    Name_StringIndex: int
+    Culture_StringIndex: int
 
 
 class AssemblyRow(MDTableRow):
@@ -1353,7 +1355,7 @@ class Assembly(ClrMetaDataTable[AssemblyRow]):
 
 
 class AssemblyProcessorRowStruct(RowStruct):
-    Processor: int = None
+    Processor: int
 
 
 class AssemblyProcessorRow(MDTableRow):
@@ -1381,9 +1383,9 @@ class AssemblyProcessor(ClrMetaDataTable[AssemblyProcessorRow]):
 
 
 class AssemblyOSRowStruct(RowStruct):
-    OSPlatformID: int = None
-    OSMajorVersion: int = None
-    OSMinorVersion: int = None
+    OSPlatformID: int
+    OSMajorVersion: int
+    OSMinorVersion: int
 
 
 class AssemblyOSRow(MDTableRow):
@@ -1422,15 +1424,15 @@ class AssemblyOS(ClrMetaDataTable[AssemblyOSRow]):
 
 
 class AssemblyRefRowStruct(RowStruct):
-    MajorVersion: int = None
-    MinorVersion: int = None
-    BuildNumber: int = None
-    RevisionNumber: int = None
-    Flags: int = None
-    PublicKey_BlobIndex: int = None
-    Name_StringIndex: int = None
-    Culture_StringIndex: int = None
-    HashValue_BlobIndex: int = None
+    MajorVersion: int
+    MinorVersion: int
+    BuildNumber: int
+    RevisionNumber: int
+    Flags: int
+    PublicKey_BlobIndex: int
+    Name_StringIndex: int
+    Culture_StringIndex: int
+    HashValue_BlobIndex: int
 
 
 class AssemblyRefRow(MDTableRow):
@@ -1496,8 +1498,8 @@ class AssemblyRef(ClrMetaDataTable[AssemblyRefRow]):
 
 
 class AssemblyRefProcessorRowStruct(RowStruct):
-    Processor: int = None
-    AssemblyRef_Index: int = None
+    Processor: int
+    AssemblyRef_Index: int
 
 
 class AssemblyRefProcessorRow(MDTableRow):
@@ -1537,10 +1539,10 @@ class AssemblyRefProcessor(ClrMetaDataTable[AssemblyRefProcessorRow]):
 
 
 class AssemblyRefOSRowStruct(RowStruct):
-    OSPlatformId: int = None
-    OSMajorVersion: int = None
-    OSMinorVersion: int = None
-    AssemblyRef_Index: int = None
+    OSPlatformId: int
+    OSMajorVersion: int
+    OSMinorVersion: int
+    AssemblyRef_Index: int
 
 
 class AssemblyRefOSRow(MDTableRow):
@@ -1586,9 +1588,9 @@ class AssemblyRefOS(ClrMetaDataTable[AssemblyRefOSRow]):
 
 
 class FileRowStruct(RowStruct):
-    Flags: int = None
-    Name_StringIndex: int = None
-    HashValue_BlobIndex: int = None
+    Flags: int
+    Name_StringIndex: int
+    HashValue_BlobIndex: int
 
 
 class FileRow(MDTableRow):
@@ -1634,11 +1636,11 @@ class File(ClrMetaDataTable[FileRow]):
 
 
 class ExportedTypeRowStruct(RowStruct):
-    Flags: int = None
-    TypeDefId: int = None
-    TypeName_StringIndex: int = None
-    TypeNamespace_BlobIndex: int = None
-    Implementation_CodedIndex: int = None
+    Flags: int
+    TypeDefId: int
+    TypeName_StringIndex: int
+    TypeNamespace_BlobIndex: int
+    Implementation_CodedIndex: int
 
 
 class ExportedTypeRow(MDTableRow):
@@ -1698,10 +1700,10 @@ class ExportedType(ClrMetaDataTable[ExportedTypeRow]):
 
 
 class ManifestResourceRowStruct(RowStruct):
-    Offset: int = None
-    Flags: int = None
-    Name_StringIndex: int = None
-    Implementation_CodedIndex: int = None
+    Offset: int
+    Flags: int
+    Name_StringIndex: int
+    Implementation_CodedIndex: int
 
 
 class ManifestResourceRow(MDTableRow):
@@ -1755,8 +1757,8 @@ class ManifestResource(ClrMetaDataTable[ManifestResourceRow]):
 
 
 class NestedClassRowStruct(RowStruct):
-    NestedClass_Index: int = None
-    EnclosingClass_Index: int = None
+    NestedClass_Index: int
+    EnclosingClass_Index: int
 
 
 class NestedClassRow(MDTableRow):
@@ -1794,10 +1796,10 @@ class NestedClass(ClrMetaDataTable[NestedClassRow]):
 
 
 class GenericParamRowStruct(RowStruct):
-    Number: int = None
-    Flags: int = None
-    Owner_CodedIndex: int = None
-    Name_StringIndex: int = None
+    Number: int
+    Flags: int
+    Owner_CodedIndex: int
+    Name_StringIndex: int
 
 
 class GenericParamRow(MDTableRow):
@@ -1851,8 +1853,8 @@ class GenericParam(ClrMetaDataTable[GenericParamRow]):
 
 
 class GenericMethodRowStruct(RowStruct):
-    Unknown1_CodedIndex: int = None
-    Unknown2_BlobIndex: int = None
+    Unknown1_CodedIndex: int
+    Unknown2_BlobIndex: int
 
 
 class GenericMethodRow(MDTableRow):
@@ -1896,8 +1898,8 @@ class GenericMethod(ClrMetaDataTable[GenericMethodRow]):
 
 
 class GenericParamConstraintRowStruct(RowStruct):
-    Owner_Index: int = None
-    Constraint_CodedIndex: int = None
+    Owner_Index: int
+    Constraint_CodedIndex: int
 
 
 class GenericParamConstraintRow(MDTableRow):
@@ -2013,9 +2015,9 @@ class ClrMetaDataTableFactory(object):
         strings_offset_size: int,
         guid_offset_size: int,
         blob_offset_size: int,
-        strings_heap: ClrHeap,
-        guid_heap: ClrHeap,
-        blob_heap: ClrHeap,
+        strings_heap: Optional["stream.StringsHeap"],
+        guid_heap: Optional["stream.GuidHeap"],
+        blob_heap: Optional["stream.BlobHeap"],
     ) -> ClrMetaDataTable:
         if number not in cls._table_number_map:
             raise errors.dnFormatError("invalid table index")

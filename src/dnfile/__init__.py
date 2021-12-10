@@ -213,14 +213,14 @@ class dnPE(_PE):
 
 
 class ClrMetaDataStruct(Structure):
-    Signature: int = None
-    MajorVersion: int = None
-    MinorVersion: int = None
-    Reserved: int = None
-    VersionLength: int = None
-    Version: int = None
-    Flags: int = None
-    NumberOfStreams: int = None
+    Signature: int
+    MajorVersion: int
+    MinorVersion: int
+    Reserved: int
+    VersionLength: int
+    Version: int
+    Flags: int
+    NumberOfStreams: int
 
 
 class ClrMetaData(DataContainer):
@@ -369,25 +369,25 @@ class ClrMetaData(DataContainer):
 
 
 class ClrStruct(Structure):
-    cb: int = None
-    MajorRuntimeVersion: int = None
-    MinorRuntimeVersion: int = None
-    MetaDataRva: int = None
-    MetaDataSize: int = None
-    Flags: int = None
-    EntryPointTokenOrRva: int = None
-    ResourcesRva: int = None
-    ResourcesSize: int = None
-    StrongNameSignatureRva: int = None
-    StrongNameSignatureSize: int = None
-    CodeManagerTableRva: int = None
-    CodeManagerTableSize: int = None
-    VTableFixupsRva: int = None
-    VTableFixupsSize: int = None
-    ExportAddressTableJumpsRva: int = None
-    ExportAddressTableJumpsSize: int = None
-    ManagedNativeHeaderRva: int = None
-    ManagedNativeHeaderSize: int = None
+    cb: int
+    MajorRuntimeVersion: int
+    MinorRuntimeVersion: int
+    MetaDataRva: int
+    MetaDataSize: int
+    Flags: int
+    EntryPointTokenOrRva: int
+    ResourcesRva: int
+    ResourcesSize: int
+    StrongNameSignatureRva: int
+    StrongNameSignatureSize: int
+    CodeManagerTableRva: int
+    CodeManagerTableSize: int
+    VTableFixupsRva: int
+    VTableFixupsSize: int
+    ExportAddressTableJumpsRva: int
+    ExportAddressTableJumpsSize: int
+    ManagedNativeHeaderRva: int
+    ManagedNativeHeaderSize: int
 
 
 class ClrData(DataContainer):
@@ -402,13 +402,13 @@ class ClrData(DataContainer):
     Flags:          enums.ClrHeaderFlags or None
     """
 
-    metadata: ClrMetaData = None
-    struct: ClrStruct = None
-    strings: stream.StringsHeap = None
-    guids: stream.GuidHeap = None
-    blobs: stream.BlobHeap = None
-    mdtables: stream.MetaDataTables = None
-    Flags: enums.ClrHeaderFlags = None
+    metadata: ClrMetaData
+    struct: ClrStruct
+    strings: stream.StringsHeap
+    guids: stream.GuidHeap
+    blobs: stream.BlobHeap
+    mdtables: stream.MetaDataTables
+    Flags: enums.ClrHeaderFlags
 
     # Structure description from:
     # http://www.ntcore.com/files/dotnetformat.htm
@@ -474,13 +474,13 @@ class ClrData(DataContainer):
         # create shortcuts for streams
         # TODO: if there are multiple instances of a type, does dotnet runtime use first?
         for s in self.metadata.streams_list:
-            if not self.strings and isinstance(s, stream.StringsHeap):
+            if not hasattr(self, "strings") and isinstance(s, stream.StringsHeap):
                 self.strings = s
-            elif not self.guids and isinstance(s, stream.GuidHeap):
+            elif not hasattr(self, "guids") and isinstance(s, stream.GuidHeap):
                 self.guids = s
-            elif not self.blobs and isinstance(s, stream.BlobHeap):
+            elif not hasattr(self, "blobs") and isinstance(s, stream.BlobHeap):
                 self.blobs = s
-            elif not self.mdtables and isinstance(s, stream.MetaDataTables):
+            elif not hasattr(self, "mdtables") and isinstance(s, stream.MetaDataTables):
                 self.mdtables: stream.MetaDataTables = s
 
         # Set the flags according to the Flags member

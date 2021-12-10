@@ -12,7 +12,7 @@ Copyright (c) 2020-2021 MalwareFrank
 
 import logging
 import struct as _struct
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 from binascii import hexlify as _hexlify
 
 from pefile import MAX_STRING_LENGTH, Structure
@@ -186,43 +186,43 @@ class MetaDataTables(base.ClrStream):
 
     # from https://www.ntcore.com/files/dotnetformat.htm
     # and https://referencesource.microsoft.com/System.AddIn/System/Addin/MiniReflection/MetadataReader/Metadata.cs.html#123
-    Module:                 mdtable.Module = None
-    TypeRef:                mdtable.TypeRef = None
-    TypeDef:                mdtable.TypeDef = None
-    Field:                  mdtable.Field = None
-    MethodDef:              mdtable.MethodDef = None
-    Param:                  mdtable.Param = None
-    InterfaceImpl:          mdtable.InterfaceImpl = None
-    MemberRef:              mdtable.MemberRef = None
-    Constant:               mdtable.Constant = None
-    CustomAttribute:        mdtable.CustomAttribute = None
-    FieldMarshal:           mdtable.FieldMarshal = None
-    DeclSecurity:           mdtable.DeclSecurity = None
-    ClassLayout:            mdtable.ClassLayout = None
-    FieldLayout:            mdtable.FieldLayout = None
-    StandAloneSig:          mdtable.StandAloneSig = None
-    EventMap:               mdtable.EventMap = None
-    Event:                  mdtable.Event = None
-    PropertyMap:            mdtable.PropertyMap = None
-    Property:               mdtable.Property = None
-    MethodSemantics:        mdtable.MethodSemantics = None
-    MethodImpl:             mdtable.MethodImpl = None
-    ModuleRef:              mdtable.ModuleRef = None
-    TypeSpec:               mdtable.TypeSpec = None
-    ImplMap:                mdtable.ImplMap = None
-    FieldRva:               mdtable.FieldRva = None
-    Assembly:               mdtable.Assembly = None
-    AssemblyProcessor:      mdtable.AssemblyProcessor = None
-    AssemblyOS:             mdtable.AssemblyOS = None
-    AssemblyRef:            mdtable.AssemblyRef = None
-    AssemblyRefProcessor:   mdtable.AssemblyRefProcessor = None
-    AssemblyRefOS:          mdtable.AssemblyRefOS = None
-    File:                   mdtable.File = None
-    ExportedType:           mdtable.ExportedType = None
-    ManifestResource:       mdtable.ManifestResource = None
-    NestedClass:            mdtable.NestedClass = None
-    GenericParam:           mdtable.GenericParam = None
-    GenericParamConstraint: mdtable.GenericParamConstraint = None
+    Module:                 mdtable.Module
+    TypeRef:                mdtable.TypeRef
+    TypeDef:                mdtable.TypeDef
+    Field:                  mdtable.Field
+    MethodDef:              mdtable.MethodDef
+    Param:                  mdtable.Param
+    InterfaceImpl:          mdtable.InterfaceImpl
+    MemberRef:              mdtable.MemberRef
+    Constant:               mdtable.Constant
+    CustomAttribute:        mdtable.CustomAttribute
+    FieldMarshal:           mdtable.FieldMarshal
+    DeclSecurity:           mdtable.DeclSecurity
+    ClassLayout:            mdtable.ClassLayout
+    FieldLayout:            mdtable.FieldLayout
+    StandAloneSig:          mdtable.StandAloneSig
+    EventMap:               mdtable.EventMap
+    Event:                  mdtable.Event
+    PropertyMap:            mdtable.PropertyMap
+    Property:               mdtable.Property
+    MethodSemantics:        mdtable.MethodSemantics
+    MethodImpl:             mdtable.MethodImpl
+    ModuleRef:              mdtable.ModuleRef
+    TypeSpec:               mdtable.TypeSpec
+    ImplMap:                mdtable.ImplMap
+    FieldRva:               mdtable.FieldRva
+    Assembly:               mdtable.Assembly
+    AssemblyProcessor:      mdtable.AssemblyProcessor
+    AssemblyOS:             mdtable.AssemblyOS
+    AssemblyRef:            mdtable.AssemblyRef
+    AssemblyRefProcessor:   mdtable.AssemblyRefProcessor
+    AssemblyRefOS:          mdtable.AssemblyRefOS
+    File:                   mdtable.File
+    ExportedType:           mdtable.ExportedType
+    ManifestResource:       mdtable.ManifestResource
+    NestedClass:            mdtable.NestedClass
+    GenericParam:           mdtable.GenericParam
+    GenericParamConstraint: mdtable.GenericParamConstraint
 
     def parse(self, streams: List[base.ClrStream]):
 
@@ -266,9 +266,9 @@ class MetaDataTables(base.ClrStream):
         self.blobs_offset_size = blobs_offset_size
 
         #### heaps
-        strings_heap: StringsHeap = None
-        guid_heap: GuidHeap = None
-        blob_heap: BlobHeap = None
+        strings_heap: Optional[StringsHeap] = None
+        guid_heap: Optional[GuidHeap] = None
+        blob_heap: Optional[BlobHeap] = None
         for s in streams:
             # find the first instance of the strings, guid, and blob heaps
             # TODO: if there are multiple instances of a type, does dotnet runtime use first?

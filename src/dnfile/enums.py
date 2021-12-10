@@ -36,18 +36,18 @@ class ClrFlags(object):
     :var _flags:        an iterable of classes defining bit flags to check and set if set.
     """
 
-    corhdr_enum: ClrMetaDataEnum = None
-    _masks: Dict[str, _enum.Enum] = None
-    _flags: Iterable[_enum.Enum] = None
+    corhdr_enum: ClrMetaDataEnum
+    _masks: Dict[str, _enum.Enum]
+    _flags: Iterable[_enum.Enum]
 
     def __init__(self, value):
-        if self._masks:
+        if hasattr(self, "_masks"):
             for mask_name, value_class in self._masks.items():
                 chk = getattr(self.corhdr_enum, mask_name) & value
                 val = value_class(chk)
                 setattr(self, val.name, True)
 
-        if self._flags:
+        if hasattr(self, "_flags"):
             for value_class in self._flags:
                 for m in value_class:
                     if m.value & value:
