@@ -85,8 +85,8 @@ class dnPE(_PE):
                 hasattr(self.net.metadata, "streams_list")
                 and self.net.metadata.streams_list
             ):
-                for s in self.net.metadata.streams_list:
-                    dump.add_lines(s.struct.dump(), indent=4)
+                for stream_ in self.net.metadata.streams_list:
+                    dump.add_lines(stream_.struct.dump(), indent=4)
                     dump.add_newline()
 
         # Metadata Tables
@@ -141,6 +141,13 @@ class dnPE(_PE):
             ("IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR", self.parse_clr_structure),
         )
 
+        if self.__data__ is None:
+            raise errors.dnFormatError("not a .NET module: failed to read data")
+
+        opt_header = getattr(self, "OPTIONAL_HEADER", None)
+        if opt_header is None:
+            raise errors.dnFormatError("not a .NET module: no optional header")
+
         if directories is not None:
             if not isinstance(directories, (tuple, list)):
                 directories = [directories]
@@ -148,7 +155,7 @@ class dnPE(_PE):
         for entry in directory_parsing:
             try:
                 directory_index = DIRECTORY_ENTRY[entry[0]]
-                dir_entry = self.OPTIONAL_HEADER.DATA_DIRECTORY[directory_index]
+                dir_entry = opt_header.DATA_DIRECTORY[directory_index]
             except IndexError:
                 break
 
@@ -178,7 +185,7 @@ class dnPE(_PE):
         if not hasattr(self, attr_name):
             dir_entry_size = Structure(self.__IMAGE_DATA_DIRECTORY_format__).sizeof()
             dd_offset = (
-                self.OPTIONAL_HEADER.get_file_offset() + self.OPTIONAL_HEADER.sizeof()
+                opt_header.get_file_offset() + opt_header.sizeof()
             )
             clr_entry_offset = dd_offset + (
                 DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR"] * dir_entry_size
@@ -187,8 +194,9 @@ class dnPE(_PE):
             dir_entry = self.__unpack_data__(
                 self.__IMAGE_DATA_DIRECTORY_format__, data, file_offset=clr_entry_offset
             )
+
             # if COM entry appears valid
-            if dir_entry.VirtualAddress:
+            if dir_entry is not None and dir_entry.VirtualAddress:
                 # try to parse the .NET CLR directory
                 value = self.parse_clr_structure(
                     dir_entry.VirtualAddress, dir_entry.Size
@@ -505,6 +513,9 @@ class ClrStreamFactory(object):
         struct_format = _copymod.deepcopy(cls._template_format)
         # read name
         name = pe.get_string_at_rva(stream_entry_rva + 8)
+        if name is None:
+            raise errors.dnFormatError("failed to read stream name")
+
         # round field length up to next 4-byte boundary.  Remember the NULL byte at end.
         name_len = len(name) + (4 - (len(name) % 4))
         # add name field to structure
