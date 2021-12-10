@@ -353,6 +353,9 @@ class ClrMetaDataTable(collections.abc.Sequence):
     """
     An abstract class for Metadata tables.  Rows can be accessed
     directly like a list with bracket [] syntax.
+    Use `get_with_row_index` when you have a Rid/token/row_index,
+    since these are 1-indexed.
+    Use bracket [] syntax when you want 0-indexing.
 
     Subclasses should make sure to set the following attributes:
         number
