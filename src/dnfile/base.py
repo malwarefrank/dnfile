@@ -271,8 +271,8 @@ class MDTableRow(abc.ABC):
                 try:
                     o = attr_class(getattr(self.struct, struct_name, None), tables)
                 except (IndexError, TypeError):
+                    logger.warning("failed to fetch coded index: unable to parse data")
                     o = None
-                    # TODO error/warn
                 setattr(self, attr_name, o)
 
         # if flags
@@ -284,11 +284,11 @@ class MDTableRow(abc.ABC):
                     try:
                         flag_object = attr_class(v)
                     except ValueError:
+                        logger.warning("failed to fetch flag: unable to parse data")
                         flag_object = None
-                        # TODO error/warn
                 else:
+                    logger.warning("failed to fetch flag: unable to parse data")
                     flag_object = None
-                    # TODO error/warn
                 setattr(self, attr_name, flag_object)
 
         # if indexes
@@ -303,8 +303,8 @@ class MDTableRow(abc.ABC):
                     if i is not None and i > 0 and i <= table.num_rows:
                         setattr(self, attr_name, MDTableIndex(table, i))
                     else:
+                        logger.warning("failed to fetch index reference: unable to parse data")
                         setattr(self, attr_name, None)
-                        # TODO error/warn
 
         # if lists
         if hasattr(self.__class__, "_struct_lists") and tables:
@@ -560,7 +560,7 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
         r = self.rows[0]
         return r.row_size
 
-    def parse_rows(self, data: bytes):
+    def parse_rows(self, table_rva: int, data: bytes):
         """
         Given a byte sequence containing the rows, add data to each row in the
         self.rows list.  Note that the rows have not been fully parsed until
@@ -586,7 +586,7 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
                     )
                 )
             self.rows[i].set_data(
-                data[offset:offset + self.row_size], offset=offset
+                data[offset:offset + self.row_size], offset=table_rva + offset
             )
             offset += self.row_size
 

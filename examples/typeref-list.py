@@ -13,8 +13,7 @@ for fname in sys.argv[1:]:
         # if empty table (possible error with file), skip file
         continue
     # for each entry in the TypeRef table
-    for row in tr.rows:
-        row: dnfile.mdtable.TypeRefRow
+    for row in tr:
         # if the ResolutionScope includes a reference to another table
         if row.ResolutionScope and row.ResolutionScope.table:
             # make note of the table name

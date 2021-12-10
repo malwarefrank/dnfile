@@ -125,8 +125,7 @@ class Implementation(CodedIndex[Union["FileRow", "AssemblyRefRow", "ExportedType
 
 class CustomAttributeType(CodedIndex[Union["MethodDefRow", "MemberRefRow"]]):
     tag_bits = 3
-    # TODO: what does it mean to have None here?
-    table_names = (None, None, "MethodDef", "MemberRef", None)
+    table_names = ("Unused", "Unused", "MethodDef", "MemberRef", "Unused")
 
 
 class ResolutionScope(CodedIndex[Union["ModuleRow", "ModuleRefRow", "AssemblyRefRow", "TypeRefRow"]]):

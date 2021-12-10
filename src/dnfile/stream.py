@@ -344,8 +344,7 @@ class MetaDataTables(base.ClrStream):
                     cur_rva, table.row_size * table.num_rows
                 )
                 # parse structures (populates .struct for each row)
-                table.parse_rows(table_data)
-                table.rva = cur_rva
+                table.parse_rows(cur_rva, table_data)
                 # move to next set of rows
                 cur_rva += table.row_size * table.num_rows
         #### finalize parsing each table

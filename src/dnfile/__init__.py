@@ -335,7 +335,7 @@ class ClrMetaData(DataContainer):
                 try:
                     s.parse(self.streams_list)
                 except (errors.dnFormatError, PEFormatError) as e:
-                    pe.add_warning("Unable to parse stream {}".format(s.struct.Name))
+                    pe.add_warning("Unable to parse stream {}".format(s.struct.Name.rstrip(b"\x00").decode("asci")))
                     pe.add_warning(str(e))
 
     def parse_stream_table(self, pe: dnPE, streams_table_rva):
@@ -356,7 +356,7 @@ class ClrMetaData(DataContainer):
                 # if a stream with this name already exists
                 # warning
                 pe.add_warning(
-                    "Duplicate .NET stream name '{}'".format(stream.struct.Name)
+                    "Duplicate .NET stream name '{}'".format(name)
                 )
             else:
                 # otherwise add it to the associative array
@@ -450,9 +450,6 @@ class ClrData(DataContainer):
             )
             clr_struct.__unpack__(data)
         except PEFormatError:
-            clr_struct = None
-
-        if not clr_struct:
             raise errors.dnFormatError(
                 "Invalid CLR Structure information. Can't read "
                 "data at RVA: 0x%x" % rva

@@ -11,7 +11,7 @@ REFERENCES
 
 Copyright (c) 2020-2021 MalwareFrank
 """
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Type
 
 from . import enums, utils, errors, codedindex
 from .base import RowStruct, MDTableRow, MDTableIndex, ClrMetaDataTable
@@ -1927,11 +1927,16 @@ class MaxTable(ClrMetaDataTable):
     name = "MaxTable"
     number = 63
 
-    # TODO
+
+class Unused(ClrMetaDataTable):
+    # re-use MaxTable as a placeholder for "unused"
+    # which is referenced by `CustomAttributeType` coded index.
+    name = "Unused"
+    number = 63
 
 
 class ClrMetaDataTableFactory(object):
-    _table_number_map = {
+    _table_number_map: Dict[int, Type[ClrMetaDataTable]] = {
         0: Module,
         1: TypeRef,
         2: TypeDef,
@@ -1985,7 +1990,7 @@ class ClrMetaDataTableFactory(object):
     def createTable(
         cls,
         number: int,
-        tables_rowcounts: List[int],
+        tables_rowcounts: List[Optional[int]],
         is_sorted: bool,
         strings_offset_size: int,
         guid_offset_size: int,
