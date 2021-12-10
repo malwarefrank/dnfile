@@ -180,17 +180,21 @@ class MDTableRow(abc.ABC):
         self._str_offsz = strings_offset_size
         self._guid_offsz = guid_offset_size
         self._blob_offsz = blob_offset_size
-        self._init_format()
-        self.struct = self._struct_class(format=self._format)
-        self.row_size = self.struct.sizeof()
+        self._format = self._compute_format()
+        self._data: bytes = b""
 
-    def _init_format(self):
+        # we are cheating here: this isn't technically a RowStruct, but actually a RowStruct subclass.
+        # but few users will likely reach in here, so ATM its not worth fully type annotating.
+        self.struct: RowStruct = self.__class__._struct_class(format=self._format)
+        self.row_size: int = self.struct.sizeof()
+
+    @abc.abstractmethod
+    def _compute_format(self) -> Tuple[str, Sequence[str]]:
         """
-        Initialize the structure format.  This is called by the __init__ function (class constructure)
-        and results in the _format Tuple being set according to the tables rowcounts and heap info.
-        The _format Tuple is passed to RowStruct instantiations to calcuate the row size and to parse a row.
+        Compute the structure format.
+        This will be passed to RowStruct instances to calcuate the row size and to parse a row.
         """
-        pass
+        ...
 
     def set_data(self, data: bytes, offset: int = None):
         """
