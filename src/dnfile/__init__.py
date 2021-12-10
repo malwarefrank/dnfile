@@ -15,9 +15,8 @@ Copyright (c) 2020-2021 MalwareFrank
 __author__ = """MalwareFrank"""
 __version__ = "0.8.0"
 
-import codecs
-import struct as _struct
 import copy as _copymod
+import codecs
 import struct as _struct
 from typing import Dict, List
 
