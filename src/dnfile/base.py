@@ -204,7 +204,7 @@ class MDTableRow(abc.ABC):
         parse() is called after all tables have had parse_rows() called on them.
         """
         self._data = data
-        self.struct = self._struct_class(format=self._format, file_offset=offset)
+        self.struct = self.__class__._struct_class(format=self._format, file_offset=offset)
         self.struct.__unpack__(data)
 
     def parse(self, tables: List["ClrMetaDataTable"], next_row: Optional["MDTableRow"]):
@@ -213,12 +213,13 @@ class MDTableRow(abc.ABC):
         have been initialized, i.e. parse_rows() has been called on each table in the tables list.
         """
         # if there are any fields to copy as-is
-        if hasattr(self, "_struct_asis"):
-            for struct_name, attr_name in self._struct_asis.items():
+        if hasattr(self.__class__, "_struct_asis"):
+            for struct_name, attr_name in self.__class__._struct_asis.items():
                 setattr(self, attr_name, getattr(self.struct, struct_name, None))
+
         # if strings
-        if hasattr(self, "_struct_strings") and hasattr(self, "_strings"):
-            for struct_name, attr_name in self._struct_strings.items():
+        if hasattr(self.__class__, "_struct_strings"):
+            for struct_name, attr_name in self.__class__._struct_strings.items():
                 if self._strings is None:
                     logger.warning("failed to fetch string: no strings table")
                     s = None
@@ -232,9 +233,10 @@ class MDTableRow(abc.ABC):
                         s = None
                         # TODO error/warn
                 setattr(self, attr_name, s)
+
         # if guids
-        if hasattr(self, "_struct_guids") and hasattr(self, "_guids"):
-            for struct_name, attr_name in self._struct_guids.items():
+        if hasattr(self.__class__, "_struct_guids"):
+            for struct_name, attr_name in self.__class__._struct_guids.items():
                 if self._guids is None:
                     logger.warning("failed to fetch guid: no guid table")
                     g = None
@@ -245,9 +247,10 @@ class MDTableRow(abc.ABC):
                         logger.warning("failed to fetch guid: unable to parse data")
                         g = None
                 setattr(self, attr_name, g)
+
         # if blobs
-        if hasattr(self, "_struct_blobs") and hasattr(self, "_blobs"):
-            for struct_name, attr_name in self._struct_blobs.items():
+        if hasattr(self.__class__, "_struct_blobs"):
+            for struct_name, attr_name in self.__class__._struct_blobs.items():
                 if self._blobs is None:
                     logger.warning("failed to fetch blob: no blob table")
                     b = None
@@ -258,21 +261,23 @@ class MDTableRow(abc.ABC):
                         logger.warning("failed to fetch blob: unable to parse data")
                         b = None
                 setattr(self, attr_name, b)
+
         # if coded indexes
-        if hasattr(self, "_struct_codedindexes") and tables:
+        if hasattr(self.__class__, "_struct_codedindexes") and tables:
             for struct_name, (
                 attr_name,
                 attr_class,
-            ) in self._struct_codedindexes.items():
+            ) in self.__class__._struct_codedindexes.items():
                 try:
                     o = attr_class(getattr(self.struct, struct_name, None), tables)
                 except (IndexError, TypeError):
                     o = None
                     # TODO error/warn
                 setattr(self, attr_name, o)
+
         # if flags
-        if hasattr(self, "_struct_flags"):
-            for struct_name, (attr_name, attr_class) in self._struct_flags.items():
+        if hasattr(self.__class__, "_struct_flags"):
+            for struct_name, (attr_name, attr_class) in self.__class__._struct_flags.items():
                 # Set the flags according to the Flags member
                 v = getattr(self.struct, struct_name, None)
                 if v is not None:
@@ -285,9 +290,10 @@ class MDTableRow(abc.ABC):
                     flag_object = None
                     # TODO error/warn
                 setattr(self, attr_name, flag_object)
+
         # if indexes
-        if hasattr(self, "_struct_indexes") and tables:
-            for struct_name, (attr_name, table_name) in self._struct_indexes.items():
+        if hasattr(self.__class__, "_struct_indexes") and tables:
+            for struct_name, (attr_name, table_name) in self.__class__._struct_indexes.items():
                 table = None
                 for t in tables:
                     if t.name == table_name:
@@ -299,9 +305,10 @@ class MDTableRow(abc.ABC):
                     else:
                         setattr(self, attr_name, None)
                         # TODO error/warn
+
         # if lists
-        if hasattr(self, "_struct_lists") and tables:
-            for struct_name, (attr_name, table_name) in self._struct_lists.items():
+        if hasattr(self.__class__, "_struct_lists") and tables:
+            for struct_name, (attr_name, table_name) in self.__class__._struct_lists.items():
                 table = None
                 for t in tables:
                     if t.name == table_name:
