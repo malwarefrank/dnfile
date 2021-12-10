@@ -240,7 +240,7 @@ class MDTableRow(abc.ABC):
                         table = t
                 if table:
                     i = getattr(self.struct, struct_name, None)
-                    if i is not None and i <= table.num_rows:
+                    if i is not None and i > 0 and i <= table.num_rows:
                         setattr(self, attr_name, MDTableIndexRef(table, i))
                     else:
                         setattr(self, attr_name, None)
