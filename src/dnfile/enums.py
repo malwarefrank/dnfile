@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import enum as _enum
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Type
 
 ########
 # Most developers may just use the Clr* classes to automatically parse the
@@ -36,9 +36,9 @@ class ClrFlags(object):
     :var _flags:        an iterable of classes defining bit flags to check and set if set.
     """
 
-    corhdr_enum: ClrMetaDataEnum
-    _masks: Dict[str, _enum.Enum]
-    _flags: Iterable[_enum.Enum]
+    corhdr_enum: Type[ClrMetaDataEnum]
+    _masks: Dict[str, Type[_enum.IntEnum]]
+    _flags: Iterable[Type[_enum.IntEnum]]
 
     def __init__(self, value):
         if hasattr(self, "_masks"):
