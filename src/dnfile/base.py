@@ -9,6 +9,7 @@ Copyright (c) 2020-2021 MalwareFrank
 import abc
 import struct as _struct
 import collections
+import collections.abc
 from typing import Dict, List, Type, Tuple, Optional, TYPE_CHECKING
 
 from pefile import Structure
@@ -387,8 +388,12 @@ class ClrMetaDataTable(collections.abc.Sequence):
             is_sorted   Whether the table is sorted, according to tables_info.
             rows        Initialized but not-yet-parsed list of rows.
         """
+        num_rows = tables_rowcounts[self.number]
+        if num_rows is None:
+            raise errors.dnFormatError("invalid table index")
+
         self.is_sorted = is_sorted
-        self.num_rows = tables_rowcounts[self.number]
+        self.num_rows = num_rows
         self.rows = list()
         # store heap info
         self._strings_heap = strings_heap
@@ -499,7 +504,7 @@ class MDTableIndex(object):
 
     table: ClrMetaDataTable
     row_index: int
-    row: MDTableRow
+    row: Optional[MDTableRow]
 
 
 class CodedIndex(MDTableIndex):
@@ -508,6 +513,7 @@ class CodedIndex(MDTableIndex):
 
     def __init__(self, value, tables_list: List[ClrMetaDataTable]):
         table_name = self.table_names[value & (2 ** self.tag_bits - 1)]
+        self.row = None
         self.row_index = value >> self.tag_bits
         for t in tables_list:
             if t.name == table_name:
@@ -515,9 +521,10 @@ class CodedIndex(MDTableIndex):
                 if self.row_index > t.num_rows:
                     # TODO error/warn
                     self.row = None
-                    return
-                self.row = t.rows[self.row_index - 1]
+                else:
+                    self.row = t.get_with_row_index(self.row_index)
 
+                return
 
 class MDTableIndexRef(MDTableIndex):
     def __init__(self, table, row_index):
