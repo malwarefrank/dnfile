@@ -9,12 +9,14 @@ Copyright (c) 2020-2021 MalwareFrank
 import abc
 import struct as _struct
 import collections
-from typing import Dict, List, Type, Tuple, Optional
+from typing import Dict, List, Type, Tuple, Optional, TYPE_CHECKING
 
 from pefile import Structure
 
 from . import enums, errors
 
+if TYPE_CHECKING:
+    from . import streams
 
 class StreamStruct(Structure):
     Name: bytes
@@ -122,9 +124,9 @@ class MDTableRow(abc.ABC):
         strings_offset_size: int,
         guid_offset_size: int,
         blob_offset_size: int,
-        strings_heap: ClrHeap,
-        guid_heap: ClrHeap,
-        blob_heap: ClrHeap,
+        strings_heap: "streams.StringsHeap",
+        guid_heap: "streams.GuidHeap",
+        blob_heap: "streams.BlobHeap",
     ):
         """
         Given the tables' row counts and heap info.
