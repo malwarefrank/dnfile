@@ -463,24 +463,25 @@ class ClrData(DataContainer):
         # parse metadata
         metadata_rva = clr_struct.MetaDataRva
         metadata_size = clr_struct.MetaDataSize
+
         try:
             self.metadata = ClrMetaData(pe, metadata_rva, metadata_size)
         except (errors.dnFormatError, PEFormatError) as e:
-            self.metadata = None
-            pe.add_warning("Problem parsing .NET metadata")
-            pe.add_warning(str(e))
-        if self.metadata:
-            # create shortcuts for streams
-            # TODO: if there are multiple instances of a type, does dotnet runtime use first?
-            for s in self.metadata.streams_list:
-                if not self.strings and isinstance(s, stream.StringsHeap):
-                    self.strings = s
-                elif not self.guids and isinstance(s, stream.GuidHeap):
-                    self.guids = s
-                elif not self.blobs and isinstance(s, stream.BlobHeap):
-                    self.blobs = s
-                elif not self.mdtables and isinstance(s, stream.MetaDataTables):
-                    self.mdtables: stream.MetaDataTables = s
+            # the parsing may fail, and if so, we're not able to work with the .NET module.
+            # let the caller decide what to do.
+            raise errors.dnFormatError("failed to parse .NET metadata: " + str(e))
+
+        # create shortcuts for streams
+        # TODO: if there are multiple instances of a type, does dotnet runtime use first?
+        for s in self.metadata.streams_list:
+            if not self.strings and isinstance(s, stream.StringsHeap):
+                self.strings = s
+            elif not self.guids and isinstance(s, stream.GuidHeap):
+                self.guids = s
+            elif not self.blobs and isinstance(s, stream.BlobHeap):
+                self.blobs = s
+            elif not self.mdtables and isinstance(s, stream.MetaDataTables):
+                self.mdtables: stream.MetaDataTables = s
 
         # Set the flags according to the Flags member
         flags_object = enums.ClrHeaderFlags(clr_struct.Flags)
