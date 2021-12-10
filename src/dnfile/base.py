@@ -222,45 +222,43 @@ class MDTableRow(abc.ABC):
             for struct_name, attr_name in self.__class__._struct_strings.items():
                 if self._strings is None:
                     logger.warning("failed to fetch string: no strings table")
-                    s = None
-                else:
-                    i = getattr(self.struct, struct_name, None)
-                    try:
-                        s = self._strings.get(i)
-                    except UnicodeDecodeError:
-                        s = self._strings.get(i, as_bytes=True)
-                    except IndexError:
-                        s = None
-                        # TODO error/warn
-                setattr(self, attr_name, s)
+                    continue
+
+                i = getattr(self.struct, struct_name, None)
+                try:
+                    s = self._strings.get(i)
+                    setattr(self, attr_name, s)
+                except UnicodeDecodeError:
+                    s = self._strings.get(i, as_bytes=True)
+                    logger.warning("string: invalid encoding")
+                    setattr(self, attr_name, s)
+                except IndexError:
+                    logger.warning("failed to fetch string: unable to parse data")
 
         # if guids
         if hasattr(self.__class__, "_struct_guids"):
             for struct_name, attr_name in self.__class__._struct_guids.items():
                 if self._guids is None:
                     logger.warning("failed to fetch guid: no guid table")
-                    g = None
-                else:
-                    try:
-                        g = self._guids.get(getattr(self.struct, struct_name, None))
-                    except (IndexError, TypeError):
-                        logger.warning("failed to fetch guid: unable to parse data")
-                        g = None
-                setattr(self, attr_name, g)
+                    continue
+
+                try:
+                    g = self._guids.get(getattr(self.struct, struct_name, None))
+                    setattr(self, attr_name, g)
+                except (IndexError, TypeError):
+                    logger.warning("failed to fetch guid: unable to parse data")
 
         # if blobs
         if hasattr(self.__class__, "_struct_blobs"):
             for struct_name, attr_name in self.__class__._struct_blobs.items():
                 if self._blobs is None:
                     logger.warning("failed to fetch blob: no blob table")
-                    b = None
-                else:
-                    try:
-                        b = self._blobs.get(getattr(self.struct, struct_name, None))
-                    except (IndexError, TypeError):
-                        logger.warning("failed to fetch blob: unable to parse data")
-                        b = None
-                setattr(self, attr_name, b)
+                    continue
+                try:
+                    b = self._blobs.get(getattr(self.struct, struct_name, None))
+                    setattr(self, attr_name, b)
+                except (IndexError, TypeError):
+                    logger.warning("failed to fetch blob: unable to parse data")
 
         # if coded indexes
         if hasattr(self.__class__, "_struct_codedindexes") and tables:
@@ -270,26 +268,24 @@ class MDTableRow(abc.ABC):
             ) in self.__class__._struct_codedindexes.items():
                 try:
                     o = attr_class(getattr(self.struct, struct_name, None), tables)
+                    setattr(self, attr_name, o)
                 except (IndexError, TypeError):
                     logger.warning("failed to fetch coded index: unable to parse data")
-                    o = None
-                setattr(self, attr_name, o)
 
         # if flags
         if hasattr(self.__class__, "_struct_flags"):
-            for struct_name, (attr_name, attr_class) in self.__class__._struct_flags.items():
+            for struct_name, (attr_name, flag_class) in self.__class__._struct_flags.items():
                 # Set the flags according to the Flags member
                 v = getattr(self.struct, struct_name, None)
-                if v is not None:
-                    try:
-                        flag_object = attr_class(v)
-                    except ValueError:
-                        logger.warning("failed to fetch flag: unable to parse data")
-                        flag_object = None
-                else:
+                if v is None:
                     logger.warning("failed to fetch flag: unable to parse data")
-                    flag_object = None
-                setattr(self, attr_name, flag_object)
+                    continue
+
+                try:
+                    flag_object = flag_class(v)
+                    setattr(self, attr_name, flag_object)
+                except ValueError:
+                    logger.warning("failed to fetch flag: unable to parse data")
 
         # if indexes
         if hasattr(self.__class__, "_struct_indexes") and tables:
@@ -304,7 +300,6 @@ class MDTableRow(abc.ABC):
                         setattr(self, attr_name, MDTableIndex(table, i))
                     else:
                         logger.warning("failed to fetch index reference: unable to parse data")
-                        setattr(self, attr_name, None)
 
         # if lists
         if hasattr(self.__class__, "_struct_lists") and tables:
@@ -470,7 +465,7 @@ class CodedIndex(MDTableIndex[RowType]):
         raise errors.dnFormatError("invalid table name")
 
 
-class ClrMetaDataTable(typing.Sequence[RowType]):
+class ClrMetaDataTable(Generic[RowType]):
     """
     An abstract class for Metadata tables.  Rows can be accessed
      directly like a list with bracket [] syntax.
