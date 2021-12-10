@@ -96,27 +96,60 @@ class MDTableRow(abc.ABC):
     A Metadata Table row is a simple structure that holds the
     fields and values.
     """
+    #
+    # required properties for subclasses.
+    # 
+    # subclasses must define this property,
+    # or __init__ will raise an exception.
+    #
+    # for example:
+    #
+    #   class ModuleRow(MDTableRow):
+    #       _struct_class = ModuleRowStruct
+    #
+    _struct_class: Type[RowStruct]
 
-    struct: RowStruct
-    row_size: int = 0
-
-    _format: Tuple
-    _tables: Dict[str, int]
-    _struct_class = Type[RowStruct]
-
-    # maps from struct attribute to object attribute
+    #
+    # optional properties for subclasses.
+    #
+    # when a subclass defines one of these properties,
+    # the given fields will be parsed with the appropriate strategy.
+    # these strategy defintions:
+    #   - map from underlying raw struct (e.g. RowStruct class)
+    #   - map to the high-level property (e.g. MDTableRow subclass)
+    #
+    # for example:
+    #
+    #   class ModuleRow(MDTableRow):
+    #       Name: str
+    #       _struct_class = ModuleRowStruct
+    #       _struct_strings = {
+    #           "Name_StringIndex": "Name",
+    #       }
+    #
+    # this strategy causes the parser to:
+    #   1. parse the raw row using `ModuleRowStruct`
+    #   2. fetch field `ModuleRowStruct.Name_StringIndex`
+    #   3. resolve it as a string (due to strategy name)
+    #   4. assign it to field `ModuleRow.Name`
+    #
+    # valid strategies are:
+    #  - asis: map data as-is, possibly change the field name
+    #  - strings: resolve via UserString table
+    #  - guids: resolve via GUID table
+    #  - blobs: resolve via Blob table
+    #  - flags: resolve via flags provided as subclass properties
+    #  - indexes: resolve via given table name
+    #  - lists: resolve many items via given table name
+    #  - codedindexes: resolve via candidate list of tables
     _struct_strings: Dict[str, str]
     _struct_guids: Dict[str, str]
     _struct_blobs: Dict[str, str]
     _struct_asis: Dict[str, str]
-    _struct_codedindexes: Dict[
-        str, Tuple[str, Type["CodedIndex"]]
-    ]  # also CodedIndex subclass
-    _struct_indexes: Dict[str, Tuple[str, str]]  # also Metadata table name
-    _struct_flags: Dict[
-        str, Tuple[str, Type[enums.ClrFlags]]
-    ]  # also ClrFlags subclass
-    _struct_lists: Dict[str, Tuple[str, str]]  # also Metadata table name
+    _struct_codedindexes: Dict[str, Tuple[str, Type["CodedIndex"]]]  # also CodedIndex subclass
+    _struct_indexes: Dict[str, Tuple[str, str]]                      # also Metadata table name
+    _struct_flags: Dict[str, Tuple[str, Type[enums.ClrFlags]]]       # also ClrFlags subclass
+    _struct_lists: Dict[str, Tuple[str, str]]                        # also Metadata table name
 
     def __init__(
         self,
@@ -130,12 +163,15 @@ class MDTableRow(abc.ABC):
     ):
         """
         Given the tables' row counts and heap info.
+
         Initialize the following attributes:
             row_size    The size, in bytes, of one row.  Calculated from
-                        tables_rowcounts, heap info, and self._format
+                         tables_rowcounts, heap info, and self._format
+            struct      The class use to parse the data.
 
         tables_rowcounts is indexed by table number.  The value is the row count, if it exists, or None.
         """
+        assert hasattr(self.__class__, "_struct_class")
 
         self._tables_rowcnt = tables_rowcounts
         self._strings: Optional["stream.StringsHeap"] = strings_heap

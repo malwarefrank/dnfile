@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 
 
 class ModuleRowStruct(RowStruct):
+    #
+    # these are type hints for properties dynamically set during structure parsing.
+    #
     Generation: int
     Name_StringIndex: int
     Mvid_GuidIndex: int
@@ -31,15 +34,23 @@ class ModuleRowStruct(RowStruct):
 
 
 class ModuleRow(MDTableRow):
+    #
+    # these are type hints for properties dynamically set during structure parsing.
+    #
     Generation: int
     Name: str
     Mvid: str
     EncId: str
     EncBaseId: str
 
-    struct: ModuleRowStruct
+    #
+    # raw structure definition
+    #
     _struct_class = ModuleRowStruct
 
+    #
+    # parsing strategies
+    #
     _struct_asis = {"Generation": "Generation"}
     _struct_strings = {
         "Name_StringIndex": "Name",
