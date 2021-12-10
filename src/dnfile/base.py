@@ -308,14 +308,19 @@ class MDTableRow(abc.ABC):
         """
         if not table_names or not self._tables_rowcnt:
             # error
-            raise dnFormatError("Problem parsing .NET coded index")
+            raise errors.dnFormatError("Problem parsing .NET coded index")
         max_index = 0
         for name in table_names:
             if not name:
                 continue
-            i = enums.MetadataTables[name].value
-            if self._tables_rowcnt[i] > max_index:
-                max_index = self._tables_rowcnt[i]
+
+            table_index = enums.MetadataTables[name].value
+            table_rowcnt = self._tables_rowcnt[table_index]
+            if table_rowcnt is None:
+                raise errors.dnFormatError("Problem parsing .NET coded index: invalid table index")
+
+            max_index = max(max_index, table_rowcnt)
+
         # if it can fit in a word (minus bits for reference id)
         if max_index <= 2 ** (16 - tag_bits):
             # size is a word
