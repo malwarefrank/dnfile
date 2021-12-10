@@ -10,6 +10,7 @@ REFERENCES
 Copyright (c) 2020-2021 MalwareFrank
 """
 
+import logging
 import struct as _struct
 from typing import Dict, List, Tuple, Union
 from binascii import hexlify as _hexlify
@@ -18,6 +19,9 @@ from pefile import MAX_STRING_LENGTH, Structure
 
 from . import base, errors, mdtable
 from .utils import read_compressed_int
+
+
+logger = logging.getLogger(__name__)
 
 
 class GenericStream(base.ClrStream):
@@ -91,20 +95,17 @@ class UserString(object):
 
     Reference ECMA-335, Partition II Section 24.2.4
     """
-    value: str = None
-    Flag: int = None
-
-    __data__: bytes = None
-
     def __init__(self, data: bytes, encoding="utf-16"):
-        self.__data__ = data
+        self.__data__: bytes = data
+
+        self.Flag: int = 0
         if len(data) % 2 == 1:
             self.Flag = data[-1]
             data = data[:-1]
         else:
-            # TODO error/warn
-            pass
-        self.value = data.decode(encoding)
+            logger.warning("string missing trailing flag")
+
+        self.value: str = data.decode(encoding)
 
 
 class UserStringHeap(BinaryHeap):
