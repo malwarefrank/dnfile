@@ -23,24 +23,24 @@ def test_streams():
 
     dn = dnfile.dnPE(path)
 
-    assert b"#~" in dn.net.metadata.streams
+    assert "#~" in dn.net.metadata.streams
     assert hasattr(dn.net, "metadata")
 
     # strings used by #~
-    assert b"#Strings" in dn.net.metadata.streams
+    assert "#Strings" in dn.net.metadata.streams
     assert hasattr(dn.net, "strings")
 
     # "user strings"
-    assert b"#US" in dn.net.metadata.streams
+    assert "#US" in dn.net.metadata.streams
     # not sure where these are accessible yet
 
-    assert b"#GUID" in dn.net.metadata.streams
+    assert "#GUID" in dn.net.metadata.streams
     assert hasattr(dn.net, "guids")
 
-    assert b"#Blob" in dn.net.metadata.streams
+    assert "#Blob" in dn.net.metadata.streams
     assert hasattr(dn.net, "blobs")
 
-    assert b"#Foo" not in dn.net.metadata.streams
+    assert "#Foo" not in dn.net.metadata.streams
     assert not hasattr(dn.net, "foo")
 
 

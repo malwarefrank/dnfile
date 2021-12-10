@@ -15,7 +15,7 @@ def show_strings(fname):
         return
 
     # get the (first) UserStrings stream
-    us: dnfile.stream.UserStringHeap = dn.net.metadata.streams.get(b"#US", None)
+    us: dnfile.stream.UserStringHeap = dn.net.metadata.streams.get("#US", None)
     if us:
         # get size of the stream
         size = us.sizeof()

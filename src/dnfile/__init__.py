@@ -23,7 +23,7 @@ from typing import Dict, List
 from pefile import PE as _PE
 from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, DataContainer, PEFormatError
 
-from . import enums, errors, stream
+from . import enums, errors, stream, base
 
 CLR_METADATA_SIGNATURE = 0x424A5342
 
@@ -225,7 +225,7 @@ class ClrMetaData(DataContainer):
 
     rva: int
     struct: ClrMetaDataStruct
-    streams: Dict[int, base.ClrStream]
+    streams: Dict[str, base.ClrStream]
     streams_list: List[base.ClrStream]
 
     _format = (
@@ -343,15 +343,16 @@ class ClrMetaData(DataContainer):
                 # assume this throws off further parsing, so stop
                 break
             streams_list.append(stream)
-            # if a stream with this name already exists
-            if stream.struct.Name in streams_dict:
+            name = stream.struct.Name.rstrip(b"\x00").decode("ascii")
+            if name in streams_dict:
+                # if a stream with this name already exists
                 # warning
                 pe.add_warning(
                     "Duplicate .NET stream name '{}'".format(stream.struct.Name)
                 )
             else:
                 # otherwise add it to the associative array
-                streams_dict[stream.struct.Name] = stream
+                streams_dict[name] = stream
             # move to next entry in streams table
             stream_entry_rva += stream.stream_table_entry_size()
 
@@ -480,12 +481,12 @@ class ClrData(DataContainer):
 
 class ClrStreamFactory(object):
     _name_type_map = {
-        b"#~": stream.MetaDataTables,
-        b"#-": stream.MetaDataTables,
-        b"#Strings": stream.StringsHeap,
-        b"#GUID": stream.GuidHeap,
-        b"#Blob": stream.BlobHeap,
-        b"#US": stream.UserStringHeap,
+        "#~": stream.MetaDataTables,
+        "#-": stream.MetaDataTables,
+        "#Strings": stream.StringsHeap,
+        "#GUID": stream.GuidHeap,
+        "#Blob": stream.BlobHeap,
+        "#US": stream.UserStringHeap,
     }
     _template_format = (
         "IMAGE_CLR_STREAM",
@@ -522,12 +523,8 @@ class ClrStreamFactory(object):
             metadata_rva + stream_struct.Offset, stream_struct.Size
         )
         # if there is a subclass for this stream
-        if stream_struct.Name in cls._name_type_map:
-            # use that subclass
-            stream_class = cls._name_type_map[stream_struct.Name]
-        else:
-            # otherwise, use the base stream class
-            stream_class = stream.GenericStream
+        name = stream_struct.Name.rstrip(b"\x00").decode("ascii")
+        stream_class = cls._name_type_map.get(name, stream.GenericStream)
         # construct stream
         s = stream_class(metadata_rva, stream_struct, stream_data)
         # return stream
