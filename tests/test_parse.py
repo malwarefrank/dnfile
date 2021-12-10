@@ -127,6 +127,4 @@ def test_method_params():
     # instance default void '.ctor' ()  cil managed
     assert len(methods[1].ParamList) == 0
 
-    param0 = methods[0].ParamList[0].row
-    assert param0 is not None
-    param0.Name == "args"
+    assert methods[0].ParamList[0].row.Name == "args"

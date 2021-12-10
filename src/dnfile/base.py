@@ -366,12 +366,15 @@ class MDTableIndex(Generic[RowType]):
     Attributes:
         table           Table object.
         row_index       Index number of the row.
-        row             The referenced row or None if invalid.
+        row             The referenced row.
     """
+    def __init__(self, table: "ClrMetaDataTable[RowType]", row_index: int):
+        self.table: "ClrMetaDataTable[RowType]" = table
+        self.row_index: int = row_index
 
-    table: "ClrMetaDataTable"
-    row_index: int
-    row: Optional[RowType]
+    @property
+    def row(self) -> RowType:
+        return self.table.get_with_row_index(self.row_index)
 
 
 class CodedIndex(MDTableIndex[RowType]):
@@ -383,29 +386,18 @@ class CodedIndex(MDTableIndex[RowType]):
     tag_bits: int
     table_names: Sequence[str]
 
-    def __init__(self, value, tables_list: List["ClrMetaDataTable"]):
+    def __init__(self, value, tables: List["ClrMetaDataTable[RowType]"]):
         table_name = self.table_names[value & (2 ** self.tag_bits - 1)]
-        self.row = None
         self.row_index = value >> self.tag_bits
-        for t in tables_list:
-            # TODO: use an index here
-            if t.name == table_name:
-                self.table = t
 
-                if self.row_index > t.num_rows:
-                    logger.warning("invalid row index: table: %s, index: %d", table_name, self.row_index)
-                    self.row = None
-                else:
-                    self.row = t.get_with_row_index(self.row_index)
+        for t in tables:
+            if t.name != table_name:
+                continue
 
-                return
+            self.table = t
+            return
 
-
-class MDTableIndexRef(MDTableIndex[RowType]):
-    def __init__(self, table, row_index):
-        self.table = table
-        self.row_index = row_index
-        self.row = table.get_with_row_index(row_index)
+        raise errors.dnFormatError("invalid table name")
 
 
 class ClrMetaDataTable(typing.Sequence[RowType]):

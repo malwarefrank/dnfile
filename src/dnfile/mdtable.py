@@ -14,7 +14,7 @@ Copyright (c) 2020-2021 MalwareFrank
 from typing import List
 
 from . import enums, utils, codedindex, errors
-from .base import ClrHeap, RowStruct, MDTableRow, ClrMetaDataTable, MDTableIndexRef
+from .base import ClrHeap, RowStruct, MDTableRow, ClrMetaDataTable, MDTableIndex
 
 #### Module Table
 #
@@ -273,7 +273,7 @@ class MethodDefRow(MDTableRow):
     Flags: enums.ClrMethodAttr
     Name: str
     Signature: bytes
-    ParamList: List[MDTableIndexRef["ParamRow"]]
+    ParamList: List[MDTableIndex["ParamRow"]]
 
     struct: MethodDefRowStruct
     _struct_class = MethodDefRowStruct
@@ -386,7 +386,7 @@ class InterfaceImplRowStruct(RowStruct):
 
 
 class InterfaceImplRow(MDTableRow):
-    Class: MDTableIndexRef[TypeDefRow]
+    Class: MDTableIndex[TypeDefRow]
     Interface: codedindex.TypeDefOrRef
 
     struct: InterfaceImplRowStruct
@@ -691,7 +691,7 @@ class ClassLayoutRowStruct(RowStruct):
 class ClassLayoutRow(MDTableRow):
     PackingSize: int
     ClassSize: int
-    Parent: MDTableIndexRef[TypeDefRow]
+    Parent: MDTableIndex[TypeDefRow]
 
     struct: ClassLayoutRowStruct
     _struct_class = ClassLayoutRowStruct
@@ -734,7 +734,7 @@ class FieldLayoutRowStruct(RowStruct):
 
 class FieldLayoutRow(MDTableRow):
     Offset: int
-    Field: MDTableIndexRef[FieldRow]
+    Field: MDTableIndex[FieldRow]
 
     struct: FieldLayoutRowStruct
     _struct_class = FieldLayoutRowStruct
@@ -808,8 +808,8 @@ class EventMapRowStruct(RowStruct):
 
 
 class EventMapRow(MDTableRow):
-    Parent: MDTableIndexRef[TypeDefRow] = None
-    EventList: List[MDTableIndexRef["EventRow"]] = None
+    Parent: MDTableIndex[TypeDefRow] = None
+    EventList: List[MDTableIndex["EventRow"]] = None
 
     struct: EventMapRowStruct
     _struct_class = EventMapRowStruct
@@ -908,8 +908,8 @@ class PropertyMapRowStruct(RowStruct):
 
 
 class PropertyMapRow(MDTableRow):
-    Parent: MDTableIndexRef[TypeDefRow] = None
-    PropertyList: List[MDTableIndexRef["PropertyRow"]] = None
+    Parent: MDTableIndex[TypeDefRow] = None
+    PropertyList: List[MDTableIndex["PropertyRow"]] = None
 
     struct: PropertyMapRowStruct
     _struct_class = PropertyMapRowStruct
@@ -1007,7 +1007,7 @@ class MethodSemanticsRowStruct(RowStruct):
 
 class MethodSemanticsRow(MDTableRow):
     Semantics: enums.ClrMethodSemanticsAttr
-    Method: MDTableIndexRef[MethodDefRow]
+    Method: MDTableIndex[MethodDefRow]
     Association: codedindex.HasSemantics
 
     struct: MethodSemanticsRowStruct
@@ -1058,7 +1058,7 @@ class MethodImplRowStruct(RowStruct):
 
 
 class MethodImplRow(MDTableRow):
-    Class: MDTableIndexRef[TypeDefRow]
+    Class: MDTableIndex[TypeDefRow]
     MethodBody: codedindex.MethodDefOrRef
     MethodDeclaration: codedindex.MethodDefOrRef
 
@@ -1180,7 +1180,7 @@ class ImplMapRow(MDTableRow):
     MappingFlags: enums.ClrPinvokeMap
     MemberForwarded: codedindex.MemberForwarded
     ImportName: str
-    ImportScope: MDTableIndexRef[ModuleRefRow]
+    ImportScope: MDTableIndex[ModuleRefRow]
 
     struct: ImplMapRowStruct
     _struct_class = ImplMapRowStruct
@@ -1234,7 +1234,7 @@ class FieldRvaRowStruct(RowStruct):
 
 class FieldRvaRow(MDTableRow):
     Rva: int
-    Field: MDTableIndexRef[FieldRow]
+    Field: MDTableIndex[FieldRow]
 
     struct: FieldRvaRowStruct
     _struct_class = FieldRvaRowStruct
@@ -1502,7 +1502,7 @@ class AssemblyRefProcessorRowStruct(RowStruct):
 
 class AssemblyRefProcessorRow(MDTableRow):
     Processor: int
-    AssemblyRef: MDTableIndexRef[AssemblyRefRow]
+    AssemblyRef: MDTableIndex[AssemblyRefRow]
 
     struct: AssemblyRefProcessorRowStruct
     _struct_class = AssemblyRefProcessorRowStruct
@@ -1547,7 +1547,7 @@ class AssemblyRefOSRow(MDTableRow):
     OSPlatformId: int
     OSMajorVersion: int
     OSMinorVersion: int
-    AssemblyRef: MDTableIndexRef[AssemblyRefRow]
+    AssemblyRef: MDTableIndex[AssemblyRefRow]
 
     struct: AssemblyRefOSRowStruct
     _struct_class = AssemblyRefOSRowStruct
@@ -1760,8 +1760,8 @@ class NestedClassRowStruct(RowStruct):
 
 
 class NestedClassRow(MDTableRow):
-    NestedClass: MDTableIndexRef[TypeDefRow]
-    EnclosingClass: MDTableIndexRef[TypeDefRow]
+    NestedClass: MDTableIndex[TypeDefRow]
+    EnclosingClass: MDTableIndex[TypeDefRow]
 
     struct: NestedClassRowStruct
     _struct_class = NestedClassRowStruct
@@ -1901,7 +1901,7 @@ class GenericParamConstraintRowStruct(RowStruct):
 
 
 class GenericParamConstraintRow(MDTableRow):
-    Owner: MDTableIndexRef[GenericParamRow]
+    Owner: MDTableIndex[GenericParamRow]
     Constraint: codedindex.TypeDefOrRef
 
     struct: GenericParamConstraintRowStruct
