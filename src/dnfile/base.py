@@ -438,10 +438,25 @@ class CodedIndex(MDTableIndex[RowType]):
       - tag_bits        Number of bits used to specify the table name index.
       - table_names     Candidate list of table names.
     """
+    #
+    # required properties for subclasses.
+    # 
+    # subclasses must define this property,
+    # or __init__ will raise an exception.
+    #
+    # for example:
+    #
+    #   class TypeDefOrRef(CodedIndex[...]):
+    #       tag_bits = 2
+    #       table_names = ("TypeDef", "TypeRef", "TypeSpec")
+    #
     tag_bits: int
     table_names: Sequence[str]
 
     def __init__(self, value, tables: List["ClrMetaDataTable[RowType]"]):
+        assert hasattr(self, "tag_bits")
+        assert hasattr(self, "table_names")
+
         table_name = self.table_names[value & (2 ** self.tag_bits - 1)]
         self.row_index = value >> self.tag_bits
 
@@ -466,24 +481,24 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
     Subclasses should make sure to set the following attributes:
         number
         name
-        _format
-        _flags
         _row_class
     """
-
+    #
+    # required properties for subclasses.
+    # 
+    # subclasses must define this property,
+    # or __init__ will raise an exception.
+    #
+    # for example:
+    #
+    #   class Module(ClrMetaDataTable[ModuleRow]):
+    #       name = "Module"
+    #       number = 0
+    #       _row_class = ModuleRow
+    #
     number: int
     name: str
-    num_rows: int
-    row_size: int
-    rows: List[RowType]
-    is_sorted: bool
-    # TODO: where is this ever set???
-    rva: int = 0
-
-    _format: Tuple
-    _flags: Tuple
     _row_class: Type[RowType]
-    _table_data: bytes
 
     def __init__(
         self,
@@ -505,13 +520,28 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
             is_sorted   Whether the table is sorted, according to tables_info.
             rows        Initialized but not-yet-parsed list of rows.
         """
+        assert hasattr(self, "number")
+        assert hasattr(self, "name")
+        assert hasattr(self, "_row_class")
+
         num_rows = tables_rowcounts[self.number]
         if num_rows is None:
             raise errors.dnFormatError("invalid table index")
 
-        self.is_sorted = is_sorted
-        self.num_rows = num_rows
-        self.rows = list()
+        self.is_sorted: bool = is_sorted
+        self.num_rows: int = num_rows
+        self.rows: List[RowType] = [
+            self._row_class(
+                tables_rowcounts,
+                strings_offset_size,
+                guid_offset_size,
+                blob_offset_size,
+                strings_heap,
+                guid_heap,
+                blob_heap,
+            )
+            for _ in range(num_rows)]
+
         # store heap info
         self._strings_heap: Optional["stream.StringsHeap"] = strings_heap
         self._guid_heap: Optional["stream.GuidHeap"] = guid_heap
@@ -520,25 +550,9 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
         self._guid_offset_size = guid_offset_size
         self._blob_offset_size = blob_offset_size
         self._tables_rowcounts = tables_rowcounts
-        # init rows
-        self._init_rows()
-        # get row size
-        self.row_size = self._get_row_size()
 
-    def _init_rows(self):
-        if self._row_class:
-            for _ in range(self.num_rows):
-                r: RowType
-                r = self._row_class(
-                    self._tables_rowcounts,
-                    self._strings_offset_size,
-                    self._guid_offset_size,
-                    self._blob_offset_size,
-                    self._strings_heap,
-                    self._guid_heap,
-                    self._blob_heap,
-                )
-                self.rows.append(r)
+        self._table_data: bytes = b""
+        self.row_size: int = self._get_row_size()
 
     def _get_row_size(self):
         if not self.rows:
@@ -572,7 +586,7 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
                     )
                 )
             self.rows[i].set_data(
-                data[offset:offset + self.row_size], offset=self.rva + offset
+                data[offset:offset + self.row_size], offset=offset
             )
             offset += self.row_size
 
