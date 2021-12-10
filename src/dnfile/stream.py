@@ -222,6 +222,7 @@ class MetaDataTables(base.ClrStream):
     NestedClass:            mdtable.NestedClass
     GenericParam:           mdtable.GenericParam
     GenericParamConstraint: mdtable.GenericParamConstraint
+    Unused:                 mdtable.Unused
 
     def parse(self, streams: List[base.ClrStream]):
 

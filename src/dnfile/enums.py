@@ -844,6 +844,7 @@ class MetadataTables(_enum.IntEnum):
     GenericMethod = 43
     GenericParamConstraint = 44
     # 45 through 63 are not used
+    Unused = 62
     MaxTable = 63
 
 

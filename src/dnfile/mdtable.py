@@ -1922,16 +1922,15 @@ class GenericParamConstraint(ClrMetaDataTable[GenericParamConstraintRow]):
 # 61
 # 62
 
+class Unused(ClrMetaDataTable):
+    # placeholder for unused table references.
+    # which is referenced by `CustomAttributeType` coded index.
+    name = "Unused"
+    number = 62
+
 
 class MaxTable(ClrMetaDataTable):
     name = "MaxTable"
-    number = 63
-
-
-class Unused(ClrMetaDataTable):
-    # re-use MaxTable as a placeholder for "unused"
-    # which is referenced by `CustomAttributeType` coded index.
-    name = "Unused"
     number = 63
 
 
@@ -1983,6 +1982,7 @@ class ClrMetaDataTableFactory(object):
         43: GenericMethod,
         44: GenericParamConstraint,
         # 45 through 63 are not used
+        62: Unused,
         63: MaxTable,
     }
 
