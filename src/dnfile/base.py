@@ -5,10 +5,10 @@
 Copyright (c) 2020-2021 MalwareFrank
 """
 import abc
-import logging
 import struct as _struct
 import typing
-from typing import Dict, List, Type, Tuple, Optional, TypeVar, Generic, Sequence, TYPE_CHECKING
+import logging
+from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Generic, TypeVar, Optional, Sequence
 
 from pefile import Structure
 
@@ -98,7 +98,7 @@ class MDTableRow(abc.ABC):
     """
     #
     # required properties for subclasses.
-    # 
+    #
     # subclasses must define this property,
     # or __init__ will raise an exception.
     #
@@ -440,7 +440,7 @@ class CodedIndex(MDTableIndex[RowType]):
     """
     #
     # required properties for subclasses.
-    # 
+    #
     # subclasses must define this property,
     # or __init__ will raise an exception.
     #
@@ -485,7 +485,7 @@ class ClrMetaDataTable(typing.Sequence[RowType]):
     """
     #
     # required properties for subclasses.
-    # 
+    #
     # subclasses must define this property,
     # or __init__ will raise an exception.
     #

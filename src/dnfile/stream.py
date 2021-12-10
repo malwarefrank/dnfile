@@ -10,8 +10,8 @@ REFERENCES
 Copyright (c) 2020-2021 MalwareFrank
 """
 
-import logging
 import struct as _struct
+import logging
 from typing import Dict, List, Tuple, Union, Optional
 from binascii import hexlify as _hexlify
 
@@ -19,7 +19,6 @@ from pefile import MAX_STRING_LENGTH, Structure
 
 from . import base, errors, mdtable
 from .utils import read_compressed_int
-
 
 logger = logging.getLogger(__name__)
 

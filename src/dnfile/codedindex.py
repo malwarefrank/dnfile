@@ -12,7 +12,7 @@ REFERENCES
 Copyright (c) 2020-2021 MalwareFrank
 """
 
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from .base import CodedIndex
 

@@ -11,10 +11,11 @@ REFERENCES
 
 Copyright (c) 2020-2021 MalwareFrank
 """
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
-from . import enums, utils, codedindex, errors
-from .base import RowStruct, MDTableRow, ClrMetaDataTable, MDTableIndex
+from . import enums, utils, errors, codedindex
+from .base import RowStruct, MDTableRow, MDTableIndex, ClrMetaDataTable
+
 if TYPE_CHECKING:
     from . import stream
 
