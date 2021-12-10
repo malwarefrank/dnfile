@@ -10,12 +10,11 @@ REFERENCES
 Copyright (c) 2020-2021 MalwareFrank
 """
 
-import copy as _copymod
 import struct as _struct
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 from binascii import hexlify as _hexlify
 
-from pefile import MAX_STRING_LENGTH, Structure, DataContainer
+from pefile import MAX_STRING_LENGTH, Structure
 
 from . import base, errors, mdtable
 from .utils import read_compressed_int
@@ -173,7 +172,7 @@ class MetaDataTables(base.ClrStream):
     )
 
     header: MDTablesStruct
-    tables: Dict[str, base.ClrMetaDataTable]
+    tables: Dict[Union[str, int], base.ClrMetaDataTable]
     tables_list: List[base.ClrMetaDataTable]
     strings_offset_size: int
     guids_offset_size: int
@@ -236,7 +235,7 @@ class MetaDataTables(base.ClrStream):
         header_len = Structure(self._format).sizeof()
         if not self.__data__ or len(self.__data__) < header_len:
             # warning
-            raise errors.dnFileFormat("Unable to read .NET metadata tables")
+            raise errors.dnFormatError("Unable to read .NET metadata tables")
 
         #### parse header
         header_struct = MDTablesStruct(self._format, file_offset=self.rva)
@@ -281,16 +280,17 @@ class MetaDataTables(base.ClrStream):
         #  are listed, thus the variable length and need to parse
         #  the header's MaskValid member.
         cur_rva = self.rva + header_len
-        # initialize table with zero row counts for all tables
-        table_rowcounts = [0] * MAX_TABLES
+        table_rowcounts = []
         # read all row counts
         for i in range(MAX_TABLES):
             # if table bit is set
             if header_struct.MaskValid & 2 ** i != 0:
                 # read the row count
-                table_rowcounts[i] = self.get_dword_at_rva(cur_rva)
+                table_rowcounts.append(self.get_dword_at_rva(cur_rva))
                 # increment to next dword
                 cur_rva += 4
+            else:
+                table_rowcounts.append(0)
 
         # consume an extra dword if the extra data bit is set
         if header_struct.HeapOffsetSizes & EXTRA_DATA_MASK == EXTRA_DATA_MASK:

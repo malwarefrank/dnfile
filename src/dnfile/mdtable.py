@@ -2018,17 +2018,17 @@ class ClrMetaDataTableFactory(object):
         guid_heap: ClrHeap,
         blob_heap: ClrHeap,
     ) -> ClrMetaDataTable:
-        if number in cls._table_number_map:
-            table = cls._table_number_map[number](
-                tables_rowcounts,
-                is_sorted,
-                strings_offset_size,
-                guid_offset_size,
-                blob_offset_size,
-                strings_heap,
-                guid_heap,
-                blob_heap,
-            )
-            return table
-        else:
-            return None
+        if number not in cls._table_number_map:
+            raise errors.dnFormatError("invalid table index")
+
+        table = cls._table_number_map[number](
+            tables_rowcounts,
+            is_sorted,
+            strings_offset_size,
+            guid_offset_size,
+            blob_offset_size,
+            strings_heap,
+            guid_heap,
+            blob_heap,
+        )
+        return table

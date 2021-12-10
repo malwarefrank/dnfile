@@ -12,10 +12,12 @@ REFERENCES
 Copyright (c) 2020-2021 MalwareFrank
 """
 
-from typing import List, Tuple
+from typing import Union, TYPE_CHECKING
 
 from .base import CodedIndex
 
+if TYPE_CHECKING:
+    from .mdtable import *
 # TODO add table_numbers to all
 
 

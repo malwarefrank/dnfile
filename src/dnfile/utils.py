@@ -3,8 +3,6 @@
 import copy as _copymod
 import functools as _functools
 
-from pefile import Structure
-
 
 # lru_cache with a shallow copy of the objects returned (list, dicts, ..)
 # we don't use deepcopy as it's _really_ slow and the data we retrieved using this is enough with copy.copy
@@ -57,7 +55,7 @@ def two_way_dict(pairs):
     return dict([(e[1], e[0]) for e in pairs] + pairs)
 
 
-def num_bytes_to_struct_char(n: int):
+def num_bytes_to_struct_char(n: int) -> str:
     """
     Given number of bytes, return the struct char that can hold those bytes.
 
