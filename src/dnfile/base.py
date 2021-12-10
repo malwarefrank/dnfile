@@ -165,7 +165,7 @@ class MDTableRow(abc.ABC):
         self.struct = self._struct_class(format=self._format, file_offset=offset)
         self.struct.__unpack__(data)
 
-    def parse(self, tables: List["ClrMetaDataTable"]):
+    def parse(self, tables: List["ClrMetaDataTable"], next_row: Optional["MDTableRow"]):
         """
         Parse the row data and set object attributes.  Should only be called after all rows of all tables
         have been initialized, i.e. parse_rows() has been called on each table in the tables list.
@@ -234,22 +234,62 @@ class MDTableRow(abc.ABC):
         # if indexes
         if self._struct_indexes and tables:
             for struct_name, (attr_name, table_name) in self._struct_indexes.items():
-                table_object = None
+                table = None
                 for t in tables:
                     if t.name == table_name:
-                        table_object = t
-                if table_object:
+                        table = t
+                if table:
                     i = getattr(self.struct, struct_name, None)
-                    if i is not None and i < t.num_rows:
-                        row = t.rows[i]
-                        setattr(self, attr_name, row)
+                    if i is not None and i <= table.num_rows:
+                        setattr(self, attr_name, MDTableIndexRef(table, i))
                     else:
                         setattr(self, attr_name, None)
                         # TODO error/warn
         # if lists
-        if self._struct_lists:
-            # TODO
-            pass
+        if self._struct_lists and tables:
+            for struct_name, (attr_name, table_name) in self._struct_lists.items():
+                table = None
+                for t in tables:
+                    if t.name == table_name:
+                        table = t
+
+                if not table:
+                    # target table is not present,
+                    # such as is there is no Field table in hello-world.exe,
+                    # so the references below must, by defintion, be empty.
+                    setattr(self, attr_name, [])
+                    continue
+
+                run = []
+
+                run_start_index = getattr(self.struct, struct_name, None)
+                if run_start_index is not None:
+                    max_row = table.num_rows
+                    if next_row is not None:
+                        # then we read from the target table,
+                        # from the row referenced by this row,
+                        # until the row referenced by the next row (`next_row`),
+                        # or the end of the table.
+                        next_row_reference = getattr(next_row.struct, struct_name, None)
+                        run_end_index = max_row
+                        if next_row_reference is not None:
+                            run_end_index = min(next_row_reference, max_row)
+
+                    else:
+                        # then we read from the target table,
+                        # from the row referenced by this row,
+                        # until the end of the table.
+                        run_end_index = max_row
+
+                    # when this run starts at the last index,
+                    # start == end and end == max_row.
+                    # otherwise, if start == end, then run is empty.
+                    if (run_start_index != run_end_index) or (run_end_index == max_row):
+                        # row indexes are 1-indexed, so our range goes to end+1
+                        for row_index in range(run_start_index, run_end_index + 1):
+                            run.append(MDTableIndexRef(table, row_index))
+
+                setattr(self, attr_name, run)
 
     def _table_name2num(self, name, tables: List["ClrMetaDataTable"]):
         for t in tables:
@@ -407,7 +447,7 @@ class ClrMetaDataTable(collections.abc.Sequence):
             )
             offset += self.row_size
 
-    def parse(self, table: List["ClrMetaDataTable"]):
+    def parse(self, tables: List["ClrMetaDataTable"]):
         """
         Fully parse the table, resolving references to heaps, indexes into other
         tables, and coded indexes into other tables.
@@ -417,15 +457,28 @@ class ClrMetaDataTable(collections.abc.Sequence):
         """
 
         # for each row in table
-        for r in self.rows:
+        for i, r in enumerate(self.rows):
+            next_row = None
+            if i + 1 < len(self.rows):
+                next_row = self.rows[i + 1]
+
             # fully parse the row
-            r.parse(table)
+            r.parse(tables, next_row=next_row)
 
     def __getitem__(self, index: int):
         return self.rows[index]
 
     def __len__(self):
         return len(self.rows)
+
+    def get_with_row_index(self, row_index: int):
+        """
+        fetch the row with the given row index.
+        remember: row indices, at least those encoded within a .NET file, are 1-based.
+        so, you should prefer to use this method when you get a reference to a row.
+        use `__getitem__` when you want 0-based indexing.
+        """
+        return self[row_index - 1]
 
 
 class MDTableIndex(object):
@@ -440,21 +493,6 @@ class MDTableIndex(object):
     table: ClrMetaDataTable
     row_index: int
     row: MDTableRow
-
-    _table_class: Type[ClrMetaDataTable]
-
-    # TODO: figure out how and when to recursively resolve refs, and detect cycles
-
-    def __init__(self, value, tables_list: List[ClrMetaDataTable]):
-        self.row_index = value
-        for t in tables_list:
-            if isinstance(t, self._table_class):
-                self.table = t
-                if self.row_index > t.num_rows:
-                    # TODO error/warn
-                    self.row = None
-                    return
-                self.row = t.rows[self.row_index - 1]
 
 
 class CodedIndex(MDTableIndex):
@@ -472,3 +510,10 @@ class CodedIndex(MDTableIndex):
                     self.row = None
                     return
                 self.row = t.rows[self.row_index - 1]
+
+
+class MDTableIndexRef(MDTableIndex):
+    def __init__(self, table, row_index):
+        self.table = table
+        self.row_index = row_index
+        self.row = table.get_with_row_index(row_index)

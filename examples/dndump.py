@@ -17,7 +17,6 @@ import dnfile
 import dnfile.base
 import dnfile.enums
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -186,10 +185,13 @@ def render_pe(ostream: Formatter, dn):
                                 logger.warning("not implemented: %s.%s", table.name, field)
                                 value = "<TODO: not implemented in dnfile>"
                             else:
-                                if isinstance(v, dnfile.base.CodedIndex):
+                                if isinstance(v, dnfile.base.MDTableIndex):
                                     value = "ref table %s[%d]" % (v.table.name, v.row_index)
-                                elif isinstance(v, dnfile.enums.ClrFlags):
+                                elif isinstance(v, list):
                                     # will do this in a second pass
+                                    continue
+                                elif isinstance(v, dnfile.enums.ClrFlags):
+                                    # will do this in a third pass
                                     continue
                                 elif isinstance(v, bytes):
                                     if len(v) == 0:
@@ -208,7 +210,32 @@ def render_pe(ostream: Formatter, dn):
                             rows.append(("%s:" % (field), value))
                         ostream.rows(rows)
 
-                        # write flags second, so that in the above we can align columns
+                        # write lists second, so that in the above we can align columns
+                        for fields in row.struct.__keys__:
+                            field = get_field_name(row, fields[0])
+
+                            try:
+                                v = getattr(row, field)
+                            except AttributeError:
+                                continue
+
+                            if not isinstance(v, list):
+                                continue
+
+                            if len(v) == 0:
+                                ostream.writeln("%s: (empty)" % (field))
+                            else:
+                                ostream.writeln("%s:" % (field))
+                                with indenting(ostream):
+                                    for vv in v:
+                                        if isinstance(vv, dnfile.base.MDTableIndex):
+                                            ostream.writeln("ref table %s[%d]" % (vv.table.name, vv.row_index))
+                                        else:
+                                            # at the moment, only MDTableIndexRefs are placed into lists.
+                                            # if that changes, lets make it very obvious our assumptions fail.
+                                            raise ValueError("unexpected list element type: %s", vv.__class__.__name__)
+
+                        # write flags third, so that in the above we can align columns
                         for fields in row.struct.__keys__:
                             field = get_field_name(row, fields[0])
 
