@@ -9,7 +9,7 @@ import enum
 import struct as _struct
 import typing
 import logging
-from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Generic, TypeVar, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Union, Generic, TypeVar, Optional, Sequence
 
 from pefile import Structure
 

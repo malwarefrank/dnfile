@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import enum as _enum
-from typing import Dict, Iterable, Type
+from typing import Dict, Type, Iterable
 
 ########
 # Most developers may just use the Clr* classes to automatically parse the
