@@ -241,7 +241,7 @@ def render_pe(ostream: Formatter, dn):
                                         if isinstance(vv, dnfile.base.MDTableIndex):
                                             if not hasattr(vv, "table") or vv.table is None:
                                                 logger.warning("reference has no table: %s", vv)
-                                                name  = "(missing)"
+                                                name = "(missing)"
                                             else:
                                                 name = vv.table.name
 
