@@ -368,7 +368,7 @@ class ClrMetaData(DataContainer):
                 # if a stream with this name already exists.
                 # this is not fatal, just unusual.
                 pe.add_warning("Duplicate .NET stream name '{!r}'".format(name))
-                logger.warning("Duplicate .NET stream with name: %s", name)
+                logger.warning("Duplicate .NET stream name: %s", name)
 
             # dotnet uses the last encountered stream with a given name,
             # see: https://github.com/malwarefrank/dnfile/issues/19#issuecomment-992754448
