@@ -207,15 +207,19 @@ class dnPE(_PE):
                 value = self.parse_clr_structure(
                     dir_entry.VirtualAddress, dir_entry.Size
                 )
-                # if parsing was successful
                 if value:
-                    # set attribute
                     setattr(self, attr_name, value)
                     # create shortcut for .NET/CLR data
                     self.net = value
+                else:
+                    self.net = None
 
-    def parse_clr_structure(self, rva, size):
-        return ClrData(self, rva, size)
+    def parse_clr_structure(self, rva, size) -> Optional["ClrData"]:
+        try:
+            return ClrData(self, rva, size)
+        except errors.dnFormatError as e:
+            logger.warning("failed to parse CLR data: %s",  e)
+            return None
 
 
 class ClrMetaDataStruct(Structure):
@@ -461,6 +465,7 @@ class ClrData(DataContainer):
             )
             clr_struct.__unpack__(data)
         except PEFormatError:
+            # raise exception cause we can't do anything halfway here.
             raise errors.dnFormatError(
                 "Invalid CLR Structure information. Can't read "
                 "data at RVA: 0x%x" % rva
