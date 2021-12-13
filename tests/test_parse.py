@@ -8,8 +8,8 @@ def test_metadata():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
     dn = dnfile.dnPE(path)
-
-    assert hasattr(dn, "net")
+    assert dn.net is not None
+    assert dn.net.metadata is not None
 
     dn.net.metadata.struct.Signature == 0x424A5342
     dn.net.metadata.struct.MajorVersion == 1
@@ -23,6 +23,8 @@ def test_streams():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
     dn = dnfile.dnPE(path)
+    assert dn.net is not None
+    assert dn.net.metadata is not None
 
     assert b"#~" in dn.net.metadata.streams
     assert hasattr(dn.net, "metadata")
@@ -49,6 +51,7 @@ def test_tables():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
     dn = dnfile.dnPE(path)
+    assert dn.net is not None
 
     for table in ["Module", "TypeRef", "TypeDef", "MethodDef", "Param", "MemberRef", "CustomAttribute", "Assembly", "AssemblyRef"]:
         assert hasattr(dn.net.mdtables, table)
@@ -60,6 +63,7 @@ def test_module():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
     dn = dnfile.dnPE(path)
+    assert dn.net is not None
 
     assert dn.net.mdtables.Module[0].Name == "1-hello-world.exe"
 
@@ -68,6 +72,7 @@ def test_typedef_extends():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
     dn = dnfile.dnPE(path)
+    assert dn.net is not None
 
     typedefs = dn.net.mdtables.TypeDef
     assert typedefs[0].TypeName == "<Module>"
@@ -77,6 +82,7 @@ def test_typedef_extends():
     #      extends [mscorlib]System.Object
 
     extends = typedefs[1].Extends
+    assert extends.table is not None
     assert extends.table.name == "TypeRef"
     assert extends.row_index == 5
 
@@ -85,6 +91,7 @@ def test_typedef_extends():
     assert superclass.TypeNamespace == "System"
     assert superclass.TypeName == "Object"
 
+    assert superclass.ResolutionScope.table is not None
     assert superclass.ResolutionScope.table.name == "AssemblyRef"
     assembly = superclass.ResolutionScope.row
     assert isinstance(assembly, AssemblyRefRow)
@@ -95,6 +102,7 @@ def test_typedef_members():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
     dn = dnfile.dnPE(path)
+    assert dn.net is not None
 
     typedefs = dn.net.mdtables.TypeDef
     assert typedefs[0].TypeName == "<Module>"
@@ -117,6 +125,7 @@ def test_method_params():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
     dn = dnfile.dnPE(path)
+    assert dn.net is not None
 
     methods = dn.net.mdtables.MethodDef
     assert methods[0].Name == "Main"
@@ -127,4 +136,14 @@ def test_method_params():
     # instance default void '.ctor' ()  cil managed
     assert len(methods[1].ParamList) == 0
 
+    assert methods[0].ParamList[0].row is not None
     assert methods[0].ParamList[0].row.Name == "args"
+
+
+def test_ignore_NumberOfRvaAndSizes():
+    # .NET loaders ignores NumberOfRvaAndSizes, so attempt to parse anyways
+    path = fixtures.DATA / "1d41308bf4148b4c138f9307abc696a6e4c05a5a89ddeb8926317685abb1c241"
+
+    dn = dnfile.dnPE(path)
+    assert hasattr(dn, "net") and dn.net is not None
+    assert hasattr(dn.net, "metadata") and dn.net.metadata is not None
