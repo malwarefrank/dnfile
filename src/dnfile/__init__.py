@@ -15,17 +15,16 @@ Copyright (c) 2020-2021 MalwareFrank
 __author__ = """MalwareFrank"""
 __version__ = "0.8.0"
 
-import logging
 import copy as _copymod
 import codecs
 import struct as _struct
+import logging
 from typing import Dict, List
 
 from pefile import PE as _PE
 from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, DataContainer, PEFormatError
 
 from . import base, enums, errors, stream
-
 
 logger = logging.getLogger(__name__)
 CLR_METADATA_SIGNATURE = 0x424A5342
