@@ -149,7 +149,10 @@ def render_pe(ostream: Formatter, dn):
 
     with indenting(ostream):
         for stream in dn.net.metadata.streams_list:
-            ostream.writeln(stream.struct.Name.decode("utf-8") + ":")
+            try:
+                ostream.writeln(stream.struct.Name.decode("utf-8") + ":")
+            except UnicodeDecodeError:
+                ostream.writeln("(invalid){!r}".format(stream.struct.Name))
 
             with indenting(ostream):
                 render_pefile_struct(ostream, stream.struct)
