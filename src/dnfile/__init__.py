@@ -15,6 +15,7 @@ Copyright (c) 2020-2021 MalwareFrank
 __author__ = """MalwareFrank"""
 __version__ = "0.8.0"
 
+import logging
 import copy as _copymod
 import codecs
 import struct as _struct
@@ -25,6 +26,8 @@ from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, Da
 
 from . import base, enums, errors, stream
 
+
+logger = logging.getLogger(__name__)
 CLR_METADATA_SIGNATURE = 0x424A5342
 
 
@@ -358,9 +361,12 @@ class ClrMetaData(DataContainer):
                 pe.add_warning(
                     "Duplicate .NET stream name '{}'".format(name)
                 )
-            else:
-                # otherwise add it to the associative array
-                streams_dict[name] = stream
+                logger.warning("duplicate .NET stream with name: %s", name)
+
+            # dotnet uses the last encountered stream with a given name,
+            # see: https://github.com/malwarefrank/dnfile/issues/19#issuecomment-992754448
+            # and test_invalid_streams.py::test_duplicate_stream
+            streams_dict[name] = stream
             # move to next entry in streams table
             stream_entry_rva += stream.stream_table_entry_size()
 
@@ -472,17 +478,19 @@ class ClrData(DataContainer):
             raise errors.dnFormatError("failed to parse .NET metadata: " + str(e))
 
         # create shortcuts for streams
-        # TODO: if there are multiple instances of a type, does dotnet runtime use first?
+        # dotnet runtime uses the last instance of a type,
+        # see: https://github.com/malwarefrank/dnfile/issues/19#issuecomment-992754448
+        # and test: test_invalid_streams.py::test_duplicate_stream
         for s in self.metadata.streams_list:
-            if not hasattr(self, "strings") and isinstance(s, stream.StringsHeap):
+            if isinstance(s, stream.StringsHeap):
                 self.strings = s
-            elif not hasattr(self, "user_strings") and isinstance(s, stream.UserStringHeap):
+            elif isinstance(s, stream.UserStringHeap):
                 self.user_strings = s
-            elif not hasattr(self, "guids") and isinstance(s, stream.GuidHeap):
+            elif isinstance(s, stream.GuidHeap):
                 self.guids = s
-            elif not hasattr(self, "blobs") and isinstance(s, stream.BlobHeap):
+            elif isinstance(s, stream.BlobHeap):
                 self.blobs = s
-            elif not hasattr(self, "mdtables") and isinstance(s, stream.MetaDataTables):
+            elif isinstance(s, stream.MetaDataTables):
                 self.mdtables: stream.MetaDataTables = s
 
         # Set the flags according to the Flags member
