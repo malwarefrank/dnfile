@@ -26,8 +26,8 @@ def checked_offset_format(offset: int):
     raises an exception if the offset cannot be represented.
     """
 
-    # implementation: this exception will propagate up 
-    # `_compute_format` to `MDTableRow.__init__` 
+    # implementation: this exception will propagate up
+    # `_compute_format` to `MDTableRow.__init__`
     # and halt population of a table's row.
     format = utils.num_bytes_to_struct_char(offset)
     if format is None:

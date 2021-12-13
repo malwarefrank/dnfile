@@ -555,6 +555,6 @@ class ClrStreamFactory(object):
             s = stream_class(metadata_rva, stream_struct, stream_data)
         except errors.dnFormatError as e:
             logger.warning("failed to parse stream: %s", e)
-            return  None
+            return None
         else:
             return s

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-import logging
 import copy as _copymod
+import logging
 import functools as _functools
-from typing import Optional, Tuple
+from typing import Tuple, Optional
 
 logger = logging.getLogger(__name__)
 

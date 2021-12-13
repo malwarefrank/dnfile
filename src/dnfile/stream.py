@@ -346,15 +346,13 @@ class MetaDataTables(base.ClrStream):
                 )
                 if not table:
                     logger.warning("invalid .NET metadata table list @ %d RVA: 0x%x", i, cur_rva)
-                    
                     # Everything up to this point has been saved in the object and is accessible,
                     # but more can be parsed, so we delay raising exception.
 
                     deferred_exceptions.append(errors.dnFormatError(
-                            "Invalid .NET metadata table list @ {} rva:{}".format(
-                                i, cur_rva
-                            )
-                        )
+                        "Invalid .NET metadata table list @ {} rva:{}".format(
+                            i, cur_rva
+                        ))
                     )
                 # table number
                 table.number = i

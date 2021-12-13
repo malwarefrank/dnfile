@@ -554,14 +554,14 @@ class ClrMetaDataTable(Generic[RowType]):
         for i in range(num_rows):
             try:
                 self.rows.append(self._row_class(
-                        tables_rowcounts,
-                        strings_offset_size,
-                        guid_offset_size,
-                        blob_offset_size,
-                        strings_heap,
-                        guid_heap,
-                        blob_heap,
-                    ))
+                    tables_rowcounts,
+                    strings_offset_size,
+                    guid_offset_size,
+                    blob_offset_size,
+                    strings_heap,
+                    guid_heap,
+                    blob_heap,
+                ))
             except errors.dnFormatError:
                 # this may occur when the offset to a stream is too large.
                 # this probably means invalid data.
