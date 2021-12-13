@@ -19,7 +19,7 @@ import copy as _copymod
 import codecs
 import struct as _struct
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from pefile import PE as _PE
 from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, DataContainer, PEFormatError
@@ -235,7 +235,7 @@ class ClrMetaData(DataContainer):
 
     rva: int
     struct: ClrMetaDataStruct
-    streams: Dict[str, base.ClrStream]
+    streams: Dict[bytes, base.ClrStream]
     streams_list: List[base.ClrStream]
 
     _format = (
@@ -357,7 +357,7 @@ class ClrMetaData(DataContainer):
             if name in streams_dict:
                 # if a stream with this name already exists
                 pe.add_warning(
-                    "Duplicate .NET stream name '{}'".format(name)
+                    "Duplicate .NET stream name '{!r}'".format(name)
                 )
                 logger.warning("duplicate .NET stream with name: %s", name)
 
@@ -407,15 +407,14 @@ class ClrData(DataContainer):
     Flags:          enums.ClrHeaderFlags or None
     """
 
-    metadata: ClrMetaData
     struct: ClrStruct
-    # TODO: these should be marked optional
-    strings: stream.StringsHeap
-    user_strings: stream.UserStringHeap
-    guids: stream.GuidHeap
-    blobs: stream.BlobHeap
-    mdtables: stream.MetaDataTables
-    Flags: enums.ClrHeaderFlags
+    metadata: Optional[ClrMetaData]
+    strings: Optional[stream.StringsHeap]
+    user_strings: Optional[stream.UserStringHeap]
+    guids: Optional[stream.GuidHeap]
+    blobs: Optional[stream.BlobHeap]
+    mdtables: Optional[stream.MetaDataTables]
+    Flags: Optional[enums.ClrHeaderFlags]
 
     # Structure description from:
     # http://www.ntcore.com/files/dotnetformat.htm
