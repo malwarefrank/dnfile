@@ -396,6 +396,7 @@ class ClrData(DataContainer):
     struct:         IMAGE_NET_DIRECTORY structure
     metadata:       ClrMetaData or None
     strings:        stream.StringsHeap or None
+    user_strings:   stream.UserStringsHeap or None
     guids:          stream.GuidHeap or None
     blobs:          stream.BlobHeap or None
     mdtables:       stream.MetaDataTables or None
@@ -404,7 +405,9 @@ class ClrData(DataContainer):
 
     metadata: ClrMetaData
     struct: ClrStruct
+    # TODO: these should be marked optional
     strings: stream.StringsHeap
+    user_strings: stream.UserStringHeap
     guids: stream.GuidHeap
     blobs: stream.BlobHeap
     mdtables: stream.MetaDataTables
@@ -473,6 +476,8 @@ class ClrData(DataContainer):
         for s in self.metadata.streams_list:
             if not hasattr(self, "strings") and isinstance(s, stream.StringsHeap):
                 self.strings = s
+            elif not hasattr(self, "user_strings") and isinstance(s, stream.UserStringHeap):
+                self.user_strings = s
             elif not hasattr(self, "guids") and isinstance(s, stream.GuidHeap):
                 self.guids = s
             elif not hasattr(self, "blobs") and isinstance(s, stream.BlobHeap):
