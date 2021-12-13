@@ -161,6 +161,8 @@ def render_pe(ostream: Formatter, dn):
                     # this is a random choice.
                     # if left unbounded, the output may be really long.
                     ostream.hexdump(buf[:0x40])
+                    if len(buf) > 0x40:
+                        ostream.writeln("...")
 
     ostream.writeln("tables:")
 
