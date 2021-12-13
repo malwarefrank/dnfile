@@ -144,11 +144,15 @@ class dnPE(_PE):
         )
 
         if self.__data__ is None:
-            raise errors.dnFormatError("not a .NET module: failed to read data")
+            logger.warning("not a .NET module: failed to read data")
+            self.net = None
+            return
 
         opt_header = getattr(self, "OPTIONAL_HEADER", None)
         if opt_header is None:
-            raise errors.dnFormatError("not a .NET module: no optional header")
+            logger.warning("not a .NET module: no optional header")
+            self.net = None
+            return
 
         if directories is not None:
             if not isinstance(directories, (tuple, list)):
@@ -337,8 +341,9 @@ class ClrMetaData(DataContainer):
                 try:
                     s.parse(self.streams_list)
                 except (errors.dnFormatError, PEFormatError) as e:
-                    pe.add_warning("Unable to parse stream {}".format(s.struct.Name.rstrip(b"\x00").decode("asci")))
+                    pe.add_warning("Unable to parse stream {!r}".format(s.struct.Name))
                     pe.add_warning(str(e))
+                    logger.warning("unable to parse stream: %s: %s", s.struct.Name, e)
 
     def parse_stream_table(self, pe: dnPE, streams_table_rva):
         streams_list = list()
@@ -348,18 +353,18 @@ class ClrMetaData(DataContainer):
         for i in range(self.struct.NumberOfStreams):
             stream = ClrStreamFactory.createStream(pe, stream_entry_rva, self.rva)
             if not stream:
-                # error
-                pe.add_warning("Invalid .NET stream {}".format(i + 1))
+                logger.warning("Invalid .NET stream: {}".format(i + 1))
+                pe.add_warning("Invalid .NET stream: {}".format(i + 1))
                 # assume this throws off further parsing, so stop
                 break
+
             streams_list.append(stream)
             name = stream.struct.Name
             if name in streams_dict:
-                # if a stream with this name already exists
-                pe.add_warning(
-                    "Duplicate .NET stream name '{!r}'".format(name)
-                )
-                logger.warning("duplicate .NET stream with name: %s", name)
+                # if a stream with this name already exists.
+                # this is not fatal, just unusual.
+                pe.add_warning("Duplicate .NET stream name '{!r}'".format(name))
+                logger.warning("Duplicate .NET stream with name: %s", name)
 
             # dotnet uses the last encountered stream with a given name,
             # see: https://github.com/malwarefrank/dnfile/issues/19#issuecomment-992754448
@@ -470,9 +475,9 @@ class ClrData(DataContainer):
         try:
             self.metadata = ClrMetaData(pe, metadata_rva, metadata_size)
         except (errors.dnFormatError, PEFormatError) as e:
-            # the parsing may fail, and if so, we're not able to work with the .NET module.
-            # let the caller decide what to do.
-            raise errors.dnFormatError("failed to parse .NET metadata: " + str(e))
+            logger.warning("failed to parse .NET metadata: %s", e)
+            self.metadata = None
+            return
 
         # create shortcuts for streams
         # dotnet runtime uses the last instance of a type,
@@ -516,13 +521,14 @@ class ClrStreamFactory(object):
     @classmethod
     def createStream(
         cls, pe: dnPE, stream_entry_rva: int, metadata_rva: int
-    ) -> base.ClrStream:
+    ) -> Optional[base.ClrStream]:
         # start with structure template
         struct_format = _copymod.deepcopy(cls._template_format)
         # read name
         name = pe.get_string_at_rva(stream_entry_rva + 8)
         if name is None:
-            raise errors.dnFormatError("failed to read stream name")
+            logger.warning("failed to read stream name")
+            return None
 
         # round field length up to next 4-byte boundary.  Remember the NULL byte at end.
         name_len = len(name) + (4 - (len(name) % 4))
@@ -541,10 +547,14 @@ class ClrStreamFactory(object):
         stream_data = pe.get_data(
             metadata_rva + stream_struct.Offset, stream_struct.Size
         )
-        # if there is a subclass for this stream
         name = stream_struct.Name
+        # use GenericStream for any non-standard streams
         stream_class = cls._name_type_map.get(name, stream.GenericStream)
-        # construct stream
-        s = stream_class(metadata_rva, stream_struct, stream_data)
-        # return stream
-        return s
+        try:
+            # construct stream, like stream.StreagsHeap ctor or GenericStream ctor
+            s = stream_class(metadata_rva, stream_struct, stream_data)
+        except errors.dnFormatError as e:
+            logger.warning("failed to parse stream: %s", e)
+            return  None
+        else:
+            return s

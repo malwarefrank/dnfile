@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import logging
 import copy as _copymod
 import functools as _functools
+from typing import Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 # lru_cache with a shallow copy of the objects returned (list, dicts, ..)
@@ -24,14 +28,14 @@ def lru_cache(maxsize=128, typed=False, copy=False):
     return decorator
 
 
-def read_compressed_int(data):
+def read_compressed_int(data) -> Optional[Tuple[int, int]]:
     """
     Given bytes, read a compressed integer per
     spec ECMA-335 II.23.2 Blobs and signatures.
-    Returns tuple: value, number of bytes read
+    Returns tuple: value, number of bytes read or None on error.
     """
     if not data:
-        raise ValueError("no data")
+        return None
     if data[0] & 0x80 == 0:
         # values 0x00 to 0x7f
         return data[0], 1
@@ -48,23 +52,26 @@ def read_compressed_int(data):
         value |= data[3]
         return value, 4
     else:
-        raise ValueError("invalid compressed int")
+        logger.warning("invalid compressed int: leading byte: 0x%02x", data[0])
+        return None
 
 
 def two_way_dict(pairs):
     return dict([(e[1], e[0]) for e in pairs] + pairs)
 
 
-def num_bytes_to_struct_char(n: int) -> str:
+def num_bytes_to_struct_char(n: int) -> Optional[str]:
     """
     Given number of bytes, return the struct char that can hold those bytes.
+    Returns None on invalid value.
 
     For example,
         2 = H
         4 = I
     """
     if n > 8:
-        raise ValueError("invalid format specifier: " + str(n))
+        logger.warning("invalid format specifier: %d > 8", n)
+        return None
     elif n > 4:
         return "Q"
     elif n > 2:
@@ -74,4 +81,5 @@ def num_bytes_to_struct_char(n: int) -> str:
     elif n == 1:
         return "B"
     else:
-        raise ValueError("invalid format specifier: " + str(n))
+        logger.warning("invalid format specifier: %d", n)
+        return None

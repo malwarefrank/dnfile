@@ -57,18 +57,26 @@ class StringsHeap(base.ClrHeap):
 
 
 class BinaryHeap(base.ClrHeap):
-    def get_with_size(self, index) -> Tuple[bytes, int]:
+    def get_with_size(self, index) -> Optional[Tuple[bytes, int]]:
         if self.__data__ is None:
-            raise ValueError("no data")
+            logger.warning("stream has no data")
+            return None
 
         if index >= len(self.__data__):
-            raise IndexError("index out of range")
+            logger.warning("stream is too small: wanted: 0x%x found: 0x%x", index, len(self.__data__))
+            return None
 
         offset = index
 
         # read compressed int length
         buf = self.__data__[offset:offset + 4]
-        data_length, length_size = read_compressed_int(buf)
+        ret = read_compressed_int(buf)
+        if ret is None:
+            # invalid compressed int length, such as invalid leading flags.
+            logger.warning("stream entry has invalid compressed int")
+            return None
+
+        data_length, length_size = ret
 
         # read data
         offset = offset + length_size
@@ -76,8 +84,17 @@ class BinaryHeap(base.ClrHeap):
 
         return data, length_size + data_length
 
-    def get(self, index) -> bytes:
-        data, _ = self.get_with_size(index)
+    def get(self, index) -> Optional[bytes]:
+        try:
+            ret = self.get_with_size(index)
+        except IndexError:
+            return None
+
+        if ret is None:
+            return None
+
+        data, _ = ret
+
         return data
 
 
@@ -108,9 +125,12 @@ class UserString(object):
 
 
 class UserStringHeap(BinaryHeap):
-    def get_us(self, index, max_length=MAX_STRING_LENGTH, encoding="utf-16") -> UserString:
+    def get_us(self, index, max_length=MAX_STRING_LENGTH, encoding="utf-16") -> Optional[UserString]:
         data = self.get(index)
-        return UserString(data)
+        if data is None:
+            return None
+        else:
+            return UserString(data)
 
 
 class GuidHeap(base.ClrHeap):
@@ -225,7 +245,10 @@ class MetaDataTables(base.ClrStream):
     Unused:                 mdtable.Unused
 
     def parse(self, streams: List[base.ClrStream]):
-
+        """
+        this may raise an exception if the data cannot be parsed correctly.
+        however, `self` may still be partially initialized with *some* data.
+        """
         STRINGS_MASK = 0x01
         GUIDS_MASK = 0x02
         BLOBS_MASK = 0x04
@@ -234,13 +257,16 @@ class MetaDataTables(base.ClrStream):
         HAS_DELETE_MASK = 0x80
         MAX_TABLES = 64
 
-        warnings = list()
+        # we may be able to parse some data before reaching corruption.
+        # so, we'll keep parsing all we can, which updates `self` in-place,
+        # and then raise the first deferred exception captured here.
+        deferred_exceptions = list()
 
         self.tables = dict()
         self.tables_list = list()
         header_len = Structure(self._format).sizeof()
         if not self.__data__ or len(self.__data__) < header_len:
-            # warning
+            logger.warning("unable to read .NET metadata tables")
             raise errors.dnFormatError("Unable to read .NET metadata tables")
 
         #### parse header
@@ -319,14 +345,17 @@ class MetaDataTables(base.ClrStream):
                     blob_heap,
                 )
                 if not table:
-                    # delay error/warning
-                    warnings.append(
-                        "Invalid .NET metadata table list @ {} rva:{}".format(
-                            i, cur_rva
-                        )
-                    )
+                    logger.warning("invalid .NET metadata table list @ %d RVA: 0x%x", i, cur_rva)
+                    
                     # Everything up to this point has been saved in the object and is accessible,
                     # but more can be parsed, so we delay raising exception.
+
+                    deferred_exceptions.append(errors.dnFormatError(
+                            "Invalid .NET metadata table list @ {} rva:{}".format(
+                                i, cur_rva
+                            )
+                        )
+                    )
                 # table number
                 table.number = i
                 # add to tables dict
@@ -354,5 +383,5 @@ class MetaDataTables(base.ClrStream):
             table.parse(self.tables_list)
 
         # raise warning/error
-        if warnings:
-            raise errors.dnFormatError(warnings[0])
+        if deferred_exceptions:
+            raise deferred_exceptions[0]

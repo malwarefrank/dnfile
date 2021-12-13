@@ -191,9 +191,11 @@ def render_pe(ostream: Formatter, dn):
                                 value = "<TODO: not implemented in dnfile>"
                             else:
                                 if isinstance(v, dnfile.base.MDTableIndex):
-                                    if not hasattr(v, "table"):
+                                    if not hasattr(v, "table") or v.table is None:
                                         logger.warning("reference has no table: %s", v)
-                                    name = None if not hasattr(v, "table") else v.table.name
+                                        name  = "(missing)"
+                                    else:
+                                        name = v.table.name
                                     value = "ref table %s[%d]" % (name, v.row_index)
                                 elif isinstance(v, list):
                                     # will do this in a second pass
@@ -237,7 +239,12 @@ def render_pe(ostream: Formatter, dn):
                                 with indenting(ostream):
                                     for vv in v:
                                         if isinstance(vv, dnfile.base.MDTableIndex):
-                                            name = None if not hasattr(vv, "table") else vv.table.name
+                                            if not hasattr(vv, "table") or vv.table is None:
+                                                logger.warning("reference has no table: %s", vv)
+                                                name  = "(missing)"
+                                            else:
+                                                name = vv.table.name
+
                                             ostream.writeln("ref table %s[%d]" % (name, vv.row_index))
                                         else:
                                             # at the moment, only MDTableIndexRefs are placed into lists.

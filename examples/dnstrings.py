@@ -24,7 +24,11 @@ def show_strings(fname):
         # while there is still data in the stream
         while offset < size:
             # read the raw string bytes, and provide number of bytes read (includes encoded length)
-            buf, readlen = us.get_with_size(offset)
+            ret = us.get_with_size(offset)
+            if ret is None:
+                break
+
+            buf, readlen = ret
             # convert to a UserString object
             s = dnfile.stream.UserString(buf)
             # display the decoded string

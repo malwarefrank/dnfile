@@ -19,6 +19,22 @@ from .base import RowStruct, MDTableRow, MDTableIndex, ClrMetaDataTable
 if TYPE_CHECKING:
     from . import stream
 
+
+def checked_offset_format(offset: int):
+    """
+    compute the format specifier needed for the given offset value.
+    raises an exception if the offset cannot be represented.
+    """
+
+    # implementation: this exception will propagate up 
+    # `_compute_format` to `MDTableRow.__init__` 
+    # and halt population of a table's row.
+    format = utils.num_bytes_to_struct_char(offset)
+    if format is None:
+        raise errors.dnFormatError("invalid offset: value too large")
+    return format
+
+
 #### Module Table
 #
 
@@ -63,8 +79,8 @@ class ModuleRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        guid_ind_size = utils.num_bytes_to_struct_char(self._guid_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
+        guid_ind_size = checked_offset_format(self._guid_offsz)
         return (
             "CLR_METADATA_TABLE_MODULE",
             (
@@ -114,7 +130,7 @@ class TypeRefRow(MDTableRow):
             codedindex.ResolutionScope.tag_bits,
             codedindex.ResolutionScope.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         return (
             "CLR_METADATA_TABLE_TYPEREF",
             (
@@ -175,7 +191,7 @@ class TypeDefRow(MDTableRow):
             codedindex.TypeDefOrRef.tag_bits,
             codedindex.TypeDefOrRef.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         fieldlist_size = self._clr_coded_index_struct_size(0, ("Field",))
         methodlist_size = self._clr_coded_index_struct_size(0, ("MethodDef",))
         return (
@@ -236,8 +252,8 @@ class FieldRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_FIELD",
             (
@@ -306,8 +322,8 @@ class MethodDefRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         paramlist_size = self._clr_coded_index_struct_size(0, ("Param",))
         return (
             "CLR_METADATA_TABLE_METHODDEF",
@@ -367,7 +383,7 @@ class ParamRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         return (
             "CLR_METADATA_TABLE_PARAM",
             (
@@ -458,8 +474,8 @@ class MemberRefRow(MDTableRow):
             codedindex.MemberRefParent.tag_bits,
             codedindex.MemberRefParent.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_MEMBERREF",
             (
@@ -514,7 +530,7 @@ class ConstantRow(MDTableRow):
             codedindex.HasConstant.tag_bits,
             codedindex.HasConstant.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_CONSTANT",
             (
@@ -569,7 +585,7 @@ class CustomAttributeRow(MDTableRow):
             codedindex.CustomAttributeType.tag_bits,
             codedindex.CustomAttributeType.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_CUSTOMATTRIBUTE",
             (
@@ -614,7 +630,7 @@ class FieldMarshalRow(MDTableRow):
             codedindex.HasFieldMarshall.tag_bits,
             codedindex.HasFieldMarshall.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_FIELDMARSHAL",
             (
@@ -663,7 +679,7 @@ class DeclSecurityRow(MDTableRow):
             codedindex.HasDeclSecurity.tag_bits,
             codedindex.HasDeclSecurity.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_DECLSECURITY",
             (
@@ -784,7 +800,7 @@ class StandAloneSigRow(MDTableRow):
     }
 
     def _compute_format(self):
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_STANDALONESIG",
             (blob_ind_size + ",Signature_BlobIndex",),
@@ -874,7 +890,7 @@ class EventRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         eventtype_size = self._clr_coded_index_struct_size(
             codedindex.TypeDefOrRef.tag_bits,
             codedindex.TypeDefOrRef.table_names,
@@ -972,8 +988,8 @@ class PropertyRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_PROPERTY",
             (
@@ -1111,7 +1127,7 @@ class ModuleRefRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         return (
             "CLR_METADATA_TABLE_MODULEREF",
             (str_ind_size + ",Name_StringIndex",),
@@ -1143,7 +1159,7 @@ class TypeSpecRow(MDTableRow):
     }
 
     def _compute_format(self):
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_TYPESPEC",
             (blob_ind_size + ",Signature_BlobIndex",),
@@ -1194,7 +1210,7 @@ class ImplMapRow(MDTableRow):
             codedindex.MemberForwarded.tag_bits,
             codedindex.MemberForwarded.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         importscope_size = self._clr_coded_index_struct_size(0, ("ModuleRef",))
         return (
             "CLR_METADATA_TABLE_IMPLMAP",
@@ -1314,8 +1330,8 @@ class AssemblyRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_ASSEMBLY",
             (
@@ -1454,8 +1470,8 @@ class AssemblyRefRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_ASSEMBLYREF",
             (
@@ -1595,8 +1611,8 @@ class FileRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_FILE",
             (
@@ -1652,8 +1668,8 @@ class ExportedTypeRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         implementation_size = self._clr_coded_index_struct_size(
             codedindex.Implementation.tag_bits,
             codedindex.Implementation.table_names,
@@ -1710,7 +1726,7 @@ class ManifestResourceRow(MDTableRow):
     }
 
     def _compute_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         implementation_size = self._clr_coded_index_struct_size(
             codedindex.Implementation.tag_bits,
             codedindex.Implementation.table_names,
@@ -1808,7 +1824,7 @@ class GenericParamRow(MDTableRow):
             codedindex.TypeOrMethodDef.tag_bits,
             codedindex.TypeOrMethodDef.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         return (
             "CLR_METADATA_TABLE_GENERICPARAM",
             (
@@ -1854,7 +1870,7 @@ class GenericMethodRow(MDTableRow):
             codedindex.MethodDefOrRef.tag_bits,
             codedindex.MethodDefOrRef.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         return (
             "CLR_METADATA_TABLE_GENERICMETHOD",
             (

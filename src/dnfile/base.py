@@ -196,6 +196,8 @@ class MDTableRow(abc.ABC):
         """
         Compute the structure format.
         This will be passed to RowStruct instances to calcuate the row size and to parse a row.
+
+        This may raise an exception when the offsets to referenced streams is too large (>4 bytes).
         """
         ...
 
@@ -368,7 +370,7 @@ class MDTableRow(abc.ABC):
             if t.name == name:
                 return t.number
 
-    def _clr_coded_index_struct_size(self, tag_bits, table_names):
+    def _clr_coded_index_struct_size(self, tag_bits: int, table_names: Sequence[str]) -> str:
         """
         Given table names and tag bits, checks for the max row count
         size among the given tables and returns "H" if it will fit in
@@ -378,9 +380,6 @@ class MDTableRow(abc.ABC):
         The returned character can be used in a Structure format or
         passing to struct.pack()
         """
-        if not table_names or not self._tables_rowcnt:
-            # error
-            raise errors.dnFormatError("Problem parsing .NET coded index")
         max_index = 0
         for name in table_names:
             if not name:
@@ -389,7 +388,9 @@ class MDTableRow(abc.ABC):
             table_index = enums.MetadataTables[name].value
             table_rowcnt = self._tables_rowcnt[table_index]
             if table_rowcnt is None:
-                raise errors.dnFormatError("Problem parsing .NET coded index: invalid table index")
+                # the requested table is not present,
+                # so it effectively has zero rows.
+                table_rowcnt = 0
 
             max_index = max(max_index, table_rowcnt)
 
@@ -397,8 +398,9 @@ class MDTableRow(abc.ABC):
         if max_index <= 2 ** (16 - tag_bits):
             # size is a word
             return "H"
-        # otherwise, size is a dword
-        return "I"
+        else:
+            # otherwise, size is a dword
+            return "I"
 
 
 class MDTablesStruct(Structure):
@@ -435,12 +437,15 @@ class MDTableIndex(Generic[RowType]):
         row             The referenced row.
     """
     def __init__(self, table: "ClrMetaDataTable[RowType]", row_index: int):
-        self.table: "ClrMetaDataTable[RowType]" = table
+        self.table: Optional["ClrMetaDataTable[RowType]"] = table
         self.row_index: int = row_index
 
     @property
-    def row(self) -> RowType:
-        return self.table.get_with_row_index(self.row_index)
+    def row(self) -> Optional[RowType]:
+        if self.table is None:
+            return None
+        else:
+            return self.table.get_with_row_index(self.row_index)
 
 
 class CodedIndex(MDTableIndex[RowType]):
@@ -478,7 +483,8 @@ class CodedIndex(MDTableIndex[RowType]):
             self.table = t
             return
 
-        raise errors.dnFormatError("invalid table name")
+        logger.warning("reference to missing table: %s" % table_name)
+        self.table = None
 
 
 class ClrMetaDataTable(Generic[RowType]):
@@ -537,21 +543,30 @@ class ClrMetaDataTable(Generic[RowType]):
 
         num_rows = tables_rowcounts[self.number]
         if num_rows is None:
-            raise errors.dnFormatError("invalid table index")
+            # the table doesn't exist, so create the instance, but with zero rows.
+            logger.warning("reference to missing table: %d" % (self.number))
+            num_rows = 0
 
         self.is_sorted: bool = is_sorted
         self.num_rows: int = num_rows
-        self.rows: List[RowType] = [
-            self._row_class(
-                tables_rowcounts,
-                strings_offset_size,
-                guid_offset_size,
-                blob_offset_size,
-                strings_heap,
-                guid_heap,
-                blob_heap,
-            )
-            for _ in range(num_rows)]
+
+        self.rows: List[RowType] = []
+        for i in range(num_rows):
+            try:
+                self.rows.append(self._row_class(
+                        tables_rowcounts,
+                        strings_offset_size,
+                        guid_offset_size,
+                        blob_offset_size,
+                        strings_heap,
+                        guid_heap,
+                        blob_heap,
+                    ))
+            except errors.dnFormatError:
+                # this may occur when the offset to a stream is too large.
+                # this probably means invalid data.
+                logger.warning("failed to construct %s row %d", self.name, i)
+                break
 
         # store heap info
         self._strings_heap: Optional["stream.StringsHeap"] = strings_heap
@@ -580,22 +595,16 @@ class ClrMetaDataTable(Generic[RowType]):
         """
         self._table_data = data
         if len(data) < self.row_size * self.num_rows:
-            # error/warn
-            raise errors.dnFormatError(
-                "Error parsing table {}, len(data)={}  row_size={}  num_rows={}".format(
-                    self.name, len(data), self.row_size, self.num_rows
-                )
-            )
+            logger.warning("not enough data to parse %d rows", self.num_rows)
+            # we can still try to parse some of the rows...
+
         offset = 0
         # iterate through rows, stopping at num_rows or when there is not enough data left
         for i in range(self.num_rows):
             if len(data) < offset + self.row_size:
-                # error/warn
-                raise errors.dnFormatError(
-                    "Error parsing row {} for table {}, len(data)={}  row_size={}  offset={}".format(
-                        i, self.name, len(data), self.row_size, offset
-                    )
-                )
+                logger.warning("not enough data to parse row %d", i)
+                break
+
             self.rows[i].set_data(
                 data[offset:offset + self.row_size], offset=table_rva + offset
             )
@@ -623,7 +632,14 @@ class ClrMetaDataTable(Generic[RowType]):
         return self.rows[index]
 
     def __len__(self):
+        """
+        the actual number of rows parsed,
+        as opposed to self.num_rows, which is the declared row count of the table
+        """
         return len(self.rows)
+
+    def __iter__(self):
+        return iter(self.rows)
 
     def get_with_row_index(self, row_index: int) -> RowType:
         """
