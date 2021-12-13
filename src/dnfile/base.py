@@ -139,8 +139,8 @@ class MDTableRow(abc.ABC):
     #  - strings: resolve via UserString table
     #  - guids: resolve via GUID table
     #  - blobs: resolve via Blob table
-    #  - flags: resolve via flags provided as subclass properties
-    #  - enums: resolve via enums provided as subclass properties
+    #  - flags: resolve via given flags
+    #  - enums: resolve via given enums
     #  - indexes: resolve via given table name
     #  - lists: resolve many items via given table name
     #  - codedindexes: resolve via candidate list of tables

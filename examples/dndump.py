@@ -114,21 +114,21 @@ def get_field_name(row, field):
     # map from something like `TypeName_StringIndex` to `TypeName`.
     # the former is the raw property name,
     # while the latter is the property we can access on the object.
-    if field in (row._struct_strings or ()):
+    if field in getattr(row, "_struct_strings", ()):
         fieldname = row._struct_strings[field]
-    elif field in (row._struct_guids or ()):
+    elif field in getattr(row, "_struct_guids", ()):
         fieldname = row._struct_guids[field]
-    elif field in (row._struct_blobs or ()):
+    elif field in getattr(row, "_struct_blobs", ()):
         fieldname = row._struct_blobs[field]
-    elif field in (row._struct_asis or ()):
+    elif field in getattr(row, "_struct_asis", ()):
         fieldname = row._struct_asis[field]
-    elif field in (row._struct_codedindexes or ()):
+    elif field in getattr(row, "_struct_codedindexes", ()):
         fieldname = row._struct_codedindexes[field][0]
-    elif field in (row._struct_indexes or ()):
+    elif field in getattr(row, "_struct_indexes", ()):
         fieldname = row._struct_indexes[field][0]
-    elif field in (row._struct_flags or ()):
+    elif field in getattr(row, "_struct_flags", ()):
         fieldname = row._struct_flags[field][0]
-    elif field in (row._struct_lists or ()):
+    elif field in getattr(row, "_struct_lists", ()):
         fieldname = row._struct_lists[field][0]
     else:
         # its not a special property,
@@ -188,6 +188,8 @@ def render_pe(ostream: Formatter, dn):
                                 value = "<TODO: not implemented in dnfile>"
                             else:
                                 if isinstance(v, dnfile.base.MDTableIndex):
+                                    if not hasattr(v, "table"):
+                                        logger.warning("reference has no table: %s", v)
                                     name = None if not hasattr(v, "table") else v.table.name
                                     value = "ref table %s[%d]" % (name, v.row_index)
                                 elif isinstance(v, list):
