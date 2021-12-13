@@ -354,10 +354,9 @@ class ClrMetaData(DataContainer):
                 # assume this throws off further parsing, so stop
                 break
             streams_list.append(stream)
-            name = stream.struct.Name.rstrip(b"\x00").decode("ascii")
+            name = stream.struct.Name
             if name in streams_dict:
                 # if a stream with this name already exists
-                # warning
                 pe.add_warning(
                     "Duplicate .NET stream name '{}'".format(name)
                 )
@@ -500,12 +499,12 @@ class ClrData(DataContainer):
 
 class ClrStreamFactory(object):
     _name_type_map = {
-        "#~": stream.MetaDataTables,
-        "#-": stream.MetaDataTables,
-        "#Strings": stream.StringsHeap,
-        "#GUID": stream.GuidHeap,
-        "#Blob": stream.BlobHeap,
-        "#US": stream.UserStringHeap,
+        b"#~": stream.MetaDataTables,
+        b"#-": stream.MetaDataTables,
+        b"#Strings": stream.StringsHeap,
+        b"#GUID": stream.GuidHeap,
+        b"#Blob": stream.BlobHeap,
+        b"#US": stream.UserStringHeap,
     }
     _template_format = (
         "IMAGE_CLR_STREAM",
@@ -545,7 +544,7 @@ class ClrStreamFactory(object):
             metadata_rva + stream_struct.Offset, stream_struct.Size
         )
         # if there is a subclass for this stream
-        name = stream_struct.Name.rstrip(b"\x00").decode("ascii")
+        name = stream_struct.Name
         stream_class = cls._name_type_map.get(name, stream.GenericStream)
         # construct stream
         s = stream_class(metadata_rva, stream_struct, stream_data)
