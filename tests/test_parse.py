@@ -1,5 +1,4 @@
 import pytest
-
 import fixtures
 
 import dnfile
