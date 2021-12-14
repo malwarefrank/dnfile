@@ -1,3 +1,5 @@
+import pytest
+
 import fixtures
 
 import dnfile
@@ -143,6 +145,8 @@ def test_method_params():
 def test_ignore_NumberOfRvaAndSizes():
     # .NET loaders ignores NumberOfRvaAndSizes, so attempt to parse anyways
     path = fixtures.DATA / "1d41308bf4148b4c138f9307abc696a6e4c05a5a89ddeb8926317685abb1c241"
+    if not path.exists():
+        raise pytest.xfail("test file 1d41308bf41... (DANGER: malware) not found in test fixtures")
 
     dn = dnfile.dnPE(path)
     assert hasattr(dn, "net") and dn.net is not None
