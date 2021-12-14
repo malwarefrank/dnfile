@@ -17,9 +17,29 @@ from typing import TYPE_CHECKING, Union
 from .base import CodedIndex
 
 if TYPE_CHECKING:
-    from .mdtable import *
-
-# TODO add table_numbers to all
+    from .mdtable import (
+        FileRow,
+        EventRow,
+        FieldRow,
+        ParamRow,
+        ModuleRow,
+        TypeDefRow,
+        TypeRefRow,
+        AssemblyRow,
+        PropertyRow,
+        TypeSpecRow,
+        MemberRefRow,
+        MethodDefRow,
+        ModuleRefRow,
+        AssemblyRefRow,
+        DeclSecurityRow,
+        ExportedTypeRow,
+        GenericParamRow,
+        InterfaceImplRow,
+        StandAloneSigRow,
+        ManifestResourceRow,
+        GenericParamConstraintRow,
+    )
 
 
 class TypeDefOrRef(CodedIndex[Union["TypeDefRow", "TypeRefRow", "TypeSpecRow"]]):
