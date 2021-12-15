@@ -828,8 +828,8 @@ class MetadataTables(_enum.IntEnum):
     TypeSpec = 27
     ImplMap = 28
     FieldRva = 29
-    # 30: Unused,
-    # 31: Unused,
+    EncLog = 30
+    EncMap = 31
     Assembly = 32
     AssemblyProcessor = 33
     AssemblyOS = 34
