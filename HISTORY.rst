@@ -2,6 +2,18 @@
 History
 =======
 
+0.9.0 (2021)
+------------
+
+* bugfix: row indices parsed in structures are one-based, not zero-based
+* bugfix: TypeDefRow was not parsing Extends coded index
+* bugfix: incorrect BLOBS_MASK and add EXTRA_DATA skip if flag set
+* added CI using github workflow
+* added tests and submodule dnfile-testfiles
+* added style consistency using pycodestyle and isort
+* added more examples
+* parse MetaData tables' list-type indexes into lists of MDTableRow objects
+
 0.8.0 (2021)
 ------------
 
