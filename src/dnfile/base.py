@@ -4,16 +4,22 @@
 
 Copyright (c) 2020-2021 MalwareFrank
 """
-
-
 import abc
+import enum
 import struct as _struct
-import collections
-from typing import Dict, List, Type, Tuple, Optional
+import typing
+import logging
+from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Union, Generic, TypeVar, Optional, Sequence
 
 from pefile import Structure
 
 from . import enums, errors
+
+if TYPE_CHECKING:
+    from . import stream
+
+
+logger = logging.getLogger(__name__)
 
 
 class StreamStruct(Structure):
@@ -23,19 +29,15 @@ class StreamStruct(Structure):
 
 
 class ClrStream(abc.ABC):
-    struct: StreamStruct
-    rva: int
-    __data__: bytes
-
     def __init__(
         self,
         metadata_rva: int,
         stream_struct: StreamStruct,
         stream_data: bytes,
     ):
-        self.struct = stream_struct
-        self.rva = metadata_rva + stream_struct.Offset
-        self.__data__ = stream_data
+        self.struct: StreamStruct = stream_struct
+        self.rva: int = metadata_rva + stream_struct.Offset
+        self.__data__: bytes = stream_data
         self._stream_table_entry_size = stream_struct.sizeof()
         self._data_size = len(stream_data)
 
@@ -79,6 +81,7 @@ class ClrStream(abc.ABC):
 
 
 class ClrHeap(ClrStream):
+    @abc.abstractmethod
     def get(self, index):
         raise NotImplementedError()
 
@@ -94,27 +97,62 @@ class MDTableRow(abc.ABC):
     A Metadata Table row is a simple structure that holds the
     fields and values.
     """
+    #
+    # required properties for subclasses.
+    #
+    # subclasses must define this property,
+    # or __init__ will raise an exception.
+    #
+    # for example:
+    #
+    #   class ModuleRow(MDTableRow):
+    #       _struct_class = ModuleRowStruct
+    #
+    _struct_class: Type[RowStruct]
 
-    struct: RowStruct
-    row_size: int = 0
-
-    _format: Tuple
-    _tables: Dict[str, int]
-    _struct_class = Type[RowStruct]
-
-    # maps from struct attribute to object attribute
-    _struct_strings: Dict[str, str] = None
-    _struct_guids: Dict[str, str] = None
-    _struct_blobs: Dict[str, str] = None
-    _struct_asis: Dict[str, str] = None
-    _struct_codedindexes: Dict[
-        str, Tuple[str, Type["CodedIndex"]]
-    ] = None  # also CodedIndex subclass
-    _struct_indexes: Dict[str, Tuple[str, str]] = None  # also Metadata table name
-    _struct_flags: Dict[
-        str, Tuple[str, Type[enums.ClrFlags]]
-    ] = None  # also ClrFlags subclass
-    _struct_lists: Dict[str, Tuple[str, str]] = None  # also Metadata table name
+    #
+    # optional properties for subclasses.
+    #
+    # when a subclass defines one of these properties,
+    # the given fields will be parsed with the appropriate strategy.
+    # these strategy defintions:
+    #   - map from underlying raw struct (e.g. RowStruct class)
+    #   - map to the high-level property (e.g. MDTableRow subclass)
+    #
+    # for example:
+    #
+    #   class ModuleRow(MDTableRow):
+    #       Name: str
+    #       _struct_class = ModuleRowStruct
+    #       _struct_strings = {
+    #           "Name_StringIndex": "Name",
+    #       }
+    #
+    # this strategy causes the parser to:
+    #   1. parse the raw row using `ModuleRowStruct`
+    #   2. fetch field `ModuleRowStruct.Name_StringIndex`
+    #   3. resolve it as a string (due to strategy name)
+    #   4. assign it to field `ModuleRow.Name`
+    #
+    # valid strategies are:
+    #  - asis: map data as-is, possibly change the field name
+    #  - strings: resolve via UserString table
+    #  - guids: resolve via GUID table
+    #  - blobs: resolve via Blob table
+    #  - flags: resolve via given flags
+    #  - enums: resolve via given enums
+    #  - indexes: resolve via given table name
+    #  - lists: resolve many items via given table name
+    #  - codedindexes: resolve via candidate list of tables
+    _struct_strings: Dict[str, str]
+    _struct_guids: Dict[str, str]
+    _struct_blobs: Dict[str, str]
+    _struct_asis: Dict[str, str]
+    _struct_codedindexes: Dict[str, Tuple[str, Type["CodedIndex"]]]  # also CodedIndex subclass
+    _struct_indexes: Dict[str, Tuple[str, str]]                      # also Metadata table name
+    _struct_flags: Dict[str, Tuple[str, Type[enums.ClrFlags]]]       # also ClrFlags subclass
+    _struct_enums: Dict[str, Tuple[str, Type[enum.IntEnum]]]         # also enum.IntEnum subclassA
+    _struct_lists: Dict[str, Tuple[str, str]]                        # also Metadata table name
 
     def __init__(
         self,
@@ -122,37 +160,46 @@ class MDTableRow(abc.ABC):
         strings_offset_size: int,
         guid_offset_size: int,
         blob_offset_size: int,
-        strings_heap: ClrHeap,
-        guid_heap: ClrHeap,
-        blob_heap: ClrHeap,
+        strings_heap: Optional["stream.StringsHeap"],
+        guid_heap: Optional["stream.GuidHeap"],
+        blob_heap: Optional["stream.BlobHeap"],
     ):
         """
         Given the tables' row counts and heap info.
+
         Initialize the following attributes:
             row_size    The size, in bytes, of one row.  Calculated from
-                        tables_rowcounts, heap info, and self._format
+                         tables_rowcounts, heap info, and self._format
+            struct      The class use to parse the data.
 
         tables_rowcounts is indexed by table number.  The value is the row count, if it exists, or None.
         """
+        assert hasattr(self.__class__, "_struct_class")
 
         self._tables_rowcnt = tables_rowcounts
-        self._strings = strings_heap
-        self._guids = guid_heap
-        self._blobs = blob_heap
+        self._strings: Optional["stream.StringsHeap"] = strings_heap
+        self._guids: Optional["stream.GuidHeap"] = guid_heap
+        self._blobs: Optional["stream.BlobHeap"] = blob_heap
         self._str_offsz = strings_offset_size
         self._guid_offsz = guid_offset_size
         self._blob_offsz = blob_offset_size
-        self._init_format()
-        self.struct = self._struct_class(format=self._format)
-        self.row_size = self.struct.sizeof()
+        self._format = self._compute_format()
+        self._data: bytes = b""
 
-    def _init_format(self):
+        # we are cheating here: this isn't technically a RowStruct, but actually a RowStruct subclass.
+        # but few users will likely reach in here, so ATM its not worth fully type annotating.
+        self.struct: RowStruct = self.__class__._struct_class(format=self._format)
+        self.row_size: int = self.struct.sizeof()
+
+    @abc.abstractmethod
+    def _compute_format(self) -> Tuple[str, Sequence[str]]:
         """
-        Initialize the structure format.  This is called by the __init__ function (class constructure)
-        and results in the _format Tuple being set according to the tables rowcounts and heap info.
-        The _format Tuple is passed to RowStruct instantiations to calcuate the row size and to parse a row.
+        Compute the structure format.
+        This will be passed to RowStruct instances to calcuate the row size and to parse a row.
+
+        This may raise an exception when the offsets to referenced streams is too large (>4 bytes).
         """
-        pass
+        ...
 
     def set_data(self, data: bytes, offset: int = None):
         """
@@ -162,7 +209,7 @@ class MDTableRow(abc.ABC):
         parse() is called after all tables have had parse_rows() called on them.
         """
         self._data = data
-        self.struct = self._struct_class(format=self._format, file_offset=offset)
+        self.struct = self.__class__._struct_class(format=self._format, file_offset=offset)
         self.struct.__unpack__(data)
 
     def parse(self, tables: List["ClrMetaDataTable"], next_row: Optional["MDTableRow"]):
@@ -171,69 +218,96 @@ class MDTableRow(abc.ABC):
         have been initialized, i.e. parse_rows() has been called on each table in the tables list.
         """
         # if there are any fields to copy as-is
-        if self._struct_asis:
-            for struct_name, attr_name in self._struct_asis.items():
+        if hasattr(self.__class__, "_struct_asis"):
+            for struct_name, attr_name in self.__class__._struct_asis.items():
                 setattr(self, attr_name, getattr(self.struct, struct_name, None))
+
         # if strings
-        if self._struct_strings and self._strings:
-            for struct_name, attr_name in self._struct_strings.items():
+        if hasattr(self.__class__, "_struct_strings"):
+            for struct_name, attr_name in self.__class__._struct_strings.items():
+                if self._strings is None:
+                    logger.warning("failed to fetch string: no strings table")
+                    continue
+
                 i = getattr(self.struct, struct_name, None)
                 try:
                     s = self._strings.get(i)
+                    setattr(self, attr_name, s)
                 except UnicodeDecodeError:
                     s = self._strings.get(i, as_bytes=True)
+                    logger.warning("string: invalid encoding")
+                    setattr(self, attr_name, s)
                 except IndexError:
-                    s = None
-                    # TODO error/warn
-                setattr(self, attr_name, s)
+                    logger.warning("failed to fetch string: unable to parse data")
+
         # if guids
-        if self._struct_guids and self._guids:
-            for struct_name, attr_name in self._struct_guids.items():
+        if hasattr(self.__class__, "_struct_guids"):
+            for struct_name, attr_name in self.__class__._struct_guids.items():
+                if self._guids is None:
+                    logger.warning("failed to fetch guid: no guid table")
+                    continue
+
                 try:
                     g = self._guids.get(getattr(self.struct, struct_name, None))
+                    setattr(self, attr_name, g)
                 except (IndexError, TypeError):
-                    g = None
-                    # TODO error/warn
-                setattr(self, attr_name, g)
+                    logger.warning("failed to fetch guid: unable to parse data")
+
         # if blobs
-        if self._struct_blobs and self._blobs:
-            for struct_name, attr_name in self._struct_blobs.items():
+        if hasattr(self.__class__, "_struct_blobs"):
+            for struct_name, attr_name in self.__class__._struct_blobs.items():
+                if self._blobs is None:
+                    logger.warning("failed to fetch blob: no blob table")
+                    continue
                 try:
                     b = self._blobs.get(getattr(self.struct, struct_name, None))
+                    setattr(self, attr_name, b)
                 except (IndexError, TypeError):
-                    b = None
-                    # TODO error/warn
-                setattr(self, attr_name, b)
+                    logger.warning("failed to fetch blob: unable to parse data")
+
         # if coded indexes
-        if self._struct_codedindexes and tables:
+        if hasattr(self.__class__, "_struct_codedindexes") and tables:
             for struct_name, (
                 attr_name,
                 attr_class,
-            ) in self._struct_codedindexes.items():
+            ) in self.__class__._struct_codedindexes.items():
                 try:
                     o = attr_class(getattr(self.struct, struct_name, None), tables)
+                    setattr(self, attr_name, o)
                 except (IndexError, TypeError):
-                    o = None
-                    # TODO error/warn
-                setattr(self, attr_name, o)
+                    logger.warning("failed to fetch coded index: unable to parse data")
+
         # if flags
-        if self._struct_flags:
-            for struct_name, (attr_name, attr_class) in self._struct_flags.items():
+        if hasattr(self.__class__, "_struct_flags"):
+            for struct_name, (attr_name, flag_class) in self.__class__._struct_flags.items():
                 # Set the flags according to the Flags member
                 v = getattr(self.struct, struct_name, None)
-                if v is not None:
-                    try:
-                        flag_object = attr_class(v)
-                    except ValueError:
-                        flag_object = None
-                        # TODO error/warn
-                else:
-                    flag_object = None
-                    # TODO error/warn
-                setattr(self, attr_name, flag_object)
+                if v is None:
+                    logger.warning("failed to fetch flag: no data")
+                    continue
+
+                try:
+                    setattr(self, attr_name, flag_class(v))
+                except ValueError:
+                    logger.warning("failed to fetch flag: invalid flag data")
+
+        # if enums
+        if hasattr(self.__class__, "_struct_enums"):
+            for struct_name, (attr_name, enum_class) in self.__class__._struct_enums.items():
+                # Set the value according to the Enum member
+                v = getattr(self.struct, struct_name, None)
+                if v is None:
+                    logger.warning("failed to fetch enum: no data")
+                    continue
+
+                try:
+                    setattr(self, attr_name, enum_class(v))
+                except ValueError:
+                    logger.warning("failed to fetch enum: invalid enum data")
+
         # if indexes
-        if self._struct_indexes and tables:
-            for struct_name, (attr_name, table_name) in self._struct_indexes.items():
+        if hasattr(self.__class__, "_struct_indexes") and tables:
+            for struct_name, (attr_name, table_name) in self.__class__._struct_indexes.items():
                 table = None
                 for t in tables:
                     if t.name == table_name:
@@ -241,13 +315,13 @@ class MDTableRow(abc.ABC):
                 if table:
                     i = getattr(self.struct, struct_name, None)
                     if i is not None and i > 0 and i <= table.num_rows:
-                        setattr(self, attr_name, MDTableIndexRef(table, i))
+                        setattr(self, attr_name, MDTableIndex(table, i))
                     else:
-                        setattr(self, attr_name, None)
-                        # TODO error/warn
+                        logger.warning("failed to fetch index reference: unable to parse data")
+
         # if lists
-        if self._struct_lists and tables:
-            for struct_name, (attr_name, table_name) in self._struct_lists.items():
+        if hasattr(self.__class__, "_struct_lists") and tables:
+            for struct_name, (attr_name, table_name) in self.__class__._struct_lists.items():
                 table = None
                 for t in tables:
                     if t.name == table_name:
@@ -287,7 +361,7 @@ class MDTableRow(abc.ABC):
                     if (run_start_index != run_end_index) or (run_end_index == max_row):
                         # row indexes are 1-indexed, so our range goes to end+1
                         for row_index in range(run_start_index, run_end_index + 1):
-                            run.append(MDTableIndexRef(table, row_index))
+                            run.append(MDTableIndex(table, row_index))
 
                 setattr(self, attr_name, run)
 
@@ -296,7 +370,7 @@ class MDTableRow(abc.ABC):
             if t.name == name:
                 return t.number
 
-    def _clr_coded_index_struct_size(self, tag_bits, table_names):
+    def _clr_coded_index_struct_size(self, tag_bits: int, table_names: Sequence[str]) -> str:
         """
         Given table names and tag bits, checks for the max row count
         size among the given tables and returns "H" if it will fit in
@@ -306,22 +380,27 @@ class MDTableRow(abc.ABC):
         The returned character can be used in a Structure format or
         passing to struct.pack()
         """
-        if not table_names or not self._tables_rowcnt:
-            # error
-            raise dnFormatError("Problem parsing .NET coded index")
         max_index = 0
         for name in table_names:
             if not name:
                 continue
-            i = enums.MetadataTables[name].value
-            if self._tables_rowcnt[i] > max_index:
-                max_index = self._tables_rowcnt[i]
+
+            table_index = enums.MetadataTables[name].value
+            table_rowcnt = self._tables_rowcnt[table_index]
+            if table_rowcnt is None:
+                # the requested table is not present,
+                # so it effectively has zero rows.
+                table_rowcnt = 0
+
+            max_index = max(max_index, table_rowcnt)
+
         # if it can fit in a word (minus bits for reference id)
         if max_index <= 2 ** (16 - tag_bits):
             # size is a word
             return "H"
-        # otherwise, size is a dword
-        return "I"
+        else:
+            # otherwise, size is a dword
+            return "I"
 
 
 class MDTablesStruct(Structure):
@@ -334,31 +413,109 @@ class MDTablesStruct(Structure):
     MaskSorted: int
 
 
-class ClrMetaDataTable(collections.abc.Sequence):
+# This type describes the type of row that a table contains.
+# For example, the Module table contains ModuleRows,
+# so it inherits like this:
+#
+#     class Module(ClrMetaDataTable[ModuleRow]):
+#         ...
+#
+# This lets us specify that `dnfile.mdtables.Module[0]` is a ModuleRow
+# and therefore has properties Name, Generation, etc.
+#
+# Instances of these types must be subclasses of MDTableRow.
+RowType = TypeVar('RowType', bound=MDTableRow)
+
+
+class MDTableIndex(Generic[RowType]):
+    """
+    An index into a Metadata Table.
+
+    Attributes:
+        table           Table object.
+        row_index       Index number of the row.
+        row             The referenced row.
+    """
+    def __init__(self, table: "ClrMetaDataTable[RowType]", row_index: int):
+        self.table: Optional["ClrMetaDataTable[RowType]"] = table
+        self.row_index: int = row_index
+
+    @property
+    def row(self) -> Optional[RowType]:
+        if self.table is None:
+            return None
+        else:
+            return self.table.get_with_row_index(self.row_index)
+
+
+class CodedIndex(MDTableIndex[RowType]):
+    """
+    Subclasses should be sure to set the following attributes:
+      - tag_bits        Number of bits used to specify the table name index.
+      - table_names     Candidate list of table names.
+    """
+    #
+    # required properties for subclasses.
+    #
+    # subclasses must define this property,
+    # or __init__ will raise an exception.
+    #
+    # for example:
+    #
+    #   class TypeDefOrRef(CodedIndex[...]):
+    #       tag_bits = 2
+    #       table_names = ("TypeDef", "TypeRef", "TypeSpec")
+    #
+    tag_bits: int
+    table_names: Sequence[str]
+
+    def __init__(self, value, tables: List["ClrMetaDataTable[RowType]"]):
+        assert hasattr(self, "tag_bits")
+        assert hasattr(self, "table_names")
+
+        table_name = self.table_names[value & (2 ** self.tag_bits - 1)]
+        self.row_index = value >> self.tag_bits
+
+        for t in tables:
+            if t.name != table_name:
+                continue
+
+            self.table = t
+            return
+
+        logger.warning("reference to missing table: %s" % table_name)
+        self.table = None
+
+
+class ClrMetaDataTable(Generic[RowType]):
     """
     An abstract class for Metadata tables.  Rows can be accessed
-    directly like a list with bracket [] syntax.
+     directly like a list with bracket [] syntax.
+    Use `get_with_row_index` when you have a Rid/token/row_index,
+     since these are 1-indexed.
+    Use bracket [] syntax when you want 0-indexing.
 
     Subclasses should make sure to set the following attributes:
         number
         name
-        _format
-        _flags
         _row_class
     """
-
-    number: int = None
-    name: str = None
-    num_rows: int = 0
-    row_size: int = 0
-    rows: List[MDTableRow] = None
-    is_sorted = False
-    rva: int = 0
-
-    _format: Tuple = None
-    _flags: Tuple = None
-    _row_class: Type[MDTableRow] = None
-    _table_data: bytes
+    #
+    # required properties for subclasses.
+    #
+    # subclasses must define this property,
+    # or __init__ will raise an exception.
+    #
+    # for example:
+    #
+    #   class Module(ClrMetaDataTable[ModuleRow]):
+    #       name = "Module"
+    #       number = 0
+    #       _row_class = ModuleRow
+    #
+    number: int
+    name: str
+    _row_class: Type[RowType]
 
     def __init__(
         self,
@@ -367,9 +524,9 @@ class ClrMetaDataTable(collections.abc.Sequence):
         strings_offset_size: int,
         guid_offset_size: int,
         blob_offset_size: int,
-        strings_heap: ClrHeap,
-        guid_heap: ClrHeap,
-        blob_heap: ClrHeap,
+        strings_heap: Optional["stream.StringsHeap"],
+        guid_heap: Optional["stream.GuidHeap"],
+        blob_heap: Optional["stream.BlobHeap"],
     ):
         """
         Given the tables' row counts, sorted flag, and heap info.
@@ -380,36 +537,48 @@ class ClrMetaDataTable(collections.abc.Sequence):
             is_sorted   Whether the table is sorted, according to tables_info.
             rows        Initialized but not-yet-parsed list of rows.
         """
-        self.is_sorted = is_sorted
-        self.num_rows = tables_rowcounts[self.number]
-        self.rows = list()
+        assert hasattr(self, "number")
+        assert hasattr(self, "name")
+        assert hasattr(self, "_row_class")
+
+        num_rows = tables_rowcounts[self.number]
+        if num_rows is None:
+            # the table doesn't exist, so create the instance, but with zero rows.
+            logger.warning("reference to missing table: %d" % (self.number))
+            num_rows = 0
+
+        self.is_sorted: bool = is_sorted
+        self.num_rows: int = num_rows
+
+        self.rows: List[RowType] = []
+        for i in range(num_rows):
+            try:
+                self.rows.append(self._row_class(
+                    tables_rowcounts,
+                    strings_offset_size,
+                    guid_offset_size,
+                    blob_offset_size,
+                    strings_heap,
+                    guid_heap,
+                    blob_heap,
+                ))
+            except errors.dnFormatError:
+                # this may occur when the offset to a stream is too large.
+                # this probably means invalid data.
+                logger.warning("failed to construct %s row %d", self.name, i)
+                break
+
         # store heap info
-        self._strings_heap = strings_heap
-        self._guid_heap = guid_heap
-        self._blob_heap = blob_heap
+        self._strings_heap: Optional["stream.StringsHeap"] = strings_heap
+        self._guid_heap: Optional["stream.GuidHeap"] = guid_heap
+        self._blob_heap: Optional["stream.BlobHeap"] = blob_heap
         self._strings_offset_size = strings_offset_size
         self._guid_offset_size = guid_offset_size
         self._blob_offset_size = blob_offset_size
         self._tables_rowcounts = tables_rowcounts
-        # init rows
-        self._init_rows()
-        # get row size
-        self.row_size = self._get_row_size()
 
-    def _init_rows(self):
-        if self._row_class:
-            for i in range(self.num_rows):
-                r: MDTableRow
-                r = self._row_class(
-                    self._tables_rowcounts,
-                    self._strings_offset_size,
-                    self._guid_offset_size,
-                    self._blob_offset_size,
-                    self._strings_heap,
-                    self._guid_heap,
-                    self._blob_heap,
-                )
-                self.rows.append(r)
+        self._table_data: bytes = b""
+        self.row_size: int = self._get_row_size()
 
     def _get_row_size(self):
         if not self.rows:
@@ -417,7 +586,7 @@ class ClrMetaDataTable(collections.abc.Sequence):
         r = self.rows[0]
         return r.row_size
 
-    def parse_rows(self, data: bytes):
+    def parse_rows(self, table_rva: int, data: bytes):
         """
         Given a byte sequence containing the rows, add data to each row in the
         self.rows list.  Note that the rows have not been fully parsed until
@@ -426,24 +595,18 @@ class ClrMetaDataTable(collections.abc.Sequence):
         """
         self._table_data = data
         if len(data) < self.row_size * self.num_rows:
-            # error/warn
-            raise errors.dnFormatError(
-                "Error parsing table {}, len(data)={}  row_size={}  num_rows={}".format(
-                    self.name, len(data), self.row_size, self.num_rows
-                )
-            )
+            logger.warning("not enough data to parse %d rows", self.num_rows)
+            # we can still try to parse some of the rows...
+
         offset = 0
         # iterate through rows, stopping at num_rows or when there is not enough data left
         for i in range(self.num_rows):
             if len(data) < offset + self.row_size:
-                # error/warn
-                raise errors.dnFormatError(
-                    "Error parsing row {} for table {}, len(data)={}  row_size={}  offset={}".format(
-                        i, self.name, len(data), self.row_size, offset
-                    )
-                )
+                logger.warning("not enough data to parse row %d", i)
+                break
+
             self.rows[i].set_data(
-                data[offset:offset + self.row_size], offset=self.rva + offset
+                data[offset:offset + self.row_size], offset=table_rva + offset
             )
             offset += self.row_size
 
@@ -457,21 +620,28 @@ class ClrMetaDataTable(collections.abc.Sequence):
         """
 
         # for each row in table
-        for i, r in enumerate(self.rows):
+        for i, row in enumerate(self.rows):
             next_row = None
             if i + 1 < len(self.rows):
                 next_row = self.rows[i + 1]
 
             # fully parse the row
-            r.parse(tables, next_row=next_row)
+            row.parse(tables, next_row=next_row)
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> RowType:
         return self.rows[index]
 
     def __len__(self):
+        """
+        the actual number of rows parsed,
+        as opposed to self.num_rows, which is the declared row count of the table
+        """
         return len(self.rows)
 
-    def get_with_row_index(self, row_index: int):
+    def __iter__(self):
+        return iter(self.rows)
+
+    def get_with_row_index(self, row_index: int) -> RowType:
         """
         fetch the row with the given row index.
         remember: row indices, at least those encoded within a .NET file, are 1-based.
@@ -479,41 +649,3 @@ class ClrMetaDataTable(collections.abc.Sequence):
         use `__getitem__` when you want 0-based indexing.
         """
         return self[row_index - 1]
-
-
-class MDTableIndex(object):
-    """
-    An index into a Metadata Table.
-
-    Attributes:
-        table           Table object.
-        row_index       Index number of the row.
-    """
-
-    table: ClrMetaDataTable
-    row_index: int
-    row: MDTableRow
-
-
-class CodedIndex(MDTableIndex):
-    tag_bits: int
-    table_names: Tuple[str]
-
-    def __init__(self, value, tables_list: List[ClrMetaDataTable]):
-        table_name = self.table_names[value & (2 ** self.tag_bits - 1)]
-        self.row_index = value >> self.tag_bits
-        for t in tables_list:
-            if t.name == table_name:
-                self.table = t
-                if self.row_index > t.num_rows:
-                    # TODO error/warn
-                    self.row = None
-                    return
-                self.row = t.rows[self.row_index - 1]
-
-
-class MDTableIndexRef(MDTableIndex):
-    def __init__(self, table, row_index):
-        self.table = table
-        self.row_index = row_index
-        self.row = table.get_with_row_index(row_index)

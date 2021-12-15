@@ -18,13 +18,15 @@ __version__ = "0.8.0"
 import copy as _copymod
 import codecs
 import struct as _struct
-from typing import Dict, List
+import logging
+from typing import Dict, List, Optional
 
 from pefile import PE as _PE
 from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, DataContainer, PEFormatError
 
-from . import enums, errors, stream
+from . import base, enums, errors, stream
 
+logger = logging.getLogger(__name__)
 CLR_METADATA_SIGNATURE = 0x424A5342
 
 
@@ -85,8 +87,8 @@ class dnPE(_PE):
                 hasattr(self.net.metadata, "streams_list")
                 and self.net.metadata.streams_list
             ):
-                for s in self.net.metadata.streams_list:
-                    dump.add_lines(s.struct.dump(), indent=4)
+                for stream_ in self.net.metadata.streams_list:
+                    dump.add_lines(stream_.struct.dump(), indent=4)
                     dump.add_newline()
 
         # Metadata Tables
@@ -141,6 +143,17 @@ class dnPE(_PE):
             ("IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR", self.parse_clr_structure),
         )
 
+        if self.__data__ is None:
+            logger.warning("not a .NET module: failed to read data")
+            self.net = None
+            return
+
+        opt_header = getattr(self, "OPTIONAL_HEADER", None)
+        if opt_header is None:
+            logger.warning("not a .NET module: no optional header")
+            self.net = None
+            return
+
         if directories is not None:
             if not isinstance(directories, (tuple, list)):
                 directories = [directories]
@@ -148,7 +161,7 @@ class dnPE(_PE):
         for entry in directory_parsing:
             try:
                 directory_index = DIRECTORY_ENTRY[entry[0]]
-                dir_entry = self.OPTIONAL_HEADER.DATA_DIRECTORY[directory_index]
+                dir_entry = opt_header.DATA_DIRECTORY[directory_index]
             except IndexError:
                 break
 
@@ -178,7 +191,7 @@ class dnPE(_PE):
         if not hasattr(self, attr_name):
             dir_entry_size = Structure(self.__IMAGE_DATA_DIRECTORY_format__).sizeof()
             dd_offset = (
-                self.OPTIONAL_HEADER.get_file_offset() + self.OPTIONAL_HEADER.sizeof()
+                opt_header.get_file_offset() + opt_header.sizeof()
             )
             clr_entry_offset = dd_offset + (
                 DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR"] * dir_entry_size
@@ -187,32 +200,37 @@ class dnPE(_PE):
             dir_entry = self.__unpack_data__(
                 self.__IMAGE_DATA_DIRECTORY_format__, data, file_offset=clr_entry_offset
             )
+
             # if COM entry appears valid
-            if dir_entry.VirtualAddress:
+            if dir_entry is not None and dir_entry.VirtualAddress:
                 # try to parse the .NET CLR directory
                 value = self.parse_clr_structure(
                     dir_entry.VirtualAddress, dir_entry.Size
                 )
-                # if parsing was successful
                 if value:
-                    # set attribute
                     setattr(self, attr_name, value)
                     # create shortcut for .NET/CLR data
                     self.net = value
+                else:
+                    self.net = None
 
-    def parse_clr_structure(self, rva, size):
-        return ClrData(self, rva, size)
+    def parse_clr_structure(self, rva, size) -> Optional["ClrData"]:
+        try:
+            return ClrData(self, rva, size)
+        except errors.dnFormatError as e:
+            logger.warning("failed to parse CLR data: %s",  e)
+            return None
 
 
 class ClrMetaDataStruct(Structure):
-    Signature: int = None
-    MajorVersion: int = None
-    MinorVersion: int = None
-    Reserved: int = None
-    VersionLength: int = None
-    Version: int = None
-    Flags: int = None
-    NumberOfStreams: int = None
+    Signature: int
+    MajorVersion: int
+    MinorVersion: int
+    Reserved: int
+    VersionLength: int
+    Version: int
+    Flags: int
+    NumberOfStreams: int
 
 
 class ClrMetaData(DataContainer):
@@ -225,7 +243,7 @@ class ClrMetaData(DataContainer):
 
     rva: int
     struct: ClrMetaDataStruct
-    streams: Dict[int, base.ClrStream]
+    streams: Dict[bytes, base.ClrStream]
     streams_list: List[base.ClrStream]
 
     _format = (
@@ -327,8 +345,9 @@ class ClrMetaData(DataContainer):
                 try:
                     s.parse(self.streams_list)
                 except (errors.dnFormatError, PEFormatError) as e:
-                    pe.add_warning("Unable to parse stream {}".format(s.struct.Name))
+                    pe.add_warning("Unable to parse stream {!r}".format(s.struct.Name))
                     pe.add_warning(str(e))
+                    logger.warning("unable to parse stream: %s: %s", s.struct.Name, e)
 
     def parse_stream_table(self, pe: dnPE, streams_table_rva):
         streams_list = list()
@@ -338,20 +357,23 @@ class ClrMetaData(DataContainer):
         for i in range(self.struct.NumberOfStreams):
             stream = ClrStreamFactory.createStream(pe, stream_entry_rva, self.rva)
             if not stream:
-                # error
-                pe.add_warning("Invalid .NET stream {}".format(i + 1))
+                logger.warning("Invalid .NET stream: {}".format(i + 1))
+                pe.add_warning("Invalid .NET stream: {}".format(i + 1))
                 # assume this throws off further parsing, so stop
                 break
+
             streams_list.append(stream)
-            # if a stream with this name already exists
-            if stream.struct.Name in streams_dict:
-                # warning
-                pe.add_warning(
-                    "Duplicate .NET stream name '{}'".format(stream.struct.Name)
-                )
-            else:
-                # otherwise add it to the associative array
-                streams_dict[stream.struct.Name] = stream
+            name = stream.struct.Name
+            if name in streams_dict:
+                # if a stream with this name already exists.
+                # this is not fatal, just unusual.
+                pe.add_warning("Duplicate .NET stream name '{!r}'".format(name))
+                logger.warning("Duplicate .NET stream name: %s", name)
+
+            # dotnet uses the last encountered stream with a given name,
+            # see: https://github.com/malwarefrank/dnfile/issues/19#issuecomment-992754448
+            # and test_invalid_streams.py::test_duplicate_stream
+            streams_dict[name] = stream
             # move to next entry in streams table
             stream_entry_rva += stream.stream_table_entry_size()
 
@@ -360,25 +382,25 @@ class ClrMetaData(DataContainer):
 
 
 class ClrStruct(Structure):
-    cb: int = None
-    MajorRuntimeVersion: int = None
-    MinorRuntimeVersion: int = None
-    MetaDataRva: int = None
-    MetaDataSize: int = None
-    Flags: int = None
-    EntryPointTokenOrRva: int = None
-    ResourcesRva: int = None
-    ResourcesSize: int = None
-    StrongNameSignatureRva: int = None
-    StrongNameSignatureSize: int = None
-    CodeManagerTableRva: int = None
-    CodeManagerTableSize: int = None
-    VTableFixupsRva: int = None
-    VTableFixupsSize: int = None
-    ExportAddressTableJumpsRva: int = None
-    ExportAddressTableJumpsSize: int = None
-    ManagedNativeHeaderRva: int = None
-    ManagedNativeHeaderSize: int = None
+    cb: int
+    MajorRuntimeVersion: int
+    MinorRuntimeVersion: int
+    MetaDataRva: int
+    MetaDataSize: int
+    Flags: int
+    EntryPointTokenOrRva: int
+    ResourcesRva: int
+    ResourcesSize: int
+    StrongNameSignatureRva: int
+    StrongNameSignatureSize: int
+    CodeManagerTableRva: int
+    CodeManagerTableSize: int
+    VTableFixupsRva: int
+    VTableFixupsSize: int
+    ExportAddressTableJumpsRva: int
+    ExportAddressTableJumpsSize: int
+    ManagedNativeHeaderRva: int
+    ManagedNativeHeaderSize: int
 
 
 class ClrData(DataContainer):
@@ -387,19 +409,21 @@ class ClrData(DataContainer):
     struct:         IMAGE_NET_DIRECTORY structure
     metadata:       ClrMetaData or None
     strings:        stream.StringsHeap or None
+    user_strings:   stream.UserStringsHeap or None
     guids:          stream.GuidHeap or None
     blobs:          stream.BlobHeap or None
     mdtables:       stream.MetaDataTables or None
     Flags:          enums.ClrHeaderFlags or None
     """
 
-    metadata: ClrMetaData = None
-    struct: ClrStruct = None
-    strings: stream.StringsHeap = None
-    guids: stream.GuidHeap = None
-    blobs: stream.BlobHeap = None
-    mdtables: stream.MetaDataTables = None
-    Flags: enums.ClrHeaderFlags = None
+    struct: ClrStruct
+    metadata: Optional[ClrMetaData]
+    strings: Optional[stream.StringsHeap]
+    user_strings: Optional[stream.UserStringHeap]
+    guids: Optional[stream.GuidHeap]
+    blobs: Optional[stream.BlobHeap]
+    mdtables: Optional[stream.MetaDataTables]
+    Flags: Optional[enums.ClrHeaderFlags]
 
     # Structure description from:
     # http://www.ntcore.com/files/dotnetformat.htm
@@ -441,9 +465,7 @@ class ClrData(DataContainer):
             )
             clr_struct.__unpack__(data)
         except PEFormatError:
-            clr_struct = None
-
-        if not clr_struct:
+            # raise exception cause we can't do anything halfway here.
             raise errors.dnFormatError(
                 "Invalid CLR Structure information. Can't read "
                 "data at RVA: 0x%x" % rva
@@ -454,24 +476,29 @@ class ClrData(DataContainer):
         # parse metadata
         metadata_rva = clr_struct.MetaDataRva
         metadata_size = clr_struct.MetaDataSize
+
         try:
             self.metadata = ClrMetaData(pe, metadata_rva, metadata_size)
         except (errors.dnFormatError, PEFormatError) as e:
+            logger.warning("failed to parse .NET metadata: %s", e)
             self.metadata = None
-            pe.add_warning("Problem parsing .NET metadata")
-            pe.add_warning(str(e))
-        if self.metadata:
-            # create shortcuts for streams
-            # TODO: if there are multiple instances of a type, does dotnet runtime use first?
-            for s in self.metadata.streams_list:
-                if not self.strings and isinstance(s, stream.StringsHeap):
-                    self.strings = s
-                elif not self.guids and isinstance(s, stream.GuidHeap):
-                    self.guids = s
-                elif not self.blobs and isinstance(s, stream.BlobHeap):
-                    self.blobs = s
-                elif not self.mdtables and isinstance(s, stream.MetaDataTables):
-                    self.mdtables: stream.MetaDataTables = s
+            return
+
+        # create shortcuts for streams
+        # dotnet runtime uses the last instance of a type,
+        # see: https://github.com/malwarefrank/dnfile/issues/19#issuecomment-992754448
+        # and test: test_invalid_streams.py::test_duplicate_stream
+        for s in self.metadata.streams_list:
+            if isinstance(s, stream.StringsHeap):
+                self.strings = s
+            elif isinstance(s, stream.UserStringHeap):
+                self.user_strings = s
+            elif isinstance(s, stream.GuidHeap):
+                self.guids = s
+            elif isinstance(s, stream.BlobHeap):
+                self.blobs = s
+            elif isinstance(s, stream.MetaDataTables):
+                self.mdtables: stream.MetaDataTables = s
 
         # Set the flags according to the Flags member
         flags_object = enums.ClrHeaderFlags(clr_struct.Flags)
@@ -499,11 +526,15 @@ class ClrStreamFactory(object):
     @classmethod
     def createStream(
         cls, pe: dnPE, stream_entry_rva: int, metadata_rva: int
-    ) -> base.ClrStream:
+    ) -> Optional[base.ClrStream]:
         # start with structure template
         struct_format = _copymod.deepcopy(cls._template_format)
         # read name
         name = pe.get_string_at_rva(stream_entry_rva + 8)
+        if name is None:
+            logger.warning("failed to read stream name")
+            return None
+
         # round field length up to next 4-byte boundary.  Remember the NULL byte at end.
         name_len = len(name) + (4 - (len(name) % 4))
         # add name field to structure
@@ -521,14 +552,14 @@ class ClrStreamFactory(object):
         stream_data = pe.get_data(
             metadata_rva + stream_struct.Offset, stream_struct.Size
         )
-        # if there is a subclass for this stream
-        if stream_struct.Name in cls._name_type_map:
-            # use that subclass
-            stream_class = cls._name_type_map[stream_struct.Name]
+        name = stream_struct.Name
+        # use GenericStream for any non-standard streams
+        stream_class = cls._name_type_map.get(name, stream.GenericStream)
+        try:
+            # construct stream, like stream.StreagsHeap ctor or GenericStream ctor
+            s = stream_class(metadata_rva, stream_struct, stream_data)
+        except errors.dnFormatError as e:
+            logger.warning("failed to parse stream: %s", e)
+            return None
         else:
-            # otherwise, use the base stream class
-            stream_class = stream.GenericStream
-        # construct stream
-        s = stream_class(metadata_rva, stream_struct, stream_data)
-        # return stream
-        return s
+            return s

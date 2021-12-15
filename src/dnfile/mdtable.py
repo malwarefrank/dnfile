@@ -11,35 +11,63 @@ REFERENCES
 
 Copyright (c) 2020-2021 MalwareFrank
 """
+from typing import TYPE_CHECKING, Dict, List, Type, Optional
+
+from . import enums, utils, errors, codedindex
+from .base import RowStruct, MDTableRow, MDTableIndex, ClrMetaDataTable
+
+if TYPE_CHECKING:
+    from . import stream
 
 
-from typing import List, Type
+def checked_offset_format(offset: int):
+    """
+    compute the format specifier needed for the given offset value.
+    raises an exception if the offset cannot be represented.
+    """
 
-from . import enums, utils, codedindex
-from .base import ClrHeap, RowStruct, MDTableRow, ClrMetaDataTable
+    # implementation: this exception will propagate up
+    # `_compute_format` to `MDTableRow.__init__`
+    # and halt population of a table's row.
+    format = utils.num_bytes_to_struct_char(offset)
+    if format is None:
+        raise errors.dnFormatError("invalid offset: value too large")
+    return format
+
 
 #### Module Table
 #
 
 
 class ModuleRowStruct(RowStruct):
-    Generation: int = None
-    Name_StringIndex: int = None
-    Mvid_GuidIndex: int = None
-    EncId_GuidIndex: int = None
-    EncBaseId_GuidIndex: int = None
+    #
+    # these are type hints for properties dynamically set during structure parsing.
+    #
+    Generation: int
+    Name_StringIndex: int
+    Mvid_GuidIndex: int
+    EncId_GuidIndex: int
+    EncBaseId_GuidIndex: int
 
 
 class ModuleRow(MDTableRow):
+    #
+    # these are type hints for properties dynamically set during structure parsing.
+    #
     Generation: int
     Name: str
     Mvid: str
     EncId: str
     EncBaseId: str
 
-    struct: ModuleRowStruct
+    #
+    # raw structure definition
+    #
     _struct_class = ModuleRowStruct
 
+    #
+    # parsing strategies
+    #
     _struct_asis = {"Generation": "Generation"}
     _struct_strings = {
         "Name_StringIndex": "Name",
@@ -50,10 +78,10 @@ class ModuleRow(MDTableRow):
         "EncBaseId_GuidIndex": "EncBaseId",
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        guid_ind_size = utils.num_bytes_to_struct_char(self._guid_offsz)
-        self._format = (
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        guid_ind_size = checked_offset_format(self._guid_offsz)
+        return (
             "CLR_METADATA_TABLE_MODULE",
             (
                 "H,Generation",
@@ -65,7 +93,7 @@ class ModuleRow(MDTableRow):
         )
 
 
-class Module(ClrMetaDataTable):
+class Module(ClrMetaDataTable[ModuleRow]):
     name = "Module"
     number = 0
 
@@ -77,9 +105,9 @@ class Module(ClrMetaDataTable):
 
 
 class TypeRefRowStruct(RowStruct):
-    ResolutionScope_CodedIndex: int = None
-    TypeName_StringIndex: int = None
-    TypeNamespace_StringIndex: int = None
+    ResolutionScope_CodedIndex: int
+    TypeName_StringIndex: int
+    TypeNamespace_StringIndex: int
 
 
 class TypeRefRow(MDTableRow):
@@ -87,7 +115,6 @@ class TypeRefRow(MDTableRow):
     TypeName: str
     TypeNamespace: str
 
-    struct: TypeRefRowStruct
     _struct_class = TypeRefRowStruct
 
     _struct_strings = {
@@ -98,13 +125,13 @@ class TypeRefRow(MDTableRow):
         "ResolutionScope_CodedIndex": ("ResolutionScope", codedindex.ResolutionScope),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         resolutionscope_size = self._clr_coded_index_struct_size(
             codedindex.ResolutionScope.tag_bits,
             codedindex.ResolutionScope.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        self._format = (
+        str_ind_size = checked_offset_format(self._str_offsz)
+        return (
             "CLR_METADATA_TABLE_TYPEREF",
             (
                 resolutionscope_size + ",ResolutionScope_CodedIndex",
@@ -114,7 +141,7 @@ class TypeRefRow(MDTableRow):
         )
 
 
-class TypeRef(ClrMetaDataTable):
+class TypeRef(ClrMetaDataTable[TypeRefRow]):
     name = "TypeRef"
     number = 1
 
@@ -126,12 +153,12 @@ class TypeRef(ClrMetaDataTable):
 
 
 class TypeDefRowStruct(RowStruct):
-    Flags: int = None
-    TypeName_StringIndex: int = None
-    TypeNamespace_StringIndex: int = None
-    Extends_CodedIndex: int = None
-    FieldList_Index: int = None
-    MethodList_Index: int = None
+    Flags: int
+    TypeName_StringIndex: int
+    TypeNamespace_StringIndex: int
+    Extends_CodedIndex: int
+    FieldList_Index: int
+    MethodList_Index: int
 
 
 class TypeDefRow(MDTableRow):
@@ -142,7 +169,6 @@ class TypeDefRow(MDTableRow):
     FieldList: List
     MethodList: List
 
-    struct: TypeDefRowStruct
     _struct_class = TypeDefRowStruct
 
     _struct_strings = {
@@ -160,15 +186,15 @@ class TypeDefRow(MDTableRow):
         "MethodList_Index": ("MethodList", "MethodDef"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         extends_size = self._clr_coded_index_struct_size(
             codedindex.TypeDefOrRef.tag_bits,
             codedindex.TypeDefOrRef.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         fieldlist_size = self._clr_coded_index_struct_size(0, ("Field",))
         methodlist_size = self._clr_coded_index_struct_size(0, ("MethodDef",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_TYPEDEF",
             (
                 "I,Flags",
@@ -181,7 +207,7 @@ class TypeDefRow(MDTableRow):
         )
 
 
-class TypeDef(ClrMetaDataTable):
+class TypeDef(ClrMetaDataTable[TypeDefRow]):
     name = "TypeDef"
     number = 2
 
@@ -203,9 +229,9 @@ class FieldPtr(ClrMetaDataTable):
 
 
 class FieldRowStruct(RowStruct):
-    Flags: int = None
-    Name_StringIndex: int = None
-    Signature_BlobIndex: int = None
+    Flags: int
+    Name_StringIndex: int
+    Signature_BlobIndex: int
 
 
 class FieldRow(MDTableRow):
@@ -213,7 +239,6 @@ class FieldRow(MDTableRow):
     Name: str
     Signature: bytes
 
-    struct: FieldRowStruct
     _struct_class = FieldRowStruct
 
     _struct_flags = {
@@ -226,10 +251,10 @@ class FieldRow(MDTableRow):
         "Signature_BlobIndex": "Signature",
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_FIELD",
             (
                 "H,Flags",
@@ -261,12 +286,12 @@ class MethodPtr(ClrMetaDataTable):
 
 
 class MethodDefRowStruct(RowStruct):
-    Rva: int = None
-    ImplFlags: int = None
-    Flags: int = None
-    Name_StringIndex: int = None
-    Signature_BlobIndex: int = None
-    ParamList_Index: int = None
+    Rva: int
+    ImplFlags: int
+    Flags: int
+    Name_StringIndex: int
+    Signature_BlobIndex: int
+    ParamList_Index: int
 
 
 class MethodDefRow(MDTableRow):
@@ -275,9 +300,8 @@ class MethodDefRow(MDTableRow):
     Flags: enums.ClrMethodAttr
     Name: str
     Signature: bytes
-    ParamList: List["ParamRow"]
+    ParamList: List[MDTableIndex["ParamRow"]]
 
-    struct: MethodDefRowStruct
     _struct_class = MethodDefRowStruct
 
     _struct_asis = {
@@ -297,11 +321,11 @@ class MethodDefRow(MDTableRow):
         "ParamList_Index": ("ParamList", "Param"),
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         paramlist_size = self._clr_coded_index_struct_size(0, ("Param",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_METHODDEF",
             (
                 "I,Rva",
@@ -314,7 +338,7 @@ class MethodDefRow(MDTableRow):
         )
 
 
-class MethodDef(ClrMetaDataTable):
+class MethodDef(ClrMetaDataTable[MethodDefRow]):
     name = "MethodDef"
     number = 6
 
@@ -336,9 +360,9 @@ class ParamPtr(ClrMetaDataTable):
 
 
 class ParamRowStruct(RowStruct):
-    Flags: int = None
-    Sequence: int = None
-    Name_StringIndex: int = None
+    Flags: int
+    Sequence: int
+    Name_StringIndex: int
 
 
 class ParamRow(MDTableRow):
@@ -346,7 +370,6 @@ class ParamRow(MDTableRow):
     Sequence: int
     Name: str
 
-    struct: ParamRowStruct
     _struct_class = ParamRowStruct
 
     _struct_flags = {
@@ -359,9 +382,9 @@ class ParamRow(MDTableRow):
         "Name_StringIndex": "Name",
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        self._format = (
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        return (
             "CLR_METADATA_TABLE_PARAM",
             (
                 "H,Flags",
@@ -371,7 +394,7 @@ class ParamRow(MDTableRow):
         )
 
 
-class Param(ClrMetaDataTable):
+class Param(ClrMetaDataTable[ParamRow]):
     name = "Param"
     number = 8
 
@@ -383,15 +406,14 @@ class Param(ClrMetaDataTable):
 
 
 class InterfaceImplRowStruct(RowStruct):
-    Class_Index: int = None
-    Interface_CodedIndex: int = None
+    Class_Index: int
+    Interface_CodedIndex: int
 
 
 class InterfaceImplRow(MDTableRow):
-    Class: TypeDefRow
+    Class: MDTableIndex[TypeDefRow]
     Interface: codedindex.TypeDefOrRef
 
-    struct: InterfaceImplRowStruct
     _struct_class = InterfaceImplRowStruct
 
     _struct_indexes = {
@@ -401,19 +423,19 @@ class InterfaceImplRow(MDTableRow):
         "Interface_CodedIndex": ("Interface", codedindex.TypeDefOrRef),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         interface_size = self._clr_coded_index_struct_size(
             codedindex.TypeDefOrRef.tag_bits,
             codedindex.TypeDefOrRef.table_names,
         )
         class_size = self._clr_coded_index_struct_size(0, ("TypeDef",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_INTERFACEIMPL",
             (class_size + ",Class_Index", interface_size + ",Interface_CodedIndex"),
         )
 
 
-class InterfaceImpl(ClrMetaDataTable):
+class InterfaceImpl(ClrMetaDataTable[InterfaceImplRow]):
     name = "InterfaceImpl"
     number = 9
 
@@ -425,9 +447,9 @@ class InterfaceImpl(ClrMetaDataTable):
 
 
 class MemberRefRowStruct(RowStruct):
-    Class_CodedIndex: int = None
-    Name_StringIndex: int = None
-    Signature_BlobIndex: int = None
+    Class_CodedIndex: int
+    Name_StringIndex: int
+    Signature_BlobIndex: int
 
 
 class MemberRefRow(MDTableRow):
@@ -435,7 +457,6 @@ class MemberRefRow(MDTableRow):
     Name: str
     Signature: bytes
 
-    struct: MemberRefRowStruct
     _struct_class = MemberRefRowStruct
 
     _struct_codedindexes = {
@@ -448,14 +469,14 @@ class MemberRefRow(MDTableRow):
         "Signature_BlobIndex": "Signature",
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         class_size = self._clr_coded_index_struct_size(
             codedindex.MemberRefParent.tag_bits,
             codedindex.MemberRefParent.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_MEMBERREF",
             (
                 class_size + ",Class_CodedIndex",
@@ -465,7 +486,7 @@ class MemberRefRow(MDTableRow):
         )
 
 
-class MemberRef(ClrMetaDataTable):
+class MemberRef(ClrMetaDataTable[MemberRefRow]):
     name = "MemberRef"
     number = 10
 
@@ -479,10 +500,10 @@ class MemberRef(ClrMetaDataTable):
 
 
 class ConstantRowStruct(RowStruct):
-    Type: int = None
-    Padding: int = None
-    Parent_CodedIndex: int = None
-    Value_BlobIndex: int = None
+    Type: int
+    Padding: int
+    Parent_CodedIndex: int
+    Value_BlobIndex: int
 
 
 class ConstantRow(MDTableRow):
@@ -491,7 +512,6 @@ class ConstantRow(MDTableRow):
     Parent: codedindex.HasConstant
     Value: bytes
 
-    struct: ConstantRowStruct
     _struct_class = ConstantRowStruct
 
     _struct_asis = {
@@ -505,13 +525,13 @@ class ConstantRow(MDTableRow):
         "Value_BlobIndex": "Value",
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         parent_size = self._clr_coded_index_struct_size(
             codedindex.HasConstant.tag_bits,
             codedindex.HasConstant.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_CONSTANT",
             (
                 "B,Type",
@@ -522,7 +542,7 @@ class ConstantRow(MDTableRow):
         )
 
 
-class Constant(ClrMetaDataTable):
+class Constant(ClrMetaDataTable[ConstantRow]):
     name = "Constant"
     number = 11
 
@@ -536,9 +556,9 @@ class Constant(ClrMetaDataTable):
 
 
 class CustomAttributeRowStruct(RowStruct):
-    Parent_CodedIndex: int = None
-    Type_CodedIndex: int = None
-    Value_BlobIndex: int = None
+    Parent_CodedIndex: int
+    Type_CodedIndex: int
+    Value_BlobIndex: int
 
 
 class CustomAttributeRow(MDTableRow):
@@ -546,7 +566,6 @@ class CustomAttributeRow(MDTableRow):
     Type: codedindex.CustomAttributeType
     Value: bytes
 
-    struct: CustomAttributeRowStruct
     _struct_class = CustomAttributeRowStruct
 
     _struct_codedindexes = {
@@ -557,7 +576,7 @@ class CustomAttributeRow(MDTableRow):
         "Value_BlobIndex": "Value",
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         parent_size = self._clr_coded_index_struct_size(
             codedindex.HasCustomAttribute.tag_bits,
             codedindex.HasCustomAttribute.table_names,
@@ -566,8 +585,8 @@ class CustomAttributeRow(MDTableRow):
             codedindex.CustomAttributeType.tag_bits,
             codedindex.CustomAttributeType.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_CUSTOMATTRIBUTE",
             (
                 parent_size + ",Parent_CodedIndex",
@@ -577,7 +596,7 @@ class CustomAttributeRow(MDTableRow):
         )
 
 
-class CustomAttribute(ClrMetaDataTable):
+class CustomAttribute(ClrMetaDataTable[CustomAttributeRow]):
     name = "CustomAttribute"
     number = 12
 
@@ -589,15 +608,14 @@ class CustomAttribute(ClrMetaDataTable):
 
 
 class FieldMarshalRowStruct(RowStruct):
-    Parent_CodedIndex: int = None
-    NativeType_BlobIndex: int = None
+    Parent_CodedIndex: int
+    NativeType_BlobIndex: int
 
 
 class FieldMarshalRow(MDTableRow):
     Parent: codedindex.HasFieldMarshall
     NativeType: bytes
 
-    struct: FieldMarshalRowStruct
     _struct_class = FieldMarshalRowStruct
 
     _struct_codedindexes = {
@@ -607,13 +625,13 @@ class FieldMarshalRow(MDTableRow):
         "NativeType_BlobIndex": "NativeType",
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         parent_size = self._clr_coded_index_struct_size(
             codedindex.HasFieldMarshall.tag_bits,
             codedindex.HasFieldMarshall.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_FIELDMARSHAL",
             (
                 parent_size + ",Parent_CodedIndex",
@@ -622,7 +640,7 @@ class FieldMarshalRow(MDTableRow):
         )
 
 
-class FieldMarshal(ClrMetaDataTable):
+class FieldMarshal(ClrMetaDataTable[FieldMarshalRow]):
     name = "FieldMarshal"
     number = 13
 
@@ -634,9 +652,9 @@ class FieldMarshal(ClrMetaDataTable):
 
 
 class DeclSecurityRowStruct(RowStruct):
-    Action: int = None
-    Parent_CodedIndex: int = None
-    PermissionSet_BlobIndex: int = None
+    Action: int
+    Parent_CodedIndex: int
+    PermissionSet_BlobIndex: int
 
 
 class DeclSecurityRow(MDTableRow):
@@ -644,7 +662,6 @@ class DeclSecurityRow(MDTableRow):
     Parent: codedindex.HasDeclSecurity
     PermissionSet: bytes
 
-    struct: DeclSecurityRowStruct
     _struct_class = DeclSecurityRowStruct
 
     _struct_asis = {
@@ -657,13 +674,13 @@ class DeclSecurityRow(MDTableRow):
         "PermissionSet_BlobIndex": "PermissionSet",
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         parent_size = self._clr_coded_index_struct_size(
             codedindex.HasDeclSecurity.tag_bits,
             codedindex.HasDeclSecurity.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_DECLSECURITY",
             (
                 "H,Action",
@@ -673,7 +690,7 @@ class DeclSecurityRow(MDTableRow):
         )
 
 
-class DeclSecurity(ClrMetaDataTable):
+class DeclSecurity(ClrMetaDataTable[DeclSecurityRow]):
     name = "DeclSecurity"
     number = 14
 
@@ -685,17 +702,16 @@ class DeclSecurity(ClrMetaDataTable):
 
 
 class ClassLayoutRowStruct(RowStruct):
-    PackingSize: int = None
-    ClassSize: int = None
-    Parent_Index: int = None
+    PackingSize: int
+    ClassSize: int
+    Parent_Index: int
 
 
 class ClassLayoutRow(MDTableRow):
     PackingSize: int
     ClassSize: int
-    Parent: TypeDefRow
+    Parent: MDTableIndex[TypeDefRow]
 
-    struct: ClassLayoutRowStruct
     _struct_class = ClassLayoutRowStruct
 
     _struct_asis = {
@@ -706,9 +722,9 @@ class ClassLayoutRow(MDTableRow):
         "Parent_Index": ("Parent", "TypeDef"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         parent_size = self._clr_coded_index_struct_size(0, ("TypeDef",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_CLASSLAYOUT",
             (
                 "H,PackingSize",
@@ -718,7 +734,7 @@ class ClassLayoutRow(MDTableRow):
         )
 
 
-class ClassLayout(ClrMetaDataTable):
+class ClassLayout(ClrMetaDataTable[ClassLayoutRow]):
     name = "ClassLayout"
     number = 15
 
@@ -730,27 +746,27 @@ class ClassLayout(ClrMetaDataTable):
 
 
 class FieldLayoutRowStruct(RowStruct):
-    Offset: int = None
-    Field_CodedIndex: int = None
+    Offset: int
+    Field_CodedIndex: int
 
 
 class FieldLayoutRow(MDTableRow):
     Offset: int
-    Field: FieldRow
+    Field: MDTableIndex[FieldRow]
 
-    struct: FieldLayoutRowStruct
     _struct_class = FieldLayoutRowStruct
 
     _struct_asis = {
         "Offset": "Offset",
     }
+    # TODO: should this be a codedindex?
     _struct_indexes = {
         "Field_CodedIndex": ("Field", "Field"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         field_size = self._clr_coded_index_struct_size(0, ("Field",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_FieldLayout",
             (
                 "I,Offset",
@@ -759,7 +775,7 @@ class FieldLayoutRow(MDTableRow):
         )
 
 
-class FieldLayout(ClrMetaDataTable):
+class FieldLayout(ClrMetaDataTable[FieldLayoutRow]):
     name = "FieldLayout"
     number = 16
 
@@ -771,28 +787,27 @@ class FieldLayout(ClrMetaDataTable):
 
 
 class StandAloneSigRowStruct(RowStruct):
-    Signature_BlobIndex: int = None
+    Signature_BlobIndex: int
 
 
 class StandAloneSigRow(MDTableRow):
-    Signature: bytes = None
+    Signature: bytes
 
-    struct: StandAloneSigRowStruct
     _struct_class = StandAloneSigRowStruct
 
     _struct_blobs = {
         "Signature_BlobIndex": "Signature",
     }
 
-    def _init_format(self):
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+    def _compute_format(self):
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_STANDALONESIG",
             (blob_ind_size + ",Signature_BlobIndex",),
         )
 
 
-class StandAloneSig(ClrMetaDataTable):
+class StandAloneSig(ClrMetaDataTable[StandAloneSigRow]):
     name = "StandAloneSig"
     number = 17
 
@@ -804,25 +819,24 @@ class StandAloneSig(ClrMetaDataTable):
 
 
 class EventMapRowStruct(RowStruct):
-    Parent_Index: int = None
-    EventList_Index: int = None
+    Parent_Index: int
+    EventList_Index: int
 
 
 class EventMapRow(MDTableRow):
-    Parent: TypeDefRow = None
-    EventList: List["EventRow"] = None
+    Parent: MDTableIndex[TypeDefRow]
+    EventList: List[MDTableIndex["EventRow"]]
 
-    struct: EventMapRowStruct
     _struct_class = EventMapRowStruct
 
     _struct_indexes = {
         "Parent_Index": ("Parent", "TypeDef"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         parent_size = self._clr_coded_index_struct_size(0, ("TypeDef",))
         eventlist_size = self._clr_coded_index_struct_size(0, ("Event",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_EVENTMAP",
             (
                 parent_size + ",Parent_Index",
@@ -831,7 +845,7 @@ class EventMapRow(MDTableRow):
         )
 
 
-class EventMap(ClrMetaDataTable):
+class EventMap(ClrMetaDataTable[EventMapRow]):
     name = "EventMap"
     number = 18
 
@@ -853,17 +867,16 @@ class EventPtr(ClrMetaDataTable):
 
 
 class EventRowStruct(RowStruct):
-    EventFlags: int = None
-    Name_StringIndex: int = None
-    EventType_CodedIndex: int = None
+    EventFlags: int
+    Name_StringIndex: int
+    EventType_CodedIndex: int
 
 
 class EventRow(MDTableRow):
-    EventFlags: enums.ClrEventAttr = None
-    Name: str = None
-    EventType: codedindex.TypeDefOrRef = None
+    EventFlags: enums.ClrEventAttr
+    Name: str
+    EventType: codedindex.TypeDefOrRef
 
-    struct: EventRowStruct = None
     _struct_class = EventRowStruct
 
     _struct_flags = {
@@ -876,13 +889,13 @@ class EventRow(MDTableRow):
         "EventType_CodedIndex": ("EventType", codedindex.TypeDefOrRef),
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
         eventtype_size = self._clr_coded_index_struct_size(
             codedindex.TypeDefOrRef.tag_bits,
             codedindex.TypeDefOrRef.table_names,
         )
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_EVENT",
             (
                 "H,EventFlags",
@@ -892,7 +905,7 @@ class EventRow(MDTableRow):
         )
 
 
-class Event(ClrMetaDataTable):
+class Event(ClrMetaDataTable[EventRow]):
     name = "Event"
     number = 20
 
@@ -904,25 +917,24 @@ class Event(ClrMetaDataTable):
 
 
 class PropertyMapRowStruct(RowStruct):
-    Parent_Index: int = None
-    PropertyList_Index: int = None
+    Parent_Index: int
+    PropertyList_Index: int
 
 
 class PropertyMapRow(MDTableRow):
-    Parent: TypeDefRow = None
-    PropertyList: List["PropertyRow"] = None
+    Parent: MDTableIndex[TypeDefRow]
+    PropertyList: List[MDTableIndex["PropertyRow"]]
 
-    struct: PropertyMapRowStruct
     _struct_class = PropertyMapRowStruct
 
     _struct_indexes = {
         "Parent_Index": ("Parent", "TypeDef"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         parent_size = self._clr_coded_index_struct_size(0, ("TypeDef",))
         propertylist_size = self._clr_coded_index_struct_size(0, ("Property",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_PROPERTYMAP",
             (
                 parent_size + ",Parent_Index",
@@ -931,7 +943,7 @@ class PropertyMapRow(MDTableRow):
         )
 
 
-class PropertyMap(ClrMetaDataTable):
+class PropertyMap(ClrMetaDataTable[PropertyMapRow]):
     name = "PropertyMap"
     number = 21
 
@@ -953,9 +965,9 @@ class PropertyPtr(ClrMetaDataTable):
 
 
 class PropertyRowStruct(RowStruct):
-    Flags: int = None
-    Name_StringIndex: int = None
-    Type_BlobIndex: int = None
+    Flags: int
+    Name_StringIndex: int
+    Type_BlobIndex: int
 
 
 class PropertyRow(MDTableRow):
@@ -963,7 +975,6 @@ class PropertyRow(MDTableRow):
     Name: str
     Type: bytes
 
-    struct: PropertyRowStruct
     _struct_class = PropertyRowStruct
 
     _struct_flags = {
@@ -976,10 +987,10 @@ class PropertyRow(MDTableRow):
         "Type_BlobIndex": "Type",
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_PROPERTY",
             (
                 "H,Flags",
@@ -989,7 +1000,7 @@ class PropertyRow(MDTableRow):
         )
 
 
-class Property(ClrMetaDataTable):
+class Property(ClrMetaDataTable[PropertyRow]):
     name = "Property"
     number = 23
 
@@ -1001,17 +1012,16 @@ class Property(ClrMetaDataTable):
 
 
 class MethodSemanticsRowStruct(RowStruct):
-    Semantics: int = None
-    Method_Index: int = None
-    Association_CodedIndex: int = None
+    Semantics: int
+    Method_Index: int
+    Association_CodedIndex: int
 
 
 class MethodSemanticsRow(MDTableRow):
     Semantics: enums.ClrMethodSemanticsAttr
-    Method: "MethodRow"
+    Method: MDTableIndex[MethodDefRow]
     Association: codedindex.HasSemantics
 
-    struct: MethodSemanticsRowStruct
     _struct_class = MethodSemanticsRowStruct
 
     _struct_flags = {
@@ -1025,13 +1035,13 @@ class MethodSemanticsRow(MDTableRow):
         "Association_CodedIndex": ("Association", codedindex.HasSemantics),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         method_size = self._clr_coded_index_struct_size(0, ("MethodDef",))
         association_size = self._clr_coded_index_struct_size(
             codedindex.HasSemantics.tag_bits,
             codedindex.HasSemantics.table_names,
         )
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_METHODSEMANTICS",
             (
                 "H,Semantics",
@@ -1041,7 +1051,7 @@ class MethodSemanticsRow(MDTableRow):
         )
 
 
-class MethodSemantics(ClrMetaDataTable):
+class MethodSemantics(ClrMetaDataTable[MethodSemanticsRow]):
     name = "MethodSemantics"
     number = 24
 
@@ -1053,17 +1063,16 @@ class MethodSemantics(ClrMetaDataTable):
 
 
 class MethodImplRowStruct(RowStruct):
-    Class_Index: int = None
-    MethodBody_CodedIndex: int = None
-    MethodDeclaration_CodedIndex: int = None
+    Class_Index: int
+    MethodBody_CodedIndex: int
+    MethodDeclaration_CodedIndex: int
 
 
 class MethodImplRow(MDTableRow):
-    Class: TypeDefRow
+    Class: MDTableIndex[TypeDefRow]
     MethodBody: codedindex.MethodDefOrRef
     MethodDeclaration: codedindex.MethodDefOrRef
 
-    struct: MethodImplRowStruct
     _struct_class = MethodImplRowStruct
 
     _struct_indexes = {
@@ -1077,13 +1086,13 @@ class MethodImplRow(MDTableRow):
         ),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         class_size = self._clr_coded_index_struct_size(0, ("TypeDef",))
         method_size = self._clr_coded_index_struct_size(
             codedindex.MethodDefOrRef.tag_bits,
             codedindex.MethodDefOrRef.table_names,
         )
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_METHODIMPL",
             (
                 class_size + ",Class_Index",
@@ -1093,7 +1102,7 @@ class MethodImplRow(MDTableRow):
         )
 
 
-class MethodImpl(ClrMetaDataTable):
+class MethodImpl(ClrMetaDataTable[MethodImplRow]):
     name = "MethodImpl"
     number = 25
 
@@ -1105,28 +1114,27 @@ class MethodImpl(ClrMetaDataTable):
 
 
 class ModuleRefRowStruct(RowStruct):
-    Name_StringIndex: int = None
+    Name_StringIndex: int
 
 
 class ModuleRefRow(MDTableRow):
     Name: str
 
-    struct: ModuleRefRowStruct
     _struct_class = ModuleRefRowStruct
 
     _struct_strings = {
         "Name_StringIndex": "Name",
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        self._format = (
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        return (
             "CLR_METADATA_TABLE_MODULEREF",
             (str_ind_size + ",Name_StringIndex",),
         )
 
 
-class ModuleRef(ClrMetaDataTable):
+class ModuleRef(ClrMetaDataTable[ModuleRefRow]):
     name = "ModuleRef"
     number = 26
 
@@ -1138,28 +1146,27 @@ class ModuleRef(ClrMetaDataTable):
 
 
 class TypeSpecRowStruct(RowStruct):
-    Signature_BlobIndex: int = None
+    Signature_BlobIndex: int
 
 
 class TypeSpecRow(MDTableRow):
     Signature: bytes
 
-    struct: TypeSpecRowStruct
     _struct_class = TypeSpecRowStruct
 
     _struct_blobs = {
         "Signature_BlobIndex": "Signature",
     }
 
-    def _init_format(self):
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+    def _compute_format(self):
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_TYPESPEC",
             (blob_ind_size + ",Signature_BlobIndex",),
         )
 
 
-class TypeSpec(ClrMetaDataTable):
+class TypeSpec(ClrMetaDataTable[TypeSpecRow]):
     name = "TypeSpec"
     number = 27
 
@@ -1171,19 +1178,18 @@ class TypeSpec(ClrMetaDataTable):
 
 
 class ImplMapRowStruct(RowStruct):
-    MappingFlags: int = None
-    MemberForwarded_CodedIndex: int = None
-    ImportName_StringIndex: int = None
-    ImportScope_Index: int = None
+    MappingFlags: int
+    MemberForwarded_CodedIndex: int
+    ImportName_StringIndex: int
+    ImportScope_Index: int
 
 
 class ImplMapRow(MDTableRow):
     MappingFlags: enums.ClrPinvokeMap
     MemberForwarded: codedindex.MemberForwarded
     ImportName: str
-    ImportScope: ModuleRefRow
+    ImportScope: MDTableIndex[ModuleRefRow]
 
-    struct: ImplMapRowStruct
     _struct_class = ImplMapRowStruct
 
     _struct_flags = {
@@ -1199,14 +1205,14 @@ class ImplMapRow(MDTableRow):
         "ImportScope_Index": ("ImportScope", "ModuleRef"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         member_size = self._clr_coded_index_struct_size(
             codedindex.MemberForwarded.tag_bits,
             codedindex.MemberForwarded.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+        str_ind_size = checked_offset_format(self._str_offsz)
         importscope_size = self._clr_coded_index_struct_size(0, ("ModuleRef",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_IMPLMAP",
             (
                 "H,MappingFlags",
@@ -1217,7 +1223,7 @@ class ImplMapRow(MDTableRow):
         )
 
 
-class ImplMap(ClrMetaDataTable):
+class ImplMap(ClrMetaDataTable[ImplMapRow]):
     name = "ImplMap"
     number = 28
 
@@ -1229,15 +1235,14 @@ class ImplMap(ClrMetaDataTable):
 
 
 class FieldRvaRowStruct(RowStruct):
-    Rva: int = None
-    Field_Index: int = None
+    Rva: int
+    Field_Index: int
 
 
 class FieldRvaRow(MDTableRow):
     Rva: int
-    Field: FieldRow
+    Field: MDTableIndex[FieldRow]
 
-    struct: FieldRvaRowStruct
     _struct_class = FieldRvaRowStruct
 
     _struct_asis = {
@@ -1247,9 +1252,9 @@ class FieldRvaRow(MDTableRow):
         "Field_Index": ("Field", "Field"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         field_size = self._clr_coded_index_struct_size(0, ("Field",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_FIELDRVA",
             (
                 "I,Rva",
@@ -1258,7 +1263,7 @@ class FieldRvaRow(MDTableRow):
         )
 
 
-class FieldRva(ClrMetaDataTable):
+class FieldRva(ClrMetaDataTable[FieldRvaRow]):
     name = "FieldRva"
     number = 29
 
@@ -1280,15 +1285,15 @@ class Unused31(ClrMetaDataTable):
 
 
 class AssemblyRowStruct(RowStruct):
-    HashAlgId: int = None
-    MajorVersion: int = None
-    MinorVersion: int = None
-    BuildNumber: int = None
-    RevisionNumber: int = None
-    Flags: int = None
-    PublicKey_BlobIndex: int = None
-    Name_StringIndex: int = None
-    Culture_StringIndex: int = None
+    HashAlgId: int
+    MajorVersion: int
+    MinorVersion: int
+    BuildNumber: int
+    RevisionNumber: int
+    Flags: int
+    PublicKey_BlobIndex: int
+    Name_StringIndex: int
+    Culture_StringIndex: int
 
 
 class AssemblyRow(MDTableRow):
@@ -1302,12 +1307,13 @@ class AssemblyRow(MDTableRow):
     Name: str
     Culture: str
 
-    struct: AssemblyRowStruct
     _struct_class = AssemblyRowStruct
 
     _struct_flags = {
-        "HashAlgId": ("HashAlgId", enums.AssemblyHashAlgorithm),
         "Flags": ("Flags", enums.ClrAssemblyFlags),
+    }
+    _struct_enums = {
+        "HashAlgId": ("HashAlgId", enums.AssemblyHashAlgorithm),
     }
     _struct_asis = {
         "MajorVersion": "MajorVersion",
@@ -1323,10 +1329,10 @@ class AssemblyRow(MDTableRow):
         "Culture_StringIndex": "Culture",
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_ASSEMBLY",
             (
                 "I,HashAlgId",
@@ -1342,7 +1348,7 @@ class AssemblyRow(MDTableRow):
         )
 
 
-class Assembly(ClrMetaDataTable):
+class Assembly(ClrMetaDataTable[AssemblyRow]):
     name = "Assembly"
     number = 32
 
@@ -1354,13 +1360,12 @@ class Assembly(ClrMetaDataTable):
 
 
 class AssemblyProcessorRowStruct(RowStruct):
-    Processor: int = None
+    Processor: int
 
 
 class AssemblyProcessorRow(MDTableRow):
     Processor: int
 
-    struct: AssemblyProcessorRowStruct
     _struct_class = AssemblyProcessorRowStruct
 
     _format = ("CLR_METADATA_TABLE_ASSEMBLYPROCESSOR", ("I,Processor",))
@@ -1370,7 +1375,7 @@ class AssemblyProcessorRow(MDTableRow):
     }
 
 
-class AssemblyProcessor(ClrMetaDataTable):
+class AssemblyProcessor(ClrMetaDataTable[AssemblyProcessorRow]):
     name = "AssemblyProcessor"
     number = 33
 
@@ -1382,9 +1387,9 @@ class AssemblyProcessor(ClrMetaDataTable):
 
 
 class AssemblyOSRowStruct(RowStruct):
-    OSPlatformID: int = None
-    OSMajorVersion: int = None
-    OSMinorVersion: int = None
+    OSPlatformID: int
+    OSMajorVersion: int
+    OSMinorVersion: int
 
 
 class AssemblyOSRow(MDTableRow):
@@ -1392,7 +1397,6 @@ class AssemblyOSRow(MDTableRow):
     OSMajorVersion: int
     OSMinorVersion: int
 
-    struct: AssemblyOSRowStruct
     _struct_class = AssemblyOSRowStruct
 
     _format = (
@@ -1411,7 +1415,7 @@ class AssemblyOSRow(MDTableRow):
     }
 
 
-class AssemblyOS(ClrMetaDataTable):
+class AssemblyOS(ClrMetaDataTable[AssemblyOSRow]):
     name = "AssemblyOS"
     number = 34
 
@@ -1423,15 +1427,15 @@ class AssemblyOS(ClrMetaDataTable):
 
 
 class AssemblyRefRowStruct(RowStruct):
-    MajorVersion: int = None
-    MinorVersion: int = None
-    BuildNumber: int = None
-    RevisionNumber: int = None
-    Flags: int = None
-    PublicKey_BlobIndex: int = None
-    Name_StringIndex: int = None
-    Culture_StringIndex: int = None
-    HashValue_BlobIndex: int = None
+    MajorVersion: int
+    MinorVersion: int
+    BuildNumber: int
+    RevisionNumber: int
+    Flags: int
+    PublicKey_BlobIndex: int
+    Name_StringIndex: int
+    Culture_StringIndex: int
+    HashValue_BlobIndex: int
 
 
 class AssemblyRefRow(MDTableRow):
@@ -1445,7 +1449,6 @@ class AssemblyRefRow(MDTableRow):
     Culture: str
     HashValue: bytes
 
-    struct: AssemblyRefRowStruct
     _struct_class = AssemblyRefRowStruct
 
     _struct_asis = {
@@ -1466,10 +1469,10 @@ class AssemblyRefRow(MDTableRow):
         "Culture_StringIndex": "Culture",
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_ASSEMBLYREF",
             (
                 "H,MajorVersion",
@@ -1485,7 +1488,7 @@ class AssemblyRefRow(MDTableRow):
         )
 
 
-class AssemblyRef(ClrMetaDataTable):
+class AssemblyRef(ClrMetaDataTable[AssemblyRefRow]):
     name = "AssemblyRef"
     number = 35
 
@@ -1497,15 +1500,14 @@ class AssemblyRef(ClrMetaDataTable):
 
 
 class AssemblyRefProcessorRowStruct(RowStruct):
-    Processor: int = None
-    AssemblyRef_Index: int = None
+    Processor: int
+    AssemblyRef_Index: int
 
 
 class AssemblyRefProcessorRow(MDTableRow):
     Processor: int
-    AssemblyRef: AssemblyRefRow
+    AssemblyRef: MDTableIndex[AssemblyRefRow]
 
-    struct: AssemblyRefProcessorRowStruct
     _struct_class = AssemblyRefProcessorRowStruct
 
     _struct_asis = {
@@ -1515,9 +1517,9 @@ class AssemblyRefProcessorRow(MDTableRow):
         "AssemblyRef_Index": ("AssemblyRef", "AssemblyRef"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         assemblyref_size = self._clr_coded_index_struct_size(0, ("AssemblyRef",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_ASSEMBLYREFPROCESSOR",
             (
                 "I,Processor",
@@ -1526,7 +1528,7 @@ class AssemblyRefProcessorRow(MDTableRow):
         )
 
 
-class AssemblyRefProcessor(ClrMetaDataTable):
+class AssemblyRefProcessor(ClrMetaDataTable[AssemblyRefProcessorRow]):
     name = "AssemblyRefProcessor"
     number = 36
 
@@ -1538,19 +1540,18 @@ class AssemblyRefProcessor(ClrMetaDataTable):
 
 
 class AssemblyRefOSRowStruct(RowStruct):
-    OSPlatformId: int = None
-    OSMajorVersion: int = None
-    OSMinorVersion: int = None
-    AssemblyRef_Index: int = None
+    OSPlatformId: int
+    OSMajorVersion: int
+    OSMinorVersion: int
+    AssemblyRef_Index: int
 
 
 class AssemblyRefOSRow(MDTableRow):
     OSPlatformId: int
     OSMajorVersion: int
     OSMinorVersion: int
-    AssemblyRef: AssemblyRefRow
+    AssemblyRef: MDTableIndex[AssemblyRefRow]
 
-    struct: AssemblyRefOSRowStruct
     _struct_class = AssemblyRefOSRowStruct
 
     _struct_asis = {
@@ -1562,9 +1563,9 @@ class AssemblyRefOSRow(MDTableRow):
         "AssemblyRef_Index": ("AssemblyRef", "AssemblyRef"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         assemblyref_size = self._clr_coded_index_struct_size(0, ("AssemblyRef",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_ASSEMBLYREFOS",
             (
                 "I,OSPlatformId",
@@ -1575,7 +1576,7 @@ class AssemblyRefOSRow(MDTableRow):
         )
 
 
-class AssemblyRefOS(ClrMetaDataTable):
+class AssemblyRefOS(ClrMetaDataTable[AssemblyRefOSRow]):
     name = "AssemblyRefOS"
     number = 37
 
@@ -1587,9 +1588,9 @@ class AssemblyRefOS(ClrMetaDataTable):
 
 
 class FileRowStruct(RowStruct):
-    Flags: int = None
-    Name_StringIndex: int = None
-    HashValue_BlobIndex: int = None
+    Flags: int
+    Name_StringIndex: int
+    HashValue_BlobIndex: int
 
 
 class FileRow(MDTableRow):
@@ -1597,7 +1598,6 @@ class FileRow(MDTableRow):
     Name: str
     HashValue: bytes
 
-    struct: FileRowStruct
     _struct_class = FileRowStruct
 
     _struct_flags = {
@@ -1610,10 +1610,10 @@ class FileRow(MDTableRow):
         "HashValue_BlobIndex": "HashValue",
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_FILE",
             (
                 "I,Flags",
@@ -1623,7 +1623,7 @@ class FileRow(MDTableRow):
         )
 
 
-class File(ClrMetaDataTable):
+class File(ClrMetaDataTable[FileRow]):
     name = "File"
     number = 38
 
@@ -1635,11 +1635,11 @@ class File(ClrMetaDataTable):
 
 
 class ExportedTypeRowStruct(RowStruct):
-    Flags: int = None
-    TypeDefId: int = None
-    TypeName_StringIndex: int = None
-    TypeNamespace_BlobIndex: int = None
-    Implementation_CodedIndex: int = None
+    Flags: int
+    TypeDefId: int
+    TypeName_StringIndex: int
+    TypeNamespace_BlobIndex: int
+    Implementation_CodedIndex: int
 
 
 class ExportedTypeRow(MDTableRow):
@@ -1649,7 +1649,6 @@ class ExportedTypeRow(MDTableRow):
     TypeNamespace: bytes
     Implementation: codedindex.Implementation
 
-    struct: ExportedTypeRowStruct
     _struct_class = ExportedTypeRowStruct
 
     _struct_flags = {
@@ -1668,14 +1667,14 @@ class ExportedTypeRow(MDTableRow):
         "Implementation_CodedIndex": ("Implementation", codedindex.Implementation),
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
+        blob_ind_size = checked_offset_format(self._blob_offsz)
         implementation_size = self._clr_coded_index_struct_size(
             codedindex.Implementation.tag_bits,
             codedindex.Implementation.table_names,
         )
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_EXPORTEDTYPE",
             (
                 "I,Flags",
@@ -1687,7 +1686,7 @@ class ExportedTypeRow(MDTableRow):
         )
 
 
-class ExportedType(ClrMetaDataTable):
+class ExportedType(ClrMetaDataTable[ExportedTypeRow]):
     name = "ExportedType"
     number = 39
 
@@ -1699,10 +1698,10 @@ class ExportedType(ClrMetaDataTable):
 
 
 class ManifestResourceRowStruct(RowStruct):
-    Offset: int = None
-    Flags: int = None
-    Name_StringIndex: int = None
-    Implementation_CodedIndex: int = None
+    Offset: int
+    Flags: int
+    Name_StringIndex: int
+    Implementation_CodedIndex: int
 
 
 class ManifestResourceRow(MDTableRow):
@@ -1711,7 +1710,6 @@ class ManifestResourceRow(MDTableRow):
     Name: str
     Implementation: codedindex.Implementation
 
-    struct: ManifestResourceRowStruct
     _struct_class = ManifestResourceRowStruct
 
     _struct_asis = {
@@ -1727,13 +1725,13 @@ class ManifestResourceRow(MDTableRow):
         "Implementation_CodedIndex": ("Implementation", codedindex.Implementation),
     }
 
-    def _init_format(self):
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
+    def _compute_format(self):
+        str_ind_size = checked_offset_format(self._str_offsz)
         implementation_size = self._clr_coded_index_struct_size(
             codedindex.Implementation.tag_bits,
             codedindex.Implementation.table_names,
         )
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_MANIFESTRESOURCE",
             (
                 "I,Offset",
@@ -1744,7 +1742,7 @@ class ManifestResourceRow(MDTableRow):
         )
 
 
-class ManifestResource(ClrMetaDataTable):
+class ManifestResource(ClrMetaDataTable[ManifestResourceRow]):
     name = "ManifestResource"
     number = 40
 
@@ -1756,15 +1754,14 @@ class ManifestResource(ClrMetaDataTable):
 
 
 class NestedClassRowStruct(RowStruct):
-    NestedClass_Index: int = None
-    EnclosingClass_Index: int = None
+    NestedClass_Index: int
+    EnclosingClass_Index: int
 
 
 class NestedClassRow(MDTableRow):
-    NestedClass: TypeDefRow
-    EnclosingClass: TypeDefRow
+    NestedClass: MDTableIndex[TypeDefRow]
+    EnclosingClass: MDTableIndex[TypeDefRow]
 
-    struct: NestedClassRowStruct
     _struct_class = NestedClassRowStruct
 
     _struct_indexes = {
@@ -1772,9 +1769,9 @@ class NestedClassRow(MDTableRow):
         "EnclosingClass_Index": ("EnclosingClass", "TypeDef"),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         class_size = self._clr_coded_index_struct_size(0, ("TypeDef",))
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_NESTEDCLASS",
             (
                 class_size + ",NestedClass_Index",
@@ -1783,7 +1780,7 @@ class NestedClassRow(MDTableRow):
         )
 
 
-class NestedClass(ClrMetaDataTable):
+class NestedClass(ClrMetaDataTable[NestedClassRow]):
     name = "NestedClass"
     number = 41
 
@@ -1795,10 +1792,10 @@ class NestedClass(ClrMetaDataTable):
 
 
 class GenericParamRowStruct(RowStruct):
-    Number: int = None
-    Flags: int = None
-    Owner_CodedIndex: int = None
-    Name_StringIndex: int = None
+    Number: int
+    Flags: int
+    Owner_CodedIndex: int
+    Name_StringIndex: int
 
 
 class GenericParamRow(MDTableRow):
@@ -1807,7 +1804,6 @@ class GenericParamRow(MDTableRow):
     Owner: codedindex.TypeOrMethodDef
     Name: str
 
-    struct: GenericParamRowStruct
     _struct_class = GenericParamRowStruct
 
     _struct_asis = {
@@ -1823,13 +1819,13 @@ class GenericParamRow(MDTableRow):
         "Name_StringIndex": "Name",
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         owner_size = self._clr_coded_index_struct_size(
             codedindex.TypeOrMethodDef.tag_bits,
             codedindex.TypeOrMethodDef.table_names,
         )
-        str_ind_size = utils.num_bytes_to_struct_char(self._str_offsz)
-        self._format = (
+        str_ind_size = checked_offset_format(self._str_offsz)
+        return (
             "CLR_METADATA_TABLE_GENERICPARAM",
             (
                 "H,Number",
@@ -1840,7 +1836,7 @@ class GenericParamRow(MDTableRow):
         )
 
 
-class GenericParam(ClrMetaDataTable):
+class GenericParam(ClrMetaDataTable[GenericParamRow]):
     name = "GenericParam"
     number = 42
 
@@ -1852,15 +1848,14 @@ class GenericParam(ClrMetaDataTable):
 
 
 class GenericMethodRowStruct(RowStruct):
-    Unknown1_CodedIndex: int = None
-    Unknown2_BlobIndex: int = None
+    Unknown1_CodedIndex: int
+    Unknown2_BlobIndex: int
 
 
 class GenericMethodRow(MDTableRow):
     Unknown1: codedindex.MethodDefOrRef
     Unknown2: bytes
 
-    struct: GenericMethodRowStruct
     _struct_class = GenericMethodRowStruct
 
     _struct_codedindexes = {
@@ -1870,13 +1865,13 @@ class GenericMethodRow(MDTableRow):
         "Unknown2_BlobIndex": "Unknown2",
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         unknown1_size = self._clr_coded_index_struct_size(
             codedindex.MethodDefOrRef.tag_bits,
             codedindex.MethodDefOrRef.table_names,
         )
-        blob_ind_size = utils.num_bytes_to_struct_char(self._blob_offsz)
-        self._format = (
+        blob_ind_size = checked_offset_format(self._blob_offsz)
+        return (
             "CLR_METADATA_TABLE_GENERICMETHOD",
             (
                 unknown1_size + ",Unknown1_CodedIndex",
@@ -1885,7 +1880,7 @@ class GenericMethodRow(MDTableRow):
         )
 
 
-class GenericMethod(ClrMetaDataTable):
+class GenericMethod(ClrMetaDataTable[GenericMethodRow]):
     name = "GenericMethod"
     number = 43
 
@@ -1897,15 +1892,14 @@ class GenericMethod(ClrMetaDataTable):
 
 
 class GenericParamConstraintRowStruct(RowStruct):
-    Owner_Index: int = None
-    Constraint_CodedIndex: int = None
+    Owner_Index: int
+    Constraint_CodedIndex: int
 
 
 class GenericParamConstraintRow(MDTableRow):
-    Owner: GenericParamRow
+    Owner: MDTableIndex[GenericParamRow]
     Constraint: codedindex.TypeDefOrRef
 
-    struct: GenericParamConstraintRowStruct
     _struct_class = GenericParamConstraintRowStruct
 
     _struct_indexes = {
@@ -1915,13 +1909,13 @@ class GenericParamConstraintRow(MDTableRow):
         "Constraint_CodedIndex": ("Constraint", codedindex.TypeDefOrRef),
     }
 
-    def _init_format(self):
+    def _compute_format(self):
         owner_size = self._clr_coded_index_struct_size(0, ("GenericParam",))
         constraint_size = self._clr_coded_index_struct_size(
             codedindex.TypeDefOrRef.tag_bits,
             codedindex.TypeDefOrRef.table_names,
         )
-        self._format = (
+        return (
             "CLR_METADATA_TABLE_GENERICPARAMCONSTRAINT",
             (
                 owner_size + ",Owner_Index",
@@ -1930,7 +1924,7 @@ class GenericParamConstraintRow(MDTableRow):
         )
 
 
-class GenericParamConstraint(ClrMetaDataTable):
+class GenericParamConstraint(ClrMetaDataTable[GenericParamConstraintRow]):
     name = "GenericParamConstraint"
     number = 44
 
@@ -1946,16 +1940,20 @@ class GenericParamConstraint(ClrMetaDataTable):
 # 61
 # 62
 
+class Unused(ClrMetaDataTable):
+    # placeholder for unused table references.
+    # which is referenced by `CustomAttributeType` coded index.
+    name = "Unused"
+    number = 62
+
 
 class MaxTable(ClrMetaDataTable):
     name = "MaxTable"
     number = 63
 
-    # TODO
-
 
 class ClrMetaDataTableFactory(object):
-    _table_number_map = {
+    _table_number_map: Dict[int, Type[ClrMetaDataTable]] = {
         0: Module,
         1: TypeRef,
         2: TypeDef,
@@ -2002,6 +2000,7 @@ class ClrMetaDataTableFactory(object):
         43: GenericMethod,
         44: GenericParamConstraint,
         # 45 through 63 are not used
+        62: Unused,
         63: MaxTable,
     }
 
@@ -2009,26 +2008,26 @@ class ClrMetaDataTableFactory(object):
     def createTable(
         cls,
         number: int,
-        tables_rowcounts: List[int],
+        tables_rowcounts: List[Optional[int]],
         is_sorted: bool,
         strings_offset_size: int,
         guid_offset_size: int,
         blob_offset_size: int,
-        strings_heap: ClrHeap,
-        guid_heap: ClrHeap,
-        blob_heap: ClrHeap,
+        strings_heap: Optional["stream.StringsHeap"],
+        guid_heap: Optional["stream.GuidHeap"],
+        blob_heap: Optional["stream.BlobHeap"],
     ) -> ClrMetaDataTable:
-        if number in cls._table_number_map:
-            table = cls._table_number_map[number](
-                tables_rowcounts,
-                is_sorted,
-                strings_offset_size,
-                guid_offset_size,
-                blob_offset_size,
-                strings_heap,
-                guid_heap,
-                blob_heap,
-            )
-            return table
-        else:
-            return None
+        if number not in cls._table_number_map:
+            raise errors.dnFormatError("invalid table index")
+
+        table = cls._table_number_map[number](
+            tables_rowcounts,
+            is_sorted,
+            strings_offset_size,
+            guid_offset_size,
+            blob_offset_size,
+            strings_heap,
+            guid_heap,
+            blob_heap,
+        )
+        return table

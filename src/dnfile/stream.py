@@ -10,15 +10,17 @@ REFERENCES
 Copyright (c) 2020-2021 MalwareFrank
 """
 
-import copy as _copymod
 import struct as _struct
-from typing import Dict, List, Tuple
+import logging
+from typing import Dict, List, Tuple, Union, Optional
 from binascii import hexlify as _hexlify
 
-from pefile import MAX_STRING_LENGTH, Structure, DataContainer
+from pefile import MAX_STRING_LENGTH, Structure
 
 from . import base, errors, mdtable
 from .utils import read_compressed_int
+
+logger = logging.getLogger(__name__)
 
 
 class GenericStream(base.ClrStream):
@@ -55,22 +57,44 @@ class StringsHeap(base.ClrHeap):
 
 
 class BinaryHeap(base.ClrHeap):
-    def get_with_size(self, index) -> Tuple[bytes, int]:
+    def get_with_size(self, index) -> Optional[Tuple[bytes, int]]:
+        if self.__data__ is None:
+            logger.warning("stream has no data")
+            return None
+
         if index >= len(self.__data__):
-            raise IndexError("index out of range")
+            logger.warning("stream is too small: wanted: 0x%x found: 0x%x", index, len(self.__data__))
+            return None
 
         offset = index
+
         # read compressed int length
-        data_length, length_size = read_compressed_int(
-            self.__data__[offset:offset + 4]
-        )
+        buf = self.__data__[offset:offset + 4]
+        ret = read_compressed_int(buf)
+        if ret is None:
+            # invalid compressed int length, such as invalid leading flags.
+            logger.warning("stream entry has invalid compressed int")
+            return None
+
+        data_length, length_size = ret
+
         # read data
         offset = offset + length_size
         data = self.__data__[offset:offset + data_length]
+
         return data, length_size + data_length
 
-    def get(self, index) -> bytes:
-        data, _ = self.get_with_size(index)
+    def get(self, index) -> Optional[bytes]:
+        try:
+            ret = self.get_with_size(index)
+        except IndexError:
+            return None
+
+        if ret is None:
+            return None
+
+        data, _ = ret
+
         return data
 
 
@@ -87,26 +111,26 @@ class UserString(object):
 
     Reference ECMA-335, Partition II Section 24.2.4
     """
-    value: str = None
-    Flag: int = None
-
-    __data__: bytes = None
-
     def __init__(self, data: bytes, encoding="utf-16"):
-        self.__data__ = data
+        self.__data__: bytes = data
+
+        self.Flag: int = 0
         if len(data) % 2 == 1:
             self.Flag = data[-1]
             data = data[:-1]
         else:
-            # TODO error/warn
-            pass
-        self.value = data.decode(encoding)
+            logger.warning("string missing trailing flag")
+
+        self.value: str = data.decode(encoding)
 
 
 class UserStringHeap(BinaryHeap):
-    def get_us(self, index, max_length=MAX_STRING_LENGTH, encoding="utf-16") -> UserString:
+    def get_us(self, index, max_length=MAX_STRING_LENGTH, encoding="utf-16") -> Optional[UserString]:
         data = self.get(index)
-        return UserString(data)
+        if data is None:
+            return None
+        else:
+            return UserString(data)
 
 
 class GuidHeap(base.ClrHeap):
@@ -173,7 +197,7 @@ class MetaDataTables(base.ClrStream):
     )
 
     header: MDTablesStruct
-    tables: Dict[str, base.ClrMetaDataTable]
+    tables: Dict[Union[str, int], base.ClrMetaDataTable]
     tables_list: List[base.ClrMetaDataTable]
     strings_offset_size: int
     guids_offset_size: int
@@ -181,46 +205,50 @@ class MetaDataTables(base.ClrStream):
 
     # from https://www.ntcore.com/files/dotnetformat.htm
     # and https://referencesource.microsoft.com/System.AddIn/System/Addin/MiniReflection/MetadataReader/Metadata.cs.html#123
-    Module:                 mdtable.Module = None
-    TypeRef:                mdtable.TypeRef = None
-    TypeDef:                mdtable.TypeDef = None
-    Field:                  mdtable.Field = None
-    MethodDef:              mdtable.MethodDef = None
-    Param:                  mdtable.Param = None
-    InterfaceImpl:          mdtable.InterfaceImpl = None
-    MemberRef:              mdtable.MemberRef = None
-    Constant:               mdtable.Constant = None
-    CustomAttribute:        mdtable.CustomAttribute = None
-    FieldMarshal:           mdtable.FieldMarshal = None
-    DeclSecurity:           mdtable.DeclSecurity = None
-    ClassLayout:            mdtable.ClassLayout = None
-    FieldLayout:            mdtable.FieldLayout = None
-    StandAloneSig:          mdtable.StandAloneSig = None
-    EventMap:               mdtable.EventMap = None
-    Event:                  mdtable.Event = None
-    PropertyMap:            mdtable.PropertyMap = None
-    Property:               mdtable.Property = None
-    MethodSemantics:        mdtable.MethodSemantics = None
-    MethodImpl:             mdtable.MethodImpl = None
-    ModuleRef:              mdtable.ModuleRef = None
-    TypeSpec:               mdtable.TypeSpec = None
-    ImplMap:                mdtable.ImplMap = None
-    FieldRva:               mdtable.FieldRva = None
-    Assembly:               mdtable.Assembly = None
-    AssemblyProcessor:      mdtable.AssemblyProcessor = None
-    AssemblyOS:             mdtable.AssemblyOS = None
-    AssemblyRef:            mdtable.AssemblyRef = None
-    AssemblyRefProcessor:   mdtable.AssemblyRefProcessor = None
-    AssemblyRefOS:          mdtable.AssemblyRefOS = None
-    File:                   mdtable.File = None
-    ExportedType:           mdtable.ExportedType = None
-    ManifestResource:       mdtable.ManifestResource = None
-    NestedClass:            mdtable.NestedClass = None
-    GenericParam:           mdtable.GenericParam = None
-    GenericParamConstraint: mdtable.GenericParamConstraint = None
+    Module:                 mdtable.Module
+    TypeRef:                mdtable.TypeRef
+    TypeDef:                mdtable.TypeDef
+    Field:                  mdtable.Field
+    MethodDef:              mdtable.MethodDef
+    Param:                  mdtable.Param
+    InterfaceImpl:          mdtable.InterfaceImpl
+    MemberRef:              mdtable.MemberRef
+    Constant:               mdtable.Constant
+    CustomAttribute:        mdtable.CustomAttribute
+    FieldMarshal:           mdtable.FieldMarshal
+    DeclSecurity:           mdtable.DeclSecurity
+    ClassLayout:            mdtable.ClassLayout
+    FieldLayout:            mdtable.FieldLayout
+    StandAloneSig:          mdtable.StandAloneSig
+    EventMap:               mdtable.EventMap
+    Event:                  mdtable.Event
+    PropertyMap:            mdtable.PropertyMap
+    Property:               mdtable.Property
+    MethodSemantics:        mdtable.MethodSemantics
+    MethodImpl:             mdtable.MethodImpl
+    ModuleRef:              mdtable.ModuleRef
+    TypeSpec:               mdtable.TypeSpec
+    ImplMap:                mdtable.ImplMap
+    FieldRva:               mdtable.FieldRva
+    Assembly:               mdtable.Assembly
+    AssemblyProcessor:      mdtable.AssemblyProcessor
+    AssemblyOS:             mdtable.AssemblyOS
+    AssemblyRef:            mdtable.AssemblyRef
+    AssemblyRefProcessor:   mdtable.AssemblyRefProcessor
+    AssemblyRefOS:          mdtable.AssemblyRefOS
+    File:                   mdtable.File
+    ExportedType:           mdtable.ExportedType
+    ManifestResource:       mdtable.ManifestResource
+    NestedClass:            mdtable.NestedClass
+    GenericParam:           mdtable.GenericParam
+    GenericParamConstraint: mdtable.GenericParamConstraint
+    Unused:                 mdtable.Unused
 
     def parse(self, streams: List[base.ClrStream]):
-
+        """
+        this may raise an exception if the data cannot be parsed correctly.
+        however, `self` may still be partially initialized with *some* data.
+        """
         STRINGS_MASK = 0x01
         GUIDS_MASK = 0x02
         BLOBS_MASK = 0x04
@@ -229,14 +257,17 @@ class MetaDataTables(base.ClrStream):
         HAS_DELETE_MASK = 0x80
         MAX_TABLES = 64
 
-        warnings = list()
+        # we may be able to parse some data before reaching corruption.
+        # so, we'll keep parsing all we can, which updates `self` in-place,
+        # and then raise the first deferred exception captured here.
+        deferred_exceptions = list()
 
         self.tables = dict()
         self.tables_list = list()
         header_len = Structure(self._format).sizeof()
         if not self.__data__ or len(self.__data__) < header_len:
-            # warning
-            raise errors.dnFileFormat("Unable to read .NET metadata tables")
+            logger.warning("unable to read .NET metadata tables")
+            raise errors.dnFormatError("Unable to read .NET metadata tables")
 
         #### parse header
         header_struct = MDTablesStruct(self._format, file_offset=self.rva)
@@ -261,9 +292,9 @@ class MetaDataTables(base.ClrStream):
         self.blobs_offset_size = blobs_offset_size
 
         #### heaps
-        strings_heap: StringsHeap = None
-        guid_heap: GuidHeap = None
-        blob_heap: BlobHeap = None
+        strings_heap: Optional[StringsHeap] = None
+        guid_heap: Optional[GuidHeap] = None
+        blob_heap: Optional[BlobHeap] = None
         for s in streams:
             # find the first instance of the strings, guid, and blob heaps
             # TODO: if there are multiple instances of a type, does dotnet runtime use first?
@@ -281,16 +312,17 @@ class MetaDataTables(base.ClrStream):
         #  are listed, thus the variable length and need to parse
         #  the header's MaskValid member.
         cur_rva = self.rva + header_len
-        # initialize table with zero row counts for all tables
-        table_rowcounts = [0] * MAX_TABLES
+        table_rowcounts = []
         # read all row counts
         for i in range(MAX_TABLES):
             # if table bit is set
             if header_struct.MaskValid & 2 ** i != 0:
                 # read the row count
-                table_rowcounts[i] = self.get_dword_at_rva(cur_rva)
+                table_rowcounts.append(self.get_dword_at_rva(cur_rva))
                 # increment to next dword
                 cur_rva += 4
+            else:
+                table_rowcounts.append(0)
 
         # consume an extra dword if the extra data bit is set
         if header_struct.HeapOffsetSizes & EXTRA_DATA_MASK == EXTRA_DATA_MASK:
@@ -313,14 +345,15 @@ class MetaDataTables(base.ClrStream):
                     blob_heap,
                 )
                 if not table:
-                    # delay error/warning
-                    warnings.append(
-                        "Invalid .NET metadata table list @ {} rva:{}".format(
-                            i, cur_rva
-                        )
-                    )
+                    logger.warning("invalid .NET metadata table list @ %d RVA: 0x%x", i, cur_rva)
                     # Everything up to this point has been saved in the object and is accessible,
                     # but more can be parsed, so we delay raising exception.
+
+                    deferred_exceptions.append(errors.dnFormatError(
+                        "Invalid .NET metadata table list @ {} rva:{}".format(
+                            i, cur_rva
+                        ))
+                    )
                 # table number
                 table.number = i
                 # add to tables dict
@@ -339,8 +372,7 @@ class MetaDataTables(base.ClrStream):
                     cur_rva, table.row_size * table.num_rows
                 )
                 # parse structures (populates .struct for each row)
-                table.parse_rows(table_data)
-                table.rva = cur_rva
+                table.parse_rows(cur_rva, table_data)
                 # move to next set of rows
                 cur_rva += table.row_size * table.num_rows
         #### finalize parsing each table
@@ -349,5 +381,5 @@ class MetaDataTables(base.ClrStream):
             table.parse(self.tables_list)
 
         # raise warning/error
-        if warnings:
-            raise errors.dnFormatError(warnings[0])
+        if deferred_exceptions:
+            raise deferred_exceptions[0]
