@@ -170,7 +170,7 @@ class MDTableRow(abc.ABC):
         Initialize the following attributes:
             row_size    The size, in bytes, of one row.  Calculated from
                          tables_rowcounts, heap info, and self._format
-            struct      The class use to parse the data.
+            struct      The class used to parse the data.
 
         tables_rowcounts is indexed by table number.  The value is the row count, if it exists, or None.
         """
