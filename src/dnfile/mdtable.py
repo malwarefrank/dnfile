@@ -833,6 +833,10 @@ class EventMapRow(MDTableRow):
         "Parent_Index": ("Parent", "TypeDef"),
     }
 
+    _struct_lists = {
+        "EventList_Index": ("EventList", "Event"),
+    }
+
     def _compute_format(self):
         parent_size = self._clr_coded_index_struct_size(0, ("TypeDef",))
         eventlist_size = self._clr_coded_index_struct_size(0, ("Event",))
@@ -929,6 +933,10 @@ class PropertyMapRow(MDTableRow):
 
     _struct_indexes = {
         "Parent_Index": ("Parent", "TypeDef"),
+    }
+
+    _struct_lists = {
+        "PropertyList_Index": ("PropertyList", "Property"),
     }
 
     def _compute_format(self):
