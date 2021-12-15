@@ -393,10 +393,32 @@ class MethodDef(ClrMetaDataTable[MethodDefRow]):
 #
 
 
+class ParamPtrRowStruct(RowStruct):
+    Param_Index: int
+
+
+class ParamPtrRow(MDTableRow):
+    Param: MDTableIndex["ParamRow"]
+
+    _struct_class = ParamPtrRowStruct
+
+    _struct_indexes = {
+        "Param_Index": ("Param", "Param"),
+    }
+
+    def _compute_format(self):
+        param_size = self._clr_coded_index_struct_size(0, ("Param",))
+        return (
+            "CLR_METADATA_TABLE_PARAMPTR",
+            (param_size + ",Param_Index", ),
+        )
+
+
 class ParamPtr(ClrMetaDataTable):
     name = "ParamPtr"
     number = 7
-    # TODO
+
+    _row_class = ParamPtrRow
 
 
 #### Param Table
