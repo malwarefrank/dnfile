@@ -61,7 +61,7 @@ attribute of a dnPE object.
             # how many Metadata tables are defined in the binary?
             num_of_tables = len(s.tables_list)
 
-    # the first Metadata tables stream can also be accessed by a shortcut
+    # the last Metadata tables stream can also be accessed by a shortcut
     num_of_tables = len(pe.net.mdtables.tables_list)
 
 
@@ -69,7 +69,8 @@ attribute of a dnPE object.
 TODO
 ----
 
-* CI
+* parse .NET resources
+* more tests
 * Documentation on readthedocs
 
 
