@@ -296,13 +296,13 @@ class MetaDataTables(base.ClrStream):
         guid_heap: Optional[GuidHeap] = None
         blob_heap: Optional[BlobHeap] = None
         for s in streams:
-            # find the first instance of the strings, guid, and blob heaps
-            # TODO: if there are multiple instances of a type, does dotnet runtime use first?
-            if not strings_heap and isinstance(s, StringsHeap):
+            # Find the last instance of the strings, guid, and blob heaps.
+            # If there are multiple instances of a type, dotnet runtime uses last.
+            if isinstance(s, StringsHeap):
                 strings_heap = s
-            elif not guid_heap and isinstance(s, GuidHeap):
+            elif isinstance(s, GuidHeap):
                 guid_heap = s
-            elif not blob_heap and isinstance(s, BlobHeap):
+            elif isinstance(s, BlobHeap):
                 blob_heap = s
 
         #### Parse tables rows list.
