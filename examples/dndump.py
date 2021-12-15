@@ -28,10 +28,7 @@ def is_printable(s: str) -> bool:
     this is just a heuristic to detect invalid strings.
     it won't work perfectly, but is probably good enough for rendering here.
     """
-    try:
-        return all(map(lambda b: b in string.printable, s))
-    except UnicodeEncodeError:
-        return False
+    return all(map(lambda b: b in string.printable, s))
 
 
 class Formatter:
