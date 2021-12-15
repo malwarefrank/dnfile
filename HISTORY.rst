@@ -2,6 +2,17 @@
 History
 =======
 
+DEV
+---
+
+* BREAKING CHANGE: structure attributes no longer exist by default; use :code:`getattr()`
+* bugfix: use last stream if multiple of same name
+* CI: added mypy type checking
+* added use of logging module for warnings
+* better type hints for IDEs
+* more better source comments
+* more tests
+
 0.9.0 (2021)
 ------------
 
