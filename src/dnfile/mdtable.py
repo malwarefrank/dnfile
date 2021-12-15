@@ -218,10 +218,32 @@ class TypeDef(ClrMetaDataTable[TypeDefRow]):
 #
 
 
+class FieldPtrRowStruct(RowStruct):
+    Field_Index: int
+
+
+class FieldPtrRow(MDTableRow):
+    Field: MDTableIndex["FieldRow"]
+
+    _struct_class = FieldPtrRowStruct
+
+    _struct_indexes = {
+        "Field_Index": ("Field", "Field"),
+    }
+
+    def _compute_format(self):
+        field_size = self._clr_coded_index_struct_size(0, ("Field",))
+        return (
+            "CLR_METADATA_TABLE_FIELDPTR",
+            (field_size + ",Field_Index", ),
+        )
+
+
 class FieldPtr(ClrMetaDataTable):
     name = "FieldPtr"
     number = 3
-    # TODO
+
+    _row_class = FieldPtrRow
 
 
 #### Field Table
