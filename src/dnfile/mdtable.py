@@ -297,10 +297,32 @@ class Field(ClrMetaDataTable):
 #
 
 
+class MethodPtrRowStruct(RowStruct):
+    Method_Index: int
+
+
+class MethodPtrRow(MDTableRow):
+    Method: MDTableIndex["MethodDefRow"]
+
+    _struct_class = MethodPtrRowStruct
+
+    _struct_indexes = {
+        "Method_Index": ("Method", "MethodDef"),
+    }
+
+    def _compute_format(self):
+        method_size = self._clr_coded_index_struct_size(0, ("MethodDef",))
+        return (
+            "CLR_METADATA_TABLE_METHODPTR",
+            (method_size + ",Method_Index", ),
+        )
+
+
 class MethodPtr(ClrMetaDataTable):
     name = "MethodPtr"
     number = 5
-    # TODO
+
+    _row_class = MethodPtrRow
 
 
 #### MethodDef Table
