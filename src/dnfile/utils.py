@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import copy as _copymod
+import struct
 import logging
 import functools as _functools
 from typing import Tuple, Optional
@@ -28,29 +29,42 @@ def lru_cache(maxsize=128, typed=False, copy=False):
     return decorator
 
 
-def read_compressed_int(data) -> Optional[Tuple[int, int]]:
+def read_compressed_int(data, signed=False) -> Optional[Tuple[int, int]]:
     """
-    Given bytes, read a compressed integer per
+    Given bytes, read a compressed (optionally signed) integer per
     spec ECMA-335 II.23.2 Blobs and signatures.
     Returns tuple: value, number of bytes read or None on error.
     """
     if not data:
         return None
+
+    if signed:
+        # only do this mutable copy if we'll have to mask out the first byte.
+        data = bytearray(data)
+
     if data[0] & 0x80 == 0:
         # values 0x00 to 0x7f
-        return data[0], 1
+        if signed:
+            format = ">b"
+        else:
+            format = ">B"
+        return struct.unpack(format, data)[0], 1
     elif data[0] & 0x40 == 0:
         # values 0x80 to 0x3fff
-        value = (data[0] & 0x7F) << 8
-        value |= data[1]
-        return value, 2
+        data[0] &= 0x7F
+        if signed:
+            format = ">h"
+        else:
+            format = ">H"
+        return struct.unpack(format, data)[0], 2
     elif data[0] & 0x20 == 0:
         # values 0x4000 to 0x1fffffff
-        value = (data[0] & 0x3F) << 24
-        value |= data[1] << 16
-        value |= data[2] << 8
-        value |= data[3]
-        return value, 4
+        data[0] &= 0x3F
+        if signed:
+            format = ">i"
+        else:
+            format = ">I"
+        return struct.unpack(format, data)[0], 4
     else:
         logger.warning("invalid compressed int: leading byte: 0x%02x", data[0])
         return None
