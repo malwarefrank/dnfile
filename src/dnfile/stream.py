@@ -113,24 +113,63 @@ class UserString(object):
     """
     def __init__(self, data: bytes, encoding="utf-16"):
         self.__data__: bytes = data
-
-        self.Flag: int = 0
-        if len(data) % 2 == 1:
-            self.Flag = data[-1]
-            data = data[:-1]
-        else:
-            logger.warning("string missing trailing flag")
-
         self.value: str = data.decode(encoding)
 
 
 class UserStringHeap(BinaryHeap):
-    def get_us(self, index, max_length=MAX_STRING_LENGTH, encoding="utf-16") -> Optional[UserString]:
+    def get(self, index) -> Optional[bytes]:
+        data = super(UserStringHeap, self).get(index)
+        if data is None:
+            return None
+
+        flag: int = 0
+        if len(data) % 2 == 1:
+            # > This final byte holds the value 1 if and only if any UTF16
+            # > character within the string has any bit set in its top byte,
+            # > or its low byte is any of the following:
+            # > 0x01–0x08, 0x0E–0x1F, 0x27, 0x2D, 0x7F.
+            #
+            # via ECMA-335 6th edition, II.24.2.4
+            #
+            # Trim this trailing flag, which is not part of the string.
+            flag = data[-1]
+            if flag == 0x00:
+                # > Otherwise, it holds 0.
+                #
+                # via ECMA-335 6th edition, II.24.2.4
+                #
+                # *should* be a normal UTF-16 string, but still not
+                # make sense.
+                pass
+            elif flag == 0x01:
+                # > The 1 signifies Unicode characters that require handling
+                # > beyond that normally provided for 8-bit encoding sets.
+                #
+                # via ECMA-335 6th edition, II.24.2.4
+                #
+                # these strings are probably best interpreted as bytes.
+                pass
+            else:
+                logger.warning("unexpected string flag value: 0x%02x", flag)
+            data = data[:-1]
+        else:
+            logger.warning("string missing trailing flag")
+
+        return data
+
+    def get_us(self, index, encoding="utf-16") -> Optional[UserString]:
+        """
+        Fetch the user string at the given index and attempt to decode it as UTF-16.
+
+        Note: the underlying data is not guaranteed to be well formed UTF-16,
+        so this routine may raise a UnicodeDecodeError when encountering such data.
+        You can always use `UserStringHeap.get()` to fetch the raw binary data.
+        """
         data = self.get(index)
         if data is None:
             return None
         else:
-            return UserString(data)
+            return UserString(data, encoding=encoding)
 
 
 class GuidHeap(base.ClrHeap):
