@@ -218,10 +218,32 @@ class TypeDef(ClrMetaDataTable[TypeDefRow]):
 #
 
 
+class FieldPtrRowStruct(RowStruct):
+    Field_Index: int
+
+
+class FieldPtrRow(MDTableRow):
+    Field: MDTableIndex["FieldRow"]
+
+    _struct_class = FieldPtrRowStruct
+
+    _struct_indexes = {
+        "Field_Index": ("Field", "Field"),
+    }
+
+    def _compute_format(self):
+        field_size = self._clr_coded_index_struct_size(0, ("Field",))
+        return (
+            "CLR_METADATA_TABLE_FIELDPTR",
+            (field_size + ",Field_Index", ),
+        )
+
+
 class FieldPtr(ClrMetaDataTable):
     name = "FieldPtr"
     number = 3
-    # TODO
+
+    _row_class = FieldPtrRow
 
 
 #### Field Table
@@ -275,10 +297,32 @@ class Field(ClrMetaDataTable):
 #
 
 
+class MethodPtrRowStruct(RowStruct):
+    Method_Index: int
+
+
+class MethodPtrRow(MDTableRow):
+    Method: MDTableIndex["MethodDefRow"]
+
+    _struct_class = MethodPtrRowStruct
+
+    _struct_indexes = {
+        "Method_Index": ("Method", "MethodDef"),
+    }
+
+    def _compute_format(self):
+        method_size = self._clr_coded_index_struct_size(0, ("MethodDef",))
+        return (
+            "CLR_METADATA_TABLE_METHODPTR",
+            (method_size + ",Method_Index", ),
+        )
+
+
 class MethodPtr(ClrMetaDataTable):
     name = "MethodPtr"
     number = 5
-    # TODO
+
+    _row_class = MethodPtrRow
 
 
 #### MethodDef Table
@@ -349,10 +393,32 @@ class MethodDef(ClrMetaDataTable[MethodDefRow]):
 #
 
 
+class ParamPtrRowStruct(RowStruct):
+    Param_Index: int
+
+
+class ParamPtrRow(MDTableRow):
+    Param: MDTableIndex["ParamRow"]
+
+    _struct_class = ParamPtrRowStruct
+
+    _struct_indexes = {
+        "Param_Index": ("Param", "Param"),
+    }
+
+    def _compute_format(self):
+        param_size = self._clr_coded_index_struct_size(0, ("Param",))
+        return (
+            "CLR_METADATA_TABLE_PARAMPTR",
+            (param_size + ",Param_Index", ),
+        )
+
+
 class ParamPtr(ClrMetaDataTable):
     name = "ParamPtr"
     number = 7
-    # TODO
+
+    _row_class = ParamPtrRow
 
 
 #### Param Table
