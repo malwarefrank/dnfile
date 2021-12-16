@@ -1278,14 +1278,74 @@ class FieldRva(ClrMetaDataTable[FieldRvaRow]):
     _row_class = FieldRvaRow
 
 
-class Unused30(ClrMetaDataTable):
-    name = "Unused30"
+#### EncLog Table
+#
+
+
+class EncLogRowStruct(RowStruct):
+    Token: int
+    FuncCode: int
+
+
+class EncLogRow(MDTableRow):
+    Token: int
+    FuncCode: int
+
+    _struct_class = EncLogRowStruct
+
+    _struct_asis = {
+        "Token": "Token",
+        "FuncCode": "FuncCode",
+    }
+
+    def _compute_format(self):
+        return (
+            "CLR_METADATA_TABLE_ENCLOG",
+            (
+                "I,Token",
+                "I,FuncCode",
+            ),
+        )
+
+
+class EncLog(ClrMetaDataTable):
+    name = "EncLog"
     number = 30
 
+    _row_class = EncLogRow
 
-class Unused31(ClrMetaDataTable):
-    name = "Unused31"
+
+#### EncMap Table
+#
+
+
+class EncLogMapStruct(RowStruct):
+    Token: int
+
+
+class EncMapRow(MDTableRow):
+    Token: int
+
+    _struct_class = EncLogMapStruct
+
+    _struct_asis = {
+        "Token": "Token",
+    }
+
+    def _compute_format(self):
+        return (
+            "CLR_METADATA_TABLE_ENCMAP",
+            (
+                "I,Token",
+            ),
+        )
+
+
+class EncMap(ClrMetaDataTable):
+    name = "EncMap"
     number = 31
+
+    _row_class = EncMapRow
 
 
 #### Assembly Table
@@ -1992,8 +2052,8 @@ class ClrMetaDataTableFactory(object):
         27: TypeSpec,
         28: ImplMap,
         29: FieldRva,
-        30: Unused30,
-        31: Unused31,
+        30: EncLog,
+        31: EncMap,
         32: Assembly,
         33: AssemblyProcessor,
         34: AssemblyOS,
