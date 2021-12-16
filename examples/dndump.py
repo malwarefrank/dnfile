@@ -6,6 +6,7 @@ relies on tabulate, which you can install like: `pip install tabulate`
 '''
 import io
 import sys
+import string
 import logging
 import argparse
 import binascii
@@ -18,6 +19,16 @@ import dnfile.base
 import dnfile.enums
 
 logger = logging.getLogger(__name__)
+
+
+def is_printable(s: str) -> bool:
+    """
+    does the given string look like a very simple string?
+
+    this is just a heuristic to detect invalid strings.
+    it won't work perfectly, but is probably good enough for rendering here.
+    """
+    return all(map(lambda b: b in string.printable, s))
 
 
 class Formatter:
@@ -104,8 +115,10 @@ def render_pefile_struct(ostream: Formatter, struct):
         for keys in struct.__keys__:
             key = keys[0]
             value = obj[key]["Value"]
+
             if isinstance(value, int):
                 value = hex(value)
+
             rows.append(("%s:" % (key), value))
         ostream.rows(rows)
 
@@ -212,6 +225,11 @@ def render_pe(ostream: Formatter, dn):
                                     if len(v) == 0:
                                         value = "(empty)"
                                     else:
+                                        if not is_printable(v):
+                                            # doesn't look like a simple string,
+                                            # so render it like bytes.
+                                            # this came from utf-8, so use that physical representation.
+                                            v = "(invalid){!r}".format(v.encode("utf-8"))
                                         value = v
                                 elif isinstance(v, int):
                                     value = "0x%x" % (v)
