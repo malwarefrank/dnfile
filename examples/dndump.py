@@ -45,7 +45,7 @@ class Formatter:
         return self._s.getvalue()
 
     HEX_BY_BYTE = ["%02x" % b for b in range(0x100)]
-    ASCII_BY_BYTE = [(chr(b) if (b >= 0x20 and b <= 0x7F) else ".") for b in range(0x100)]
+    ASCII_BY_BYTE = [(chr(b) if (b >= 0x20 and b <= 0x7E) else ".") for b in range(0x100)]
 
     def hexdump(self, buf: bytes, address=0):
         for chunk_offset in range(0, len(buf), 0x10):
