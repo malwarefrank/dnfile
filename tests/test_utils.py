@@ -20,14 +20,14 @@ def test_compressed_int():
     assert 0x4000, 4 == dnfile.utils.read_compressed_int(b"\xC0\x00\x40\x00")
     assert 0x1FFFFFFF, 4 == dnfile.utils.read_compressed_int(b"\xDF\xFF\xFF\xFF")
 
-    assert 3, 1 == dnfile.utils.read_compressed_int(b"\x06", signed=True)
-    assert -3, 1 == dnfile.utils.read_compressed_int(b"\x7B", signed=True)
-    assert 64, 2 == dnfile.utils.read_compressed_int(b"\x80\x80", signed=True)
-    assert -64, 1 == dnfile.utils.read_compressed_int(b"\x01", signed=True)
-    assert 8192, 4 == dnfile.utils.read_compressed_int(b"\xC0\x00\x40\x00", signed=True)
-    assert -8192, 2 == dnfile.utils.read_compressed_int(b"\x80\x01", signed=True)
-    assert 268435455, 4 == dnfile.utils.read_compressed_int(b"\xDF\xFF\xFF\xFE", signed=True)
-    assert -268435456, 4 == dnfile.utils.read_compressed_int(b"\xC0\x00\x00\x01", signed=True)
+    assert (3, 1) == dnfile.utils.read_compressed_int(b"\x06", signed=True)
+    assert (-3, 1) == dnfile.utils.read_compressed_int(b"\x7B", signed=True)
+    assert (64, 2) == dnfile.utils.read_compressed_int(b"\x80\x80", signed=True)
+    assert (-64, 1) == dnfile.utils.read_compressed_int(b"\x01", signed=True)
+    assert (8192, 4) == dnfile.utils.read_compressed_int(b"\xC0\x00\x40\x00", signed=True)
+    assert (-8192, 2) == dnfile.utils.read_compressed_int(b"\x80\x01", signed=True)
+    assert (268435455, 4) == dnfile.utils.read_compressed_int(b"\xDF\xFF\xFF\xFE", signed=True)
+    assert (-268435456, 4) == dnfile.utils.read_compressed_int(b"\xC0\x00\x00\x01", signed=True)
 
 
 def test_struct_char():
