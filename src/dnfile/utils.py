@@ -29,7 +29,7 @@ def lru_cache(maxsize=128, typed=False, copy=False):
     return decorator
 
 
-def read_compressed_int(data, signed=False) -> Optional[Tuple[int, int]]:
+def read_compressed_int(data: bytes, signed=False) -> Optional[Tuple[int, int]]:
     """
     Given bytes, read a compressed (optionally signed) integer per
     spec ECMA-335 II.23.2 Blobs and signatures.
@@ -51,16 +51,16 @@ def read_compressed_int(data, signed=False) -> Optional[Tuple[int, int]]:
         return struct.unpack(format, data)[0], 1
     elif data[0] & 0x40 == 0:
         # values 0x80 to 0x3fff
-        data[0] &= 0x7F
         if signed:
+            data[0] &= 0x7F  # type: ignore
             format = ">h"
         else:
             format = ">H"
         return struct.unpack(format, data)[0], 2
     elif data[0] & 0x20 == 0:
         # values 0x4000 to 0x1fffffff
-        data[0] &= 0x3F
         if signed:
+            data[0] &= 0x3F  # type: ignore
             format = ">i"
         else:
             format = ">I"
