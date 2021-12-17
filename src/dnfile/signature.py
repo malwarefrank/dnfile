@@ -1,31 +1,35 @@
 import io
 import enum
 import struct
-
 from typing import Any, List, Optional, Sequence
 
 from dnfile.utils import ror
 
-
 CALLING_CONVENTION_MASK = 0x0F
+
+
 class CallingConvention(enum.Enum):
-    DEFAULT = 0x00
+    DEFAULT  = 0x00
+
     # unmanaged cdecl is the calling convention used by Standard C
-    C = 0x1
+    C        = 0x1
+
     # unmanaged stdcall specifies a standard C++ call
-    STDCALL= 0x2
-    # unmanaged thiscall is a C++ call that passes a this pointer to the method 
+    STDCALL  = 0x2
+
+    # unmanaged thiscall is a C++ call that passes a this pointer to the method
     THISCALL = 0x3
+
     # unmanaged fastcall is a special optimized C++ calling convention
     FASTCALL = 0x4
-    VARARG = 0x5
+    VARARG   = 0x5
 
-    FIELD = 0x6
-    LOCALSIG = 0x7
-    PROPERTY = 0x8
+    FIELD        = 0x6
+    LOCALSIG     = 0x7
+    PROPERTY     = 0x8
     # Unmanaged calling convention encoded as modopts
-    UNMANAGED = 0x9
-    GENERICINST = 0xA
+    UNMANAGED    = 0x9
+    GENERICINST  = 0xA
     # used ONLY for 64bit vararg PInvoke calls
     NATIVEVARARG = 0xB
 
@@ -55,6 +59,8 @@ class CallingConvention(enum.Enum):
 
 
 SIGNATURE_FLAGS_MASK = 0xF0
+
+
 class SignatureFlags(enum.IntFlag):
     GENERIC = 0x10
     # > If the attribute instance is present,
@@ -119,6 +125,7 @@ class ElementType(enum.Enum):
     def is_primitive(self):
         return ElementType.VOID.value <= self.value <= ElementType.STRING.value
 
+
 class Element:
     def __init__(self, ty: ElementType, value: Optional[Any] = None):
         self.ty = ty
@@ -156,7 +163,7 @@ class Element:
         elif self.ty == ElementType.VALUETYPE:
             # a TypeDefOrRefToken, not resolved here.
             # leave it up to some caller to resolve and render as they see fit.
-            return f"valuetype {str(self.value)}" 
+            return f"valuetype {str(self.value)}"
         else:
             # TODO: PTR
             # TODO: BYREF
