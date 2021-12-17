@@ -33,16 +33,16 @@ def rol(val: int, r_bits: int, max_bits: int) -> int:
     # Rotate left: 0b1001 --> 0b0011
     #
     # via: https://www.falatic.com/index.php/108/python-and-bitwise-rotation
-    return (val << r_bits%max_bits) & (2**max_bits-1) \
-        | ((val & (2**max_bits-1)) >> (max_bits-(r_bits%max_bits)))
+    return (val << r_bits % max_bits) & (2 ** max_bits - 1) \
+        | ((val & (2 ** max_bits - 1)) >> (max_bits - (r_bits % max_bits)))
 
- 
+
 def ror(val: int, r_bits: int, max_bits: int) -> int:
     # Rotate right: 0b1001 --> 0b1100
     #
     # via: https://www.falatic.com/index.php/108/python-and-bitwise-rotation
-    return ((val & (2**max_bits-1)) >> r_bits%max_bits) \
-        | (val << (max_bits-(r_bits%max_bits)) & (2**max_bits-1))
+    return ((val & (2 ** max_bits - 1)) >> r_bits % max_bits) \
+        | (val << (max_bits - (r_bits % max_bits)) & (2 ** max_bits - 1))
 
 
 def read_compressed_int(data: bytes, signed=False) -> Optional[Tuple[int, int]]:
@@ -139,5 +139,3 @@ def num_bytes_to_struct_char(n: int) -> Optional[str]:
     else:
         logger.warning("invalid format specifier: %d", n)
         return None
-
-
