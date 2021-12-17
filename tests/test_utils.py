@@ -39,3 +39,15 @@ def test_struct_char():
     assert "H" == dnfile.utils.num_bytes_to_struct_char(2)
     assert "B" == dnfile.utils.num_bytes_to_struct_char(1)
     assert None is dnfile.utils.num_bytes_to_struct_char(0)
+
+
+def test_rol():
+    assert dnfile.utils.rol(0b00000001, 1, 8) == 0b00000010
+    assert dnfile.utils.rol(0b00000011, 1, 8) == 0b00000110
+    assert dnfile.utils.rol(0b10000001, 1, 8) == 0b00000011
+
+
+def test_ror():
+    assert dnfile.utils.ror(0b10000000, 1, 8) == 0b01000000
+    assert dnfile.utils.ror(0b11000000, 1, 8) == 0b01100000
+    assert dnfile.utils.ror(0b10000001, 1, 8) == 0b11000000

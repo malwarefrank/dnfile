@@ -29,6 +29,22 @@ def lru_cache(maxsize=128, typed=False, copy=False):
     return decorator
 
 
+def rol(val: int, r_bits: int, max_bits: int) -> int:
+    # Rotate left: 0b1001 --> 0b0011
+    #
+    # via: https://www.falatic.com/index.php/108/python-and-bitwise-rotation
+    return (val << r_bits%max_bits) & (2**max_bits-1) \
+        | ((val & (2**max_bits-1)) >> (max_bits-(r_bits%max_bits)))
+
+ 
+def ror(val: int, r_bits: int, max_bits: int) -> int:
+    # Rotate right: 0b1001 --> 0b1100
+    #
+    # via: https://www.falatic.com/index.php/108/python-and-bitwise-rotation
+    return ((val & (2**max_bits-1)) >> r_bits%max_bits) \
+        | (val << (max_bits-(r_bits%max_bits)) & (2**max_bits-1))
+
+
 def read_compressed_int(data: bytes, signed=False) -> Optional[Tuple[int, int]]:
     """
     Given bytes, read a compressed (optionally signed) integer per
@@ -38,36 +54,62 @@ def read_compressed_int(data: bytes, signed=False) -> Optional[Tuple[int, int]]:
     if not data:
         return None
 
-    if signed:
-        # only do this mutable copy if we'll have to mask out the first byte.
-        data = bytearray(data)
-
-    if data[0] & 0x80 == 0:
-        # values 0x00 to 0x7f
-        if signed:
-            format = ">b"
+    if not signed:
+        b1 = data[0]
+        if b1 & 0x80 == 0:
+            return struct.unpack(">B", bytes((b1, )))[0], 1
+        elif b1 & 0x40 == 0:
+            return struct.unpack(">H", bytes((b1 & 0x7F, data[1])))[0], 2
+        elif b1 & 0x20 == 0:
+            return struct.unpack(">I", bytes((b1 & 0x3F, data[1], data[2], data[3])))[0], 4
         else:
-            format = ">B"
-        return struct.unpack(format, data)[0], 1
-    elif data[0] & 0x40 == 0:
-        # values 0x80 to 0x3fff
-        if signed:
-            data[0] &= 0x7F  # type: ignore
-            format = ">h"
-        else:
-            format = ">H"
-        return struct.unpack(format, data)[0], 2
-    elif data[0] & 0x20 == 0:
-        # values 0x4000 to 0x1fffffff
-        if signed:
-            data[0] &= 0x3F  # type: ignore
-            format = ">i"
-        else:
-            format = ">I"
-        return struct.unpack(format, data)[0], 4
+            logger.warning("invalid compressed int: leading byte: 0x%02x", data[0])
+            return None
     else:
-        logger.warning("invalid compressed int: leading byte: 0x%02x", data[0])
-        return None
+        b1 = data[0]
+
+        if b1 & 0x80 == 0:
+            # 7-bit, 1-byte integer
+            n = b1
+
+            # rotate right one bit, 7-bit number
+            n = ror(n, 1, 7)
+
+            # sign-extend 7-bit number to 8-bits
+            if n & (1 << 6):
+                n |= (1 << 7)
+
+            # reinterpret as 8-bit, 1-byte, signed, big-endian integer
+            return struct.unpack(">b", struct.pack(">B", n))[0], 1
+        elif b1 & 0x40 == 0:
+            # 14-bit, 2-byte, big-endian integer
+            n = struct.unpack(">h", bytes((b1 & 0x7F, data[1])))[0]
+
+            # rotate right one bit, 14-bit number
+            n = ror(n, 1, 14)
+
+            # sign-extend 14-bit number to 16-bits
+            if n & (1 << 13):
+                n |= (1 << 14) | (1 << 15)
+
+            # reinterpret as 16-bit, 2-byte, signed, big-endian integer
+            return struct.unpack(">h", struct.pack(">H", n))[0], 2
+        elif b1 & 0x20 == 0:
+            # 29-bit, three byte, big endian integer
+            n = struct.unpack(">i", bytes((b1 & 0x3F, data[1], data[2], data[3])))[0]
+
+            # rotate right one bit, 29-bit number
+            n = ror(n, 1, 29)
+
+            # sign-extend 29-bit number to 32-bits
+            if n & (1 << 28):
+                n |= (1 << 29) | (1 << 30) | (1 << 31)
+
+            # reinterpret as 32-bit, 4-byte, signed, big-endian integer
+            return struct.unpack(">i", struct.pack(">I", n))[0], 4
+        else:
+            logger.warning("invalid compressed int: leading byte: 0x%02x", data[0])
+            return None
 
 
 def two_way_dict(pairs):
@@ -97,3 +139,5 @@ def num_bytes_to_struct_char(n: int) -> Optional[str]:
     else:
         logger.warning("invalid format specifier: %d", n)
         return None
+
+
