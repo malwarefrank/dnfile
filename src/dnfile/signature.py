@@ -1,3 +1,21 @@
+"""
+Parse signatures used to describe methods and other types.
+
+These are found in #Blob entries as raw binary data.
+They decode to things like: calling convention, return type, parameter types.
+Some fields may include tokens that can be resolved via .NET header metadata;
+however, this module does not rely on .NET metadata headers.
+
+Tokens are captured as-is, as numbers with associated masks and shifts.
+Its up to the user to resolve the reference to a row.
+This is because we expect the user to know how they want to interpret/format data,
+we couldn't guess at all the uses for interacting with signatures.
+
+The best references for this parsing are:
+  - ECMA-335 6th Edition, II.23.1 and II.23.2
+  - dnlib SignatureReader.cs
+"""
+
 import io
 import enum
 import struct
@@ -236,6 +254,12 @@ class Signature:
 
 
 class CodedToken:
+    # this class sort-of duplicates dnlib.base.CodedIndex;
+    # however, that class requires access to .NET metadata headers,
+    # whereas this class doesn't attempt to resolve any tokens to rows.
+    #
+    # its up to the user to decide how and when to resolve rows.
+
     # subclasses must override these
     tag_bits: int = 0
     table_indices: Sequence[int] = ()
@@ -270,6 +294,10 @@ class TypeDefOrRefToken(CodedToken):
 
 
 class SignatureReader(io.BytesIO):
+    """
+    stateful binary parser that reads structures from a stream of data.
+    """
+
     def peek_u8(self):
         v = self.read_u8()
         self.seek(-1, io.SEEK_CUR)
