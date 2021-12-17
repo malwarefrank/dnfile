@@ -17,6 +17,7 @@ The best references for this parsing are:
 """
 
 import io
+import abc
 import enum
 import struct
 from typing import Any, List, Optional, Sequence
@@ -253,7 +254,22 @@ class Signature:
         return "".join(parts)
 
 
-class CodedToken:
+class Token(abc.ABC):
+    @property
+    @abc.abstractmethod
+    def table_index(self) -> int:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def row_index(self) -> int:
+        ...
+
+    def __init__(self, value: int):
+        self.value: int = value
+
+
+class CodedToken(Token):
     # this class sort-of duplicates dnlib.base.CodedIndex;
     # however, that class requires access to .NET metadata headers,
     # whereas this class doesn't attempt to resolve any tokens to rows.
@@ -269,7 +285,7 @@ class CodedToken:
         assert self.__class__.tag_bits != 0
         assert self.__class__.table_indices != ()
         assert self.__class__.table_names != ()
-        self.value: int = value
+        super(CodedToken, self).__init__(value)
 
     @property
     def table_index(self):
