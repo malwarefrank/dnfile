@@ -150,3 +150,21 @@ def test_ignore_NumberOfRvaAndSizes():
     dn = dnfile.dnPE(path)
     assert hasattr(dn, "net") and dn.net is not None
     assert hasattr(dn.net, "metadata") and dn.net.metadata is not None
+
+
+def test_flags():
+    path = fixtures.get_data_path_by_name("hello-world.exe")
+
+    dn = dnfile.dnPE(path)
+    assert dn.net is not None
+
+    # class HelloWorld
+    cls = dn.net.mdtables.TypeDef.get_with_row_index(2)
+
+    # these are enums from CorTypeSemantics
+    assert cls.Flags.tdClass is True
+    assert cls.Flags.tdInterface is False
+
+    # these are flags from CorTypeAttrFlags
+    assert cls.Flags.tdBeforeFieldInit is True
+    assert cls.Flags.tdAbstract is False

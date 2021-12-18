@@ -41,17 +41,17 @@ class ClrFlags(object):
     _flags: Iterable[Type[_enum.IntEnum]]
 
     def __init__(self, value):
-        if hasattr(self, "_masks"):
-            for mask_name, value_class in self._masks.items():
-                chk = getattr(self.corhdr_enum, mask_name) & value
-                val = value_class(chk)
-                setattr(self, val.name, True)
 
-        if hasattr(self, "_flags"):
-            for value_class in self._flags:
-                for m in value_class:
-                    if m.value & value:
-                        setattr(self, m.name, True)
+        for mask_name, enum_class in getattr(self, "_masks", {}).items():
+            mask = getattr(self.corhdr_enum, mask_name)
+            masked_value = mask & value
+            enum_entry = enum_class(masked_value)
+            for candidate_enum_entry in enum_class:
+                setattr(self, candidate_enum_entry.name, candidate_enum_entry == enum_entry)
+
+        for value_class in getattr(self, "_flags", {}):
+            for m in value_class:
+                setattr(self, m.name, (m.value & value) != 0)
 
     def __iter__(self):
         for name in _getvars(self):
@@ -89,8 +89,7 @@ class ClrHeaderFlags(object):
         Given a value, instantiates self with members set to True according to value.
         """
         for m in CorHeaderEnum:
-            if m.value & value:
-                setattr(self, m.name, True)
+            setattr(self, m.name, (m.value & value) != 0)
 
     def __iter__(self):
         for name in _getvars(self):
@@ -147,6 +146,7 @@ class CorTypeAttrFlags(_enum.IntEnum):
 
 
 class CorTypeAttr(ClrMetaDataEnum):
+    # https://github.com/dotnet/docs/blob/main/docs/framework/unmanaged-api/metadata/cortypeattr-enumeration.md
     tdVisibilityMask        =   0x00000007
     enumVisibility          =   CorTypeVisibility
 
