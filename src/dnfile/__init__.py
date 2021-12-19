@@ -143,15 +143,16 @@ class dnPE(_PE):
             ("IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR", self.parse_clr_structure),
         )
 
+        # Indicate no .NET object parsed
+        self.net = None
+
         if self.__data__ is None:
             logger.warning("not a .NET module: failed to read data")
-            self.net = None
             return
 
         opt_header = getattr(self, "OPTIONAL_HEADER", None)
         if opt_header is None:
             logger.warning("not a .NET module: no optional header")
-            self.net = None
             return
 
         if directories is not None:
@@ -211,8 +212,6 @@ class dnPE(_PE):
                     setattr(self, attr_name, value)
                     # create shortcut for .NET/CLR data
                     self.net = value
-                else:
-                    self.net = None
 
     def parse_clr_structure(self, rva, size) -> Optional["ClrData"]:
         try:
@@ -282,12 +281,9 @@ class ClrMetaData(DataContainer):
         self.rva = rva
 
         # dynamically create metadata header structure
-        struct_format = _copymod.deepcopy(self._format)
+        struct_format = _copymod.deepcopy(self.__class__._format)
         struct_data = pe.get_data(rva, size)
         if len(struct_data) < size:
-            # self.add_warning(
-            #    'Invalid CLR MetaData Structure size. Can\'t read %d '
-            #    'bytes at RVA: 0x%x' % (size, rva))
             raise errors.dnFormatError(
                 "Invalid CLR MetaData Structure size. Can't read %d "
                 "bytes at RVA: 0x%x" % (size, rva)
@@ -345,6 +341,7 @@ class ClrMetaData(DataContainer):
                 try:
                     s.parse(self.streams_list)
                 except (errors.dnFormatError, PEFormatError) as e:
+                    # other streams may parse, so add to warnings and continue
                     pe.add_warning("Unable to parse stream {!r}".format(s.struct.Name))
                     pe.add_warning(str(e))
                     logger.warning("unable to parse stream: %s: %s", s.struct.Name, e)
@@ -465,7 +462,7 @@ class ClrData(DataContainer):
             )
             clr_struct.__unpack__(data)
         except PEFormatError:
-            # raise exception cause we can't do anything halfway here.
+            # raise exception because we can't do anything halfway here.
             raise errors.dnFormatError(
                 "Invalid CLR Structure information. Can't read "
                 "data at RVA: 0x%x" % rva
@@ -477,11 +474,19 @@ class ClrData(DataContainer):
         metadata_rva = clr_struct.MetaDataRva
         metadata_size = clr_struct.MetaDataSize
 
+        # shortcuts are always defined, even if None, for easier code completion in IDEs
+        self.metadata = None
+        self.strings = None
+        self.user_strings = None
+        self.guids = None
+        self.blobs = None
+        self.mdtables = None
+        self.Flags = None
+
         try:
             self.metadata = ClrMetaData(pe, metadata_rva, metadata_size)
         except (errors.dnFormatError, PEFormatError) as e:
             logger.warning("failed to parse .NET metadata: %s", e)
-            self.metadata = None
             return
 
         # create shortcuts for streams

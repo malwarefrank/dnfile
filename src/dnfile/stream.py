@@ -235,7 +235,7 @@ class MetaDataTables(base.ClrStream):
         ),
     )
 
-    header: MDTablesStruct
+    header: Optional[MDTablesStruct]
     tables: Dict[Union[str, int], base.ClrMetaDataTable]
     tables_list: List[base.ClrMetaDataTable]
     strings_offset_size: int
@@ -283,6 +283,15 @@ class MetaDataTables(base.ClrStream):
     GenericParamConstraint: mdtable.GenericParamConstraint
     Unused:                 mdtable.Unused
 
+    def __init__(self, metadata_rva: int, stream_struct: base.StreamStruct, stream_data: bytes):
+        super().__init__(metadata_rva, stream_struct, stream_data)
+        self.header = None
+        self.tables = dict()
+        self.tables_list = list()
+        strings_offset_size = 0
+        guids_offset_size = 0
+        blobs_offset_size = 0
+
     def parse(self, streams: List[base.ClrStream]):
         """
         this may raise an exception if the data cannot be parsed correctly.
@@ -301,9 +310,7 @@ class MetaDataTables(base.ClrStream):
         # and then raise the first deferred exception captured here.
         deferred_exceptions = list()
 
-        self.tables = dict()
-        self.tables_list = list()
-        header_len = Structure(self._format).sizeof()
+        header_len = Structure(self.__class__._format).sizeof()
         if not self.__data__ or len(self.__data__) < header_len:
             logger.warning("unable to read .NET metadata tables")
             raise errors.dnFormatError("Unable to read .NET metadata tables")
