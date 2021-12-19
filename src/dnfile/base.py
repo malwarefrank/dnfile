@@ -346,7 +346,7 @@ class MDTableRow(abc.ABC):
                     if t.name == table_name:
                         table = t
 
-                run = []
+                run: List[MDTableIndex] = []
                 # always define attribute, even if failed to parse
                 setattr(self, attr_name, run)
 
