@@ -48,3 +48,6 @@ def test_method_signature():
 
     # instance void object::'.ctor'()
     assert str(parse_signature(binascii.unhexlify(b"200001"))) == "instance void f()"
+
+    # void Main(string[] args)
+    assert str(parse_signature(binascii.unhexlify(b"0001011d0e"))) == "void f(string[])"

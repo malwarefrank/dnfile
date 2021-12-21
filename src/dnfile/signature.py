@@ -183,9 +183,13 @@ class Element:
             # a TypeDefOrRefToken, not resolved here.
             # leave it up to some caller to resolve and render as they see fit.
             return f"valuetype {str(self.value)}"
+        elif self.ty == ElementType.PTR:
+            return f"ptr {str(self.value)}"
+        elif self.ty == ElementType.BYREF:
+            return f"byref {str(self.value)}"
+        elif self.ty == ElementType.SZARRAY:
+            return f"{str(self.value)}[]"
         else:
-            # TODO: PTR
-            # TODO: BYREF
             # TODO: CLASS
             # TODO: VAR
             # TODO: ARRAY
@@ -195,7 +199,6 @@ class Element:
             # TODO: U
             # TODO: FNPTR
             # TODO: OBJECT
-            # TODO: SZARRAY
             # TODO: MVAR
             # TODO: CMOD_REQD
             # TODO: CMOD_OPT
@@ -405,6 +408,9 @@ class SignatureReader(io.BytesIO):
         elif ty == ElementType.CLASS:
             token = TypeDefOrRefToken(self.read_token())
             return Element(ty, token)
+        elif ty == ElementType.SZARRAY:
+            val = self.read_type()
+            return Element(ty, val)
         else:
             # TODO: VAR
             # TODO: ARRAY
@@ -414,7 +420,6 @@ class SignatureReader(io.BytesIO):
             # TODO: U
             # TODO: FNPTR
             # TODO: OBJECT
-            # TODO: SZARRAY
             # TODO: MVAR
             # TODO: CMOD_REQD
             # TODO: CMOD_OPT
