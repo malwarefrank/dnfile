@@ -22,6 +22,7 @@ class ClrResourceEntry(object):
     Name: Optional[bytes]
     NamePtr: Optional[int]
     DataOffset: Optional[int]
+    data: Optional[bytes]
 
     def __init__(self):
         self.Type = None
@@ -29,6 +30,7 @@ class ClrResourceEntry(object):
         self.Name = None
         self.NamePtr = None
         self.DataOffset = None
+        self.data = None
 
 
 class ClrResourceStruct(Structure):
@@ -44,7 +46,7 @@ class ClrResourceStruct(Structure):
 
 class ClrResource(object):
     struct: Optional[ClrResourceStruct]
-    resources: List[ClrResourceEntry]
+    entries: List[ClrResourceEntry]
     resource_types: List[bytes]
 
     _format = [
@@ -77,7 +79,7 @@ class ClrResource(object):
     def __init__(self, data: bytes):
         self._data = data
         self._valid_size = ClrResourceStruct(self._format).sizeof() + 3*4
-        self.resources: List[ClrResourceEntry] = list()
+        self.entries: List[ClrResourceEntry] = list()
         self.resource_types: List[bytes] = list()
         self.struct = None
 
@@ -127,35 +129,34 @@ class ClrResource(object):
         if over != 0:
             offset += 8 - over
         for i in range(self.struct.NumberOfResources):
-            r = ClrResourceEntry()
-            r.Hash = int.from_bytes(self._data[offset:offset+4], byteorder="little")
-            self.resources.append(r)
+            e = ClrResourceEntry()
+            e.Hash = int.from_bytes(self._data[offset:offset+4], byteorder="little")
+            self.entries.append(e)
             # next
             offset += 4
-        for r in self.resources:
-            r.NamePtr = int.from_bytes(self._data[offset:offset+4], byteorder="little")
+        for e in self.entries:
+            e.NamePtr = int.from_bytes(self._data[offset:offset+4], byteorder="little")
             # next
             offset += 4
         self.struct.DataSectionOffset = int.from_bytes(self._data[offset:offset+4], byteorder="little")
         offset += 4
         self.table_of_names_offset = offset
-        for r in self.resources:
+        for e in self.entries:
+            offset = self.table_of_names_offset + e.NamePtr
             x = utils.read_compressed_int(self._data[offset:offset+4])
             if x is None:
                 # TODO warn/error
                 return
             size = x[0]
             offset += x[1]
-            r.Name = self._data[offset:offset+size]
+            e.Name = self._data[offset:offset+size]
             offset += size
-            r.DataOffset = int.from_bytes(self._data[offset:offset+4], byteorder="little")
-            offset += 4
+            e.DataOffset = int.from_bytes(self._data[offset:offset+4], byteorder="little")
 
 
 class ResourceData(object):
     data: bytes
     size: int
-    resources: List[ClrResource]
     sha256: Optional[str]
     sha1: Optional[str]
     md5: Optional[str]
@@ -166,7 +167,6 @@ class ResourceData(object):
         self._rva = rva
         self.data = data
         self.size = len(data)
-        self.resources: List[ClrResource] = list()
         if data:
             self.sha256 = hashlib.sha256(data).hexdigest()
             self.sha1 = hashlib.sha1(data).hexdigest()
@@ -185,4 +185,16 @@ class ResourceData(object):
             self.clr_resource = None
 
     def parse(self):
-        self.clr_resource.parse()
+        if self.clr_resource:
+            self.clr_resource.parse()
+            for entry in self.clr_resource.entries:
+                offset = self.clr_resource.struct.DataSectionOffset + entry.DataOffset
+                entry.Type = self.data[offset]
+                offset += 1
+                x = utils.read_compressed_int(self.data[offset:offset+4])
+                if x is None:
+                    # TODO warn/error
+                    return
+                size = x[0]
+                offset += x[1]
+                entry.data = self.data[offset:offset+size]
