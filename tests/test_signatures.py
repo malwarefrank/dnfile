@@ -2,7 +2,7 @@ import binascii
 
 import pytest
 
-from dnfile.signature import SignatureReader, parse_method_signature, parse_field_signature
+from dnfile.signature import SignatureReader, parse_field_signature, parse_method_signature
 
 
 def test_signature_reader_u32():

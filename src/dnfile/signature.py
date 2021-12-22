@@ -159,9 +159,9 @@ class Element:
         elif self.ty == ElementType.CHAR:
             return "char"
         elif self.ty == ElementType.I1:
-            return "int8"
+            return "sbyte"
         elif self.ty == ElementType.U1:
-            return "uint8"
+            return "byte"
         elif self.ty == ElementType.I2:
             return "int16"
         elif self.ty == ElementType.U2:
@@ -175,11 +175,19 @@ class Element:
         elif self.ty == ElementType.U8:
             return "uint64"
         elif self.ty == ElementType.R4:
-            return "float"
+            return "single"
         elif self.ty == ElementType.R8:
             return "double"
         elif self.ty == ElementType.STRING:
             return "string"
+        elif self.ty == ElementType.OBJECT:
+            return "object"
+        elif self.ty == ElementType.I:
+            return "IntPtr"
+        elif self.ty == ElementType.U:
+            return "UIntPtr"
+        elif self.ty == ElementType.TYPEDBYREF:
+            return "TypedReference"
         elif self.ty == ElementType.VALUETYPE:
             # a TypeDefOrRefToken, not resolved here.
             # leave it up to some caller to resolve and render as they see fit.
@@ -195,11 +203,7 @@ class Element:
             # TODO: VAR
             # TODO: ARRAY
             # TODO: GENERICINST
-            # TODO: TYPEDBYREF
-            # TODO: I
-            # TODO: U
             # TODO: FNPTR
-            # TODO: OBJECT
             # TODO: MVAR
             # TODO: CMOD_REQD
             # TODO: CMOD_OPT
@@ -437,6 +441,8 @@ class SignatureReader(io.BytesIO):
         elif ty == ElementType.SZARRAY:
             val = self.read_type()
             return Element(ty, val)
+        elif ty == ElementType.OBJECT:
+            return Element(ty)
         else:
             # TODO: VAR
             # TODO: ARRAY
