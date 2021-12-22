@@ -518,12 +518,13 @@ class ClrData(DataContainer):
                 for row in self.mdtables.ManifestResource.rows:
                     row: mdtable.ManifestResourceRow
                     # TODO: handle non-embedded resources
-                    if row.struct.Implementation_CodedIndex != 0:
+                    if row.struct.Implementation_CodedIndex == 0:
                         # embedded resource
                         rva = self.struct.ResourcesRva + row.Offset
                         size = int.from_bytes(pe.get_data(rva, 4), byteorder="little")
                         rdata = pe.get_data(rva+4, size)
                         res = resource.ResourceData(rva, rdata)
+                        res.parse()
                         self.resources.append(res)
         except (errors.dnFormatError, PEFormatError) as e:
             msg = "failed to parse .NET resources: {}".format(e)

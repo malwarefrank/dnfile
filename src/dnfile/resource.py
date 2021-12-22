@@ -50,9 +50,9 @@ class ClrResource(object):
     _format = [
         "IMAGE_CLR_RESOURCE",
         [
-            "<I,Magic",
-            "<I,NumberOfReaders",
-            "<I,SizeOfReaderTypes",
+            "I,Magic",
+            "I,NumberOfReaders",
+            "I,SizeOfReaderTypes",
             # reader types string
             # version
             # NumberOfResources
@@ -86,7 +86,7 @@ class ClrResource(object):
             # if not enough data
             return False
         # read magic value
-        i4 = int.from_bytes(data[:4], byteorder="little")
+        i4 = int.from_bytes(self._data[:4], byteorder="little")
         # if not expected
         if i4 != RESOURCE_MAGIC:
             # invalid
@@ -96,14 +96,15 @@ class ClrResource(object):
     def parse(self):
         # parse initial structure
         tmp_struct = ClrResourceStruct(format=self.__class__._format)
-        tmp_struct.__unpack__(data)
+        tmp_struct.__unpack__(self._data)
         # calculate and add additional fields
         self._format[1].append("{}s,ReaderTypes".format(tmp_struct.SizeOfReaderTypes))
-        self._format[1].append("<I,Version")
-        self._format[1].append("<I,NumberOfResources")
-        self._format[1].append("<I,NumberOfResourceTypes")
+        self._format[1].append("I,Version")
+        self._format[1].append("I,NumberOfResources")
+        self._format[1].append("I,NumberOfResourceTypes")
         # parse more
         self.struct = ClrResourceStruct(format=self._format)
+        self.struct.__unpack__(self._data)
         # keep track of current data offset
         offset = self.struct.sizeof()
         # embedded resources
