@@ -2,7 +2,7 @@ import binascii
 
 import pytest
 
-from dnfile.signature import SignatureReader, parse_signature
+from dnfile.signature import SignatureReader, parse_method_signature, parse_field_signature
 
 
 def test_signature_reader_u32():
@@ -35,19 +35,23 @@ def test_signature_reader_i32():
 
 def test_method_signature():
     # instance void class [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::'.ctor'(int32)
-    assert str(parse_signature(binascii.unhexlify(b"20010108"))) == "instance void f(int32)"
+    assert str(parse_method_signature(binascii.unhexlify(b"20010108"))) == "instance void f(int32)"
 
     # instance void class [mscorlib]System.Runtime.CompilerServices.RuntimeCompatibilityAttribute::'.ctor'()
-    assert str(parse_signature(binascii.unhexlify(b"200001"))) == "instance void f()"
+    assert str(parse_method_signature(binascii.unhexlify(b"200001"))) == "instance void f()"
 
     # instance void class [mscorlib]System.Diagnostics.DebuggableAttribute::'.ctor'(valuetype [mscorlib]System.Diagnostics.DebuggableAttribute/DebuggingModes)
-    assert str(parse_signature(binascii.unhexlify(b"2001011111"))) == "instance void f(valuetype token(table: TypeRef, row: 4))"
+    assert str(parse_method_signature(binascii.unhexlify(b"2001011111"))) == "instance void f(valuetype token(table: TypeRef, row: 4))"
 
     # void class [mscorlib]System.Console::WriteLine(string)
-    assert str(parse_signature(binascii.unhexlify(b"0001010e"))) == "void f(string)"
+    assert str(parse_method_signature(binascii.unhexlify(b"0001010e"))) == "void f(string)"
 
     # instance void object::'.ctor'()
-    assert str(parse_signature(binascii.unhexlify(b"200001"))) == "instance void f()"
+    assert str(parse_method_signature(binascii.unhexlify(b"200001"))) == "instance void f()"
 
     # void Main(string[] args)
-    assert str(parse_signature(binascii.unhexlify(b"0001011d0e"))) == "void f(string[])"
+    assert str(parse_method_signature(binascii.unhexlify(b"0001011d0e"))) == "void f(string[])"
+
+
+def test_field_signature():
+    assert str(parse_field_signature(binascii.unhexlify(b"061110"))) == "valuetype token(table: TypeDef, row: 4)"

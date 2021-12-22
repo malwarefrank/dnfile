@@ -20,7 +20,7 @@ import io
 import abc
 import enum
 import struct
-from typing import Any, List, Optional, Sequence
+from typing import Any, List, Union, Optional, Sequence
 
 from dnfile.utils import ror
 
@@ -67,8 +67,9 @@ class CallingConvention(enum.Enum):
             return "unmanaged thiscall"
         elif self == CallingConvention.VARARG:
             return "vararg"
+        elif self == CallingConvention.FIELD:
+            return ""
         else:
-            # TODO: FIELD
             # TODO: LOCALSIG
             # TODO: PROPERTY
             # TODO: UNMANAGED
@@ -215,7 +216,7 @@ class Element:
             raise NotImplementedError("type: " + repr(self))
 
 
-class Signature:
+class MethodSignature:
     def __init__(self, flags: SignatureFlags, calling_convention: CallingConvention, ret: Element, params: List[Element]):
         self.flags = flags
         self.calling_convention = calling_convention
@@ -254,6 +255,31 @@ class Signature:
         )
         parts.append(")")
 
+        return "".join(parts)
+
+
+class FieldSignature:
+    def __init__(self, flags: SignatureFlags, calling_convention: CallingConvention, ty: Element):
+        self.flags = flags
+        self.calling_convention = calling_convention
+        self.ty = ty
+
+    def __str__(self):
+        parts = []
+
+        # II.15.3
+        if self.flags & SignatureFlags.HAS_THIS:
+            parts.append("instance ")
+        if self.flags & SignatureFlags.EXPLICIT_THIS:
+            parts.append("explicit ")
+
+        parts.append(str(self.calling_convention))
+        if parts[-1]:
+            # if calling convention is `default` then nothing is displayed.
+            # so, don't add extra spacing
+            parts.append(" ")
+
+        parts.append(str(self.ty))
         return "".join(parts)
 
 
@@ -435,7 +461,7 @@ class SignatureReader(io.BytesIO):
             # TODO: ENUM
             raise NotImplementedError(ty)
 
-    def read_method_signature(self) -> Signature:
+    def read_method_signature(self) -> MethodSignature:
         b1 = self.read_u8()
 
         flags = SignatureFlags(b1 & SIGNATURE_FLAGS_MASK)
@@ -460,9 +486,21 @@ class SignatureReader(io.BytesIO):
 
             params.append(param)
 
-        return Signature(flags, calling_convention, ret_type, params)
+        return MethodSignature(flags, calling_convention, ret_type, params)
 
-    def read_signature(self) -> Signature:
+    def read_field_signature(self) -> FieldSignature:
+        b1 = self.read_u8()
+
+        flags = SignatureFlags(b1 & SIGNATURE_FLAGS_MASK)
+        calling_convention = CallingConvention(b1 & CALLING_CONVENTION_MASK)
+
+        assert calling_convention == CallingConvention.FIELD
+
+        ty = self.read_type()
+
+        return FieldSignature(flags, calling_convention, ty)
+
+    def read_signature(self) -> Union[MethodSignature, FieldSignature]:
         b1 = self.peek_u8()
 
         calling_convention = CallingConvention(b1 & CALLING_CONVENTION_MASK)
@@ -477,7 +515,8 @@ class SignatureReader(io.BytesIO):
             return self.read_method_signature()
 
         elif calling_convention == CallingConvention.FIELD:
-            raise NotImplementedError("calling convention field")
+            return self.read_field_signature()
+
         elif calling_convention == CallingConvention.LOCALSIG:
             raise NotImplementedError("calling convention localsig")
         elif calling_convention == CallingConvention.PROPERTY:
@@ -488,5 +527,16 @@ class SignatureReader(io.BytesIO):
             raise ValueError("unexpected calling convention")
 
 
+Signature = Union[MethodSignature, FieldSignature]
+
+
 def parse_signature(buf: bytes) -> Signature:
     return SignatureReader(buf).read_signature()
+
+
+def parse_method_signature(buf: bytes) -> MethodSignature:
+    return SignatureReader(buf).read_method_signature()
+
+
+def parse_field_signature(buf: bytes) -> FieldSignature:
+    return SignatureReader(buf).read_field_signature()
