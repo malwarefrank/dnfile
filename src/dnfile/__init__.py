@@ -420,6 +420,7 @@ class ClrData(DataContainer):
     guids: Optional[stream.GuidHeap]
     blobs: Optional[stream.BlobHeap]
     mdtables: Optional[stream.MetaDataTables]
+    resources: List[resource.ResourceData]
     Flags: Optional[enums.ClrHeaderFlags]
 
     # Structure description from:
@@ -481,6 +482,7 @@ class ClrData(DataContainer):
         self.guids = None
         self.blobs = None
         self.mdtables = None
+        self.resources = list()
         self.Flags = None
 
         try:
@@ -508,6 +510,26 @@ class ClrData(DataContainer):
         # Set the flags according to the Flags member
         flags_object = enums.ClrHeaderFlags(clr_struct.Flags)
         self.Flags = flags_object
+
+        # parse the resources
+        try:
+            if self.struct.ResourcesRva > 0 and self.mdtables and self.mdtables.ManifestResource and self.mdtables.ManifestResource.num_rows > 0:
+                # for each row
+                for row in self.mdtables.ManifestResource.rows:
+                    row: mdtable.ManifestResourceRow
+                    # TODO: handle non-embedded resources
+                    if row.struct.Implementation_CodedIndex != 0:
+                        # embedded resource
+                        rva = self.struct.ResourcesRva + row.Offset
+                        size = int.from_bytes(pe.get_data(rva, 4), byteorder="little")
+                        rdata = pe.get_data(rva+4, size)
+                        res = resource.ResourceData(rva, rdata)
+                        self.resources.append(res)
+        except (errors.dnFormatError, PEFormatError) as e:
+            msg = "failed to parse .NET resources: {}".format(e)
+            pe.add_warning(msg)
+            logger.warning(msg)
+            return
 
 
 class ClrStreamFactory(object):

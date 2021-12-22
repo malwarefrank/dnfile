@@ -11,7 +11,9 @@ from pefile import Structure
 
 from . import base, utils, errors, mdtable
 
+
 RESOURCE_MAGIC = 0xbeefcace
+CLR_RESOURCE_TYPESTR = "Mono/.Net resource"
 
 
 class ClrResourceEntry(object):
@@ -149,7 +151,7 @@ class ClrResource(object):
             offset += 4
 
 
-class ManifestResource(object):
+class ResourceData(object):
     data: bytes
     size: int
     resources: List[ClrResource]
@@ -157,6 +159,7 @@ class ManifestResource(object):
     sha1: Optional[str]
     md5: Optional[str]
     magic: Optional[str]
+    clr_resource: Optional[ClrResource]
 
     def __init__(self, rva: int, data: bytes):
         self._rva = rva
@@ -169,8 +172,8 @@ class ManifestResource(object):
             self.md5 = hashlib.md5(data).hexdigest()
             rsrc = ClrResource(data)
             if rsrc.valid():
-                self.magic = "Mono/.Net resource"
-                self.resources.append(rsrc)
+                self.magic = CLR_RESOURCE_TYPESTR
+                self.clr_resource = rsrc
             else:
                 self.magic = magic.from_buffer(data)
         else:
@@ -178,7 +181,7 @@ class ManifestResource(object):
             self.sha256 = None
             self.sha1 = None
             self.md5 = None
+            self.clr_resource = None
 
     def parse(self):
-        for rsrc in self.resources:
-            rsrc.parse()
+        self.clr_resource.parse()
