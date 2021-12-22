@@ -216,15 +216,20 @@ class MDTableRow(abc.ABC):
         """
         Parse the row data and set object attributes.  Should only be called after all rows of all tables
         have been initialized, i.e. parse_rows() has been called on each table in the tables list.
+
+            next_row    the next row in the table, used for row lists (e.g. FieldList, MethodList)
         """
         # if there are any fields to copy as-is
         if hasattr(self.__class__, "_struct_asis"):
             for struct_name, attr_name in self.__class__._struct_asis.items():
+                # always define attribute, even if failed to parse
                 setattr(self, attr_name, getattr(self.struct, struct_name, None))
 
         # if strings
         if hasattr(self.__class__, "_struct_strings"):
             for struct_name, attr_name in self.__class__._struct_strings.items():
+                # always define attribute, even if failed to parse
+                setattr(self, attr_name, None)
                 if self._strings is None:
                     logger.warning("failed to fetch string: no strings table")
                     continue
@@ -243,6 +248,8 @@ class MDTableRow(abc.ABC):
         # if guids
         if hasattr(self.__class__, "_struct_guids"):
             for struct_name, attr_name in self.__class__._struct_guids.items():
+                # always define attribute, even if failed to parse
+                setattr(self, attr_name, None)
                 if self._guids is None:
                     logger.warning("failed to fetch guid: no guid table")
                     continue
@@ -256,6 +263,8 @@ class MDTableRow(abc.ABC):
         # if blobs
         if hasattr(self.__class__, "_struct_blobs"):
             for struct_name, attr_name in self.__class__._struct_blobs.items():
+                # always define attribute, even if failed to parse
+                setattr(self, attr_name, None)
                 if self._blobs is None:
                     logger.warning("failed to fetch blob: no blob table")
                     continue
@@ -271,6 +280,8 @@ class MDTableRow(abc.ABC):
                 attr_name,
                 attr_class,
             ) in self.__class__._struct_codedindexes.items():
+                # always define attribute, even if failed to parse
+                setattr(self, attr_name, None)
                 try:
                     o = attr_class(getattr(self.struct, struct_name, None), tables)
                     setattr(self, attr_name, o)
@@ -280,6 +291,8 @@ class MDTableRow(abc.ABC):
         # if flags
         if hasattr(self.__class__, "_struct_flags"):
             for struct_name, (attr_name, flag_class) in self.__class__._struct_flags.items():
+                # always define attribute, even if failed to parse
+                setattr(self, attr_name, None)
                 # Set the flags according to the Flags member
                 v = getattr(self.struct, struct_name, None)
                 if v is None:
@@ -294,6 +307,8 @@ class MDTableRow(abc.ABC):
         # if enums
         if hasattr(self.__class__, "_struct_enums"):
             for struct_name, (attr_name, enum_class) in self.__class__._struct_enums.items():
+                # always define attribute, even if failed to parse
+                setattr(self, attr_name, None)
                 # Set the value according to the Enum member
                 v = getattr(self.struct, struct_name, None)
                 if v is None:
@@ -308,6 +323,9 @@ class MDTableRow(abc.ABC):
         # if indexes
         if hasattr(self.__class__, "_struct_indexes") and tables:
             for struct_name, (attr_name, table_name) in self.__class__._struct_indexes.items():
+                # always define attribute, even if failed to parse
+                setattr(self, attr_name, None)
+
                 table = None
                 for t in tables:
                     if t.name == table_name:
@@ -322,19 +340,21 @@ class MDTableRow(abc.ABC):
         # if lists
         if hasattr(self.__class__, "_struct_lists") and tables:
             for struct_name, (attr_name, table_name) in self.__class__._struct_lists.items():
+
                 table = None
                 for t in tables:
                     if t.name == table_name:
                         table = t
 
+                run: List[MDTableIndex] = []
+                # always define attribute, even if failed to parse
+                setattr(self, attr_name, run)
+
                 if not table:
                     # target table is not present,
                     # such as is there is no Field table in hello-world.exe,
                     # so the references below must, by defintion, be empty.
-                    setattr(self, attr_name, [])
                     continue
-
-                run = []
 
                 run_start_index = getattr(self.struct, struct_name, None)
                 if run_start_index is not None:
