@@ -11,7 +11,6 @@ from pefile import Structure
 
 from . import base, utils, errors, mdtable
 
-
 RESOURCE_MAGIC = 0xbeefcace
 CLR_RESOURCE_TYPESTR = "Mono/.Net resource"
 
