@@ -4,31 +4,14 @@
 #   https://ntcore.com/files/manifestres.htm
 
 import hashlib
-from typing import Optional, List
+from typing import List, Optional
 
 import magic
 from pefile import Structure
 
-from . import base, errors, mdtable, utils
+from . import base, utils, errors, mdtable
 
 RESOURCE_MAGIC = 0xbeefcace
-
-"""
-rva base of resources from pe.net.struct.ResourcesRva
-offset of resource
-
-every Manifest Resource begins with a dword that tells us the size of the actual embedded resource... And that's it... After that, we have our bitmap, zip, PE, .resources file, etc
-
-if it's a ".resources file" - first dword is size, second is signature 0xBEEFCACE (or else it is invalid).  Third dword is number of readers (framework stuff).  Fourth dword is size of reader types, which tells the framework the reader to use for this resources file.  Next dword is version of resources file (e.g. 1 or 2).  Next dword is number of resources.  Next dword is number of resource types.
-
-For each type, there is a 7bit encoded integer that gives size of following string (like #US stream).
-Then align to 8-byte base.
-Then several dwords (NumberOfResources of them), each containing the hash of a resource.
-Then same number of dwords, each containing the offsets of the resource names.
-Then dword which is the Data Section Offset.
-Then resource names: 7bit encoded integer + unicode string + dword (offset from DataSection to resource data, where data starts with 7bit encoded integer which is type index for the resource)
-
-"""
 
 
 class ClrResourceEntry(object):
