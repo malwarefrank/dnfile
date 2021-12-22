@@ -54,11 +54,11 @@ class ModuleRow(MDTableRow):
     #
     # these are type hints for properties dynamically set during structure parsing.
     #
-    Generation: int
-    Name: str
-    Mvid: str
-    EncId: str
-    EncBaseId: str
+    Generation: Optional[int]
+    Name: Optional[str]
+    Mvid: Optional[str]
+    EncId: Optional[str]
+    EncBaseId: Optional[str]
 
     #
     # raw structure definition
