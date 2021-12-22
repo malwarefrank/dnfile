@@ -287,6 +287,21 @@ class FieldSignature:
         return "".join(parts)
 
 
+class LocalSignature:
+    def __init__(self, flags: SignatureFlags, calling_convention: CallingConvention, locals: List[Element]):
+        self.flags = flags
+        self.calling_convention = calling_convention
+        self.locals = locals
+
+    def __str__(self):
+        parts = []
+
+        for i, local in enumerate(self.locals):
+            parts.append(f"[{i}] {str(local)}")
+
+        return "(" + ", ".join(parts) + ")"
+
+
 class Token(abc.ABC):
     @property
     @abc.abstractmethod
@@ -506,7 +521,23 @@ class SignatureReader(io.BytesIO):
 
         return FieldSignature(flags, calling_convention, ty)
 
-    def read_signature(self) -> Union[MethodSignature, FieldSignature]:
+    def read_local_signature(self) -> LocalSignature:
+        b1 = self.read_u8()
+
+        flags = SignatureFlags(b1 & SIGNATURE_FLAGS_MASK)
+        calling_convention = CallingConvention(b1 & CALLING_CONVENTION_MASK)
+
+        assert calling_convention == CallingConvention.LOCALSIG
+
+        count = self.read_compressed_u32()
+
+        locals = []
+        for _ in range(count):
+            locals.append(self.read_type())
+
+        return LocalSignature(flags, calling_convention, locals)
+
+    def read_signature(self) -> Union[MethodSignature, FieldSignature, LocalSignature]:
         b1 = self.peek_u8()
 
         calling_convention = CallingConvention(b1 & CALLING_CONVENTION_MASK)
@@ -524,7 +555,8 @@ class SignatureReader(io.BytesIO):
             return self.read_field_signature()
 
         elif calling_convention == CallingConvention.LOCALSIG:
-            raise NotImplementedError("calling convention localsig")
+            return self.read_local_signature()
+
         elif calling_convention == CallingConvention.PROPERTY:
             raise NotImplementedError("calling convention property")
         elif calling_convention == CallingConvention.GENERICINST:
@@ -533,7 +565,7 @@ class SignatureReader(io.BytesIO):
             raise ValueError("unexpected calling convention")
 
 
-Signature = Union[MethodSignature, FieldSignature]
+Signature = Union[MethodSignature, FieldSignature, LocalSignature]
 
 
 def parse_signature(buf: bytes) -> Signature:
@@ -546,3 +578,7 @@ def parse_method_signature(buf: bytes) -> MethodSignature:
 
 def parse_field_signature(buf: bytes) -> FieldSignature:
     return SignatureReader(buf).read_field_signature()
+
+
+def parse_local_signature(buf: bytes) -> LocalSignature:
+    return SignatureReader(buf).read_local_signature()
