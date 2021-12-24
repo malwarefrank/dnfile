@@ -166,8 +166,8 @@ class TypeDefRow(MDTableRow):
     TypeName: str
     TypeNamespace: str
     Extends: codedindex.TypeDefOrRef
-    FieldList: List
-    MethodList: List
+    FieldList: List[MDTableIndex["FieldRow"]]
+    MethodList: List[MDTableIndex["MethodDefRow"]]
 
     _struct_class = TypeDefRowStruct
 
@@ -1772,7 +1772,7 @@ class ExportedTypeRowStruct(RowStruct):
     Flags: int
     TypeDefId: int
     TypeName_StringIndex: int
-    TypeNamespace_BlobIndex: int
+    TypeNamespace_StringIndex: int
     Implementation_CodedIndex: int
 
 
@@ -1780,7 +1780,7 @@ class ExportedTypeRow(MDTableRow):
     Flags: enums.ClrTypeAttr
     TypeDefId: int
     TypeName: str
-    TypeNamespace: bytes
+    TypeNamespace: str
     Implementation: codedindex.Implementation
 
     _struct_class = ExportedTypeRowStruct
@@ -1793,9 +1793,7 @@ class ExportedTypeRow(MDTableRow):
     }
     _struct_strings = {
         "TypeName_StringIndex": "TypeName",
-    }
-    _struct_blobs = {
-        "TypeNamespace_BlobIndex": "TypeNamespace",
+        "TypeNamespace_StringIndex": "TypeNamespace",
     }
     _struct_codedindexes = {
         "Implementation_CodedIndex": ("Implementation", codedindex.Implementation),
@@ -1814,7 +1812,7 @@ class ExportedTypeRow(MDTableRow):
                 "I,Flags",
                 "I,TypeDefId",
                 str_ind_size + ",TypeName_StringIndex",
-                blob_ind_size + ",TypeNamespace_BlobIndex",
+                str_ind_size + ",TypeNamespace_StringIndex",
                 implementation_size + ",Implementation_CodedIndex",
             ),
         )
