@@ -102,7 +102,7 @@ class dnPE(_PE):
                     if hasattr(s, "tables_list") and s.tables_list:
                         for t in s.tables_list:
                             for label, value in (
-                                ("RVA", hex(t.rva)),
+                                ("RVA", hex(t.rva if hasattr(t, "rva") else 0)),
                                 ("TableName", t.name),
                                 ("TableNumber", t.number),
                                 ("IsSorted", t.is_sorted),
