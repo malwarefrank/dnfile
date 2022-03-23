@@ -533,6 +533,7 @@ class ClrMetaDataTable(Generic[RowType]):
     #       number = 0
     #       _row_class = ModuleRow
     #
+    rva: int
     number: int
     name: str
     _row_class: Type[RowType]
@@ -560,6 +561,9 @@ class ClrMetaDataTable(Generic[RowType]):
         assert hasattr(self, "number")
         assert hasattr(self, "name")
         assert hasattr(self, "_row_class")
+
+        # default value
+        self.rva: int = 0
 
         num_rows = tables_rowcounts[self.number]
         if num_rows is None:
