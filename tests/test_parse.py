@@ -59,6 +59,91 @@ def test_tables():
 
     assert not hasattr(dn.net.mdtables, "foo")
 
+    tables = dict()
+    tables["Module"] = {
+        "RVA": 0x2110,
+        "TableName": "Module",
+        "TableNumber": 0,
+        "IsSorted": False,
+        "NumRows": 1,
+        "RowSize": 10,
+        }
+    tables["TypeRef"] = {
+        "RVA": 0x211a,
+        "TableName": "TypeRef",
+        "TableNumber": 1,
+        "IsSorted": False,
+        "NumRows": 6,
+        "RowSize": 6,
+        }
+    tables["TypeDef"] = {
+        "RVA": 0x213e,
+        "TableName": "TypeDef",
+        "TableNumber": 2,
+        "IsSorted": False,
+        "NumRows": 2,
+        "RowSize": 14,
+        }
+    tables["MethodDef"] = {
+        "RVA": 0x215a,
+        "TableName": "MethodDef",
+        "TableNumber": 6,
+        "IsSorted": False,
+        "NumRows": 2,
+        "RowSize": 14,
+        }
+    tables["Param"] = {
+        "RVA": 0x2176,
+        "TableName": "Param",
+        "TableNumber": 8,
+        "IsSorted": False,
+        "NumRows": 1,
+        "RowSize": 6,
+        }
+    tables["MemberRef"] = {
+        "RVA": 0x217c,
+        "TableName": "MemberRef",
+        "TableNumber": 10,
+        "IsSorted": False,
+        "NumRows": 5,
+        "RowSize": 6,
+        }
+    tables["CustomAttribute"] = {
+        "RVA": 0x219a,
+        "TableName": "CustomAttribute",
+        "TableNumber": 12,
+        "IsSorted": True,
+        "NumRows": 3,
+        "RowSize": 6,
+        }
+    tables["Assembly"] = {
+        "RVA": 0x21ac,
+        "TableName": "Assembly",
+        "TableNumber": 32,
+        "IsSorted": False,
+        "NumRows": 1,
+        "RowSize": 22,
+        }
+    tables["AssemblyRef"] = {
+        "RVA": 0x21c2,
+        "TableName": "AssemblyRef",
+        "TableNumber": 35,
+        "IsSorted": False,
+        "NumRows": 1,
+        "RowSize": 20,
+        }
+
+    for table in dn.net.mdtables.tables_list:
+        table: dnfile.base.ClrMetaDataTable
+        ref_table = tables[table.name]
+        assert table.name in tables
+        assert table.rva == ref_table.get("RVA", None)
+        assert table.name == ref_table.get("TableName", None)
+        assert table.number == ref_table.get("TableNumber", None)
+        assert table.is_sorted == ref_table.get("IsSorted", None)
+        assert table.num_rows == ref_table.get("NumRows", None)
+        assert table.row_size == ref_table.get("RowSize", None)
+
 
 def test_module():
     path = fixtures.get_data_path_by_name("hello-world.exe")
