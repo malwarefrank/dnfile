@@ -67,7 +67,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 1,
         "RowSize": 10,
-        }
+    }
     tables["TypeRef"] = {
         "RVA": 0x211a,
         "TableName": "TypeRef",
@@ -75,7 +75,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 6,
         "RowSize": 6,
-        }
+    }
     tables["TypeDef"] = {
         "RVA": 0x213e,
         "TableName": "TypeDef",
@@ -83,7 +83,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 2,
         "RowSize": 14,
-        }
+    }
     tables["MethodDef"] = {
         "RVA": 0x215a,
         "TableName": "MethodDef",
@@ -91,7 +91,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 2,
         "RowSize": 14,
-        }
+    }
     tables["Param"] = {
         "RVA": 0x2176,
         "TableName": "Param",
@@ -99,7 +99,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 1,
         "RowSize": 6,
-        }
+    }
     tables["MemberRef"] = {
         "RVA": 0x217c,
         "TableName": "MemberRef",
@@ -107,7 +107,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 5,
         "RowSize": 6,
-        }
+    }
     tables["CustomAttribute"] = {
         "RVA": 0x219a,
         "TableName": "CustomAttribute",
@@ -115,7 +115,7 @@ def test_tables():
         "IsSorted": True,
         "NumRows": 3,
         "RowSize": 6,
-        }
+    }
     tables["Assembly"] = {
         "RVA": 0x21ac,
         "TableName": "Assembly",
@@ -123,7 +123,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 1,
         "RowSize": 22,
-        }
+    }
     tables["AssemblyRef"] = {
         "RVA": 0x21c2,
         "TableName": "AssemblyRef",
@@ -131,7 +131,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 1,
         "RowSize": 20,
-        }
+    }
 
     for table in dn.net.mdtables.tables_list:
         table: dnfile.base.ClrMetaDataTable
