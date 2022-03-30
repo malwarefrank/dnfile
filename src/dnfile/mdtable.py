@@ -1840,7 +1840,7 @@ class ManifestResourceRow(MDTableRow):
     Offset: int
     Flags: enums.ClrManifestResourceFlags
     Name: str
-    Implementation: codedindex.Implementation
+    Implementation: Optional[codedindex.Implementation]
 
     _struct_class = ManifestResourceRowStruct
 
@@ -1856,6 +1856,12 @@ class ManifestResourceRow(MDTableRow):
     _struct_codedindexes = {
         "Implementation_CodedIndex": ("Implementation", codedindex.Implementation),
     }
+
+    def parse(self, tables: List[ClrMetaDataTable], next_row: Optional[MDTableRow]):
+        super().parse(tables, next_row)
+        if self.struct.Implementation_CodedIndex == 0:
+            # Special case per ECMA-335. Resource is in current assembly.
+            self.Implementation = None
 
     def _compute_format(self):
         str_ind_size = checked_offset_format(self._str_offsz)
