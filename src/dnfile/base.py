@@ -673,3 +673,18 @@ class ClrMetaDataTable(Generic[RowType]):
         use `__getitem__` when you want 0-based indexing.
         """
         return self[row_index - 1]
+
+
+class ClrResource(abc.ABC):
+    def __init__(self, name: str, public: bool = False, private: bool = False):
+        self.name: str = name
+        self.public: bool = public
+        self.private: bool = private
+        self.data: Optional[bytes] = None
+
+    def set_data(self, data: bytes):
+        self.data = data
+
+    @abc.abstractmethod
+    def parse(self):
+        raise NotImplementedError()

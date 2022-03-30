@@ -420,6 +420,7 @@ class ClrData(DataContainer):
     guids: Optional[stream.GuidHeap]
     blobs: Optional[stream.BlobHeap]
     mdtables: Optional[stream.MetaDataTables]
+    resources: List[base.ClrResource]
     Flags: Optional[enums.ClrHeaderFlags]
 
     # Structure description from:
@@ -481,6 +482,7 @@ class ClrData(DataContainer):
         self.guids = None
         self.blobs = None
         self.mdtables = None
+        self.resources = list()
         self.Flags = None
 
         try:
@@ -508,6 +510,37 @@ class ClrData(DataContainer):
         # Set the flags according to the Flags member
         flags_object = enums.ClrHeaderFlags(clr_struct.Flags)
         self.Flags = flags_object
+
+        # parse the resources
+        if self.struct.ResourcesRva > 0 and self.mdtables and self.mdtables.ManifestResource and self.mdtables.ManifestResource.num_rows > 0:
+            # for each row
+            for row in self.mdtables.ManifestResource.rows:
+                row: mdtable.ManifestResourceRow
+                # TODO: handle external resources
+                if row.Implementation is None:
+                    # internal resource, embedded in this file
+                    rva = self.struct.ResourcesRva + row.Offset
+                    buf = pe.get_data(rva, 4)
+                    if not buf or len(buf) < 4:
+                        # warn
+                        pe.add_warning("CLR resource parse error, expected at least 4 bytes at rva 0x{:02x}".format(rva))
+                        continue
+                    size = int.from_bytes(buf, byteorder="little")
+                    rsrc_rva = rva + 4
+                    rdata = pe.get_data(rsrc_rva, size)
+                    if not rdata or len(rdata) < size:
+                        pe.add_warning("CLR resource parse error, expected more data at rva 0x{:02x}".format(rsrc_rva))
+                        continue
+                    res = resource.InternalResource(row.name, row.Flags.mrPublic, row.Flags.mrPrivate)
+                    res.rva = rsrc_rva
+                    res.size = size
+                    res.data = rdata
+                    try:
+                        res.parse()
+                    except errors.dnFormatError as e:
+                        pe.add_warning("CLR resource parse error:", str(e))
+                        continue
+                    self.resources.append(res)
 
 
 class ClrStreamFactory(object):
