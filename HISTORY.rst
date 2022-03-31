@@ -2,8 +2,8 @@
 History
 =======
 
-DEV
----
+0.10.0 (2022)
+-------------
 
 * BREAKING CHANGE: structure attributes no longer exist by default
 * BREAKING CHANGE: objects' attributes always exist, but may be None

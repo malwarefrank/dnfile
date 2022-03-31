@@ -7,7 +7,7 @@ REFERENCES
     https://www.ntcore.com/files/dotnetformat.htm
     https://referencesource.microsoft.com/System.AddIn/System/Addin/MiniReflection/MetadataReader/Metadata.cs.html#123
 
-Copyright (c) 2020-2021 MalwareFrank
+Copyright (c) 2020-2022 MalwareFrank
 """
 
 import struct as _struct

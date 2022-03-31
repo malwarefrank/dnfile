@@ -2,7 +2,7 @@
 """
 .NET base classes
 
-Copyright (c) 2020-2021 MalwareFrank
+Copyright (c) 2020-2022 MalwareFrank
 """
 import abc
 import enum
