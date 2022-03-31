@@ -5,9 +5,13 @@ History
 DEV
 ---
 
-* BREAKING CHANGE: structure attributes no longer exist by default; use :code:`getattr()`
-* bugfix: use last stream if multiple of same name
+* BREAKING CHANGE: structure attributes no longer exist by default
+* BREAKING CHANGE: objects' attributes always exist, but may be None
+* BUGFIX: use last stream if multiple of same name
 * CI: added mypy type checking
+* when duplicate stream names, behave like runtime and use last one for shortcuts
+* add user_strings shortcut
+* able to access MetaDataTables like a 0-based list, with square brackets
 * added use of logging module for warnings
 * better type hints for IDEs
 * more better source comments
