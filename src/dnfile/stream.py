@@ -379,17 +379,22 @@ class MetaDataTables(base.ClrStream):
             # if table bit is set
             if header_struct.MaskValid & 2 ** i:
                 is_sorted = header_struct.MaskSorted & 2 ** i != 0
-                table = mdtable.ClrMetaDataTableFactory.createTable(
-                    i,
-                    table_rowcounts,
-                    is_sorted,
-                    self.strings_offset_size,
-                    self.guids_offset_size,
-                    self.blobs_offset_size,
-                    strings_heap,
-                    guid_heap,
-                    blob_heap,
-                )
+                try:
+                    table = mdtable.ClrMetaDataTableFactory.createTable(
+                        i,
+                        table_rowcounts,
+                        is_sorted,
+                        self.strings_offset_size,
+                        self.guids_offset_size,
+                        self.blobs_offset_size,
+                        strings_heap,
+                        guid_heap,
+                        blob_heap,
+                    )
+                except errors.dnFormatError as e:
+                    table = None
+                    deferred_exceptions.append(e)
+                    logger.warning(str(e))
                 if not table:
                     logger.warning("invalid .NET metadata table list @ %d RVA: 0x%x", i, cur_rva)
                     # Everything up to this point has been saved in the object and is accessible,
@@ -400,6 +405,7 @@ class MetaDataTables(base.ClrStream):
                             i, cur_rva
                         ))
                     )
+                    continue
                 # table number
                 table.number = i
                 # add to tables dict
