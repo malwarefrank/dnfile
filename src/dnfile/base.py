@@ -568,7 +568,6 @@ class ClrMetaDataTable(Generic[RowType]):
         num_rows = tables_rowcounts[self.number]
         if num_rows is None:
             # the table doesn't exist, so create the instance, but with zero rows.
-            #logger.warning("reference to missing table: %d" % (self.number))
             num_rows = 0
 
         self.is_sorted: bool = is_sorted
