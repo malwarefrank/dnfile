@@ -1,9 +1,9 @@
 import enum
 import struct
 import datetime
-from typing import List, Optional, Any, Tuple, Union
+from typing import Any, List, Tuple, Union, Optional
 
-from . import base, mdtable, utils, errors
+from . import base, utils, errors, mdtable
 
 # References:
 #   https://ntcore.com/files/manifestres.htm
