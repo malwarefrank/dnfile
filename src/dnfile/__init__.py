@@ -24,7 +24,7 @@ from typing import Dict, List, Optional
 from pefile import PE as _PE
 from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, DataContainer, PEFormatError
 
-from . import base, enums, errors, stream
+from . import base, enums, errors, stream, resource
 
 logger = logging.getLogger(__name__)
 CLR_METADATA_SIGNATURE = 0x424A5342
@@ -531,14 +531,14 @@ class ClrData(DataContainer):
                     if not rdata or len(rdata) < size:
                         pe.add_warning("CLR resource parse error, expected more data at rva 0x{:02x}".format(rsrc_rva))
                         continue
-                    res = resource.InternalResource(row.name, row.Flags.mrPublic, row.Flags.mrPrivate)
+                    res = resource.InternalResource(row.Name, row.Flags.mrPublic, row.Flags.mrPrivate)
                     res.rva = rsrc_rva
                     res.size = size
                     res.data = rdata
                     try:
                         res.parse()
                     except errors.dnFormatError as e:
-                        pe.add_warning("CLR resource parse error:", str(e))
+                        pe.add_warning("CLR resource parse error: {}".format(str(e)))
                         continue
                     self.resources.append(res)
 
