@@ -503,7 +503,7 @@ class CodedIndex(MDTableIndex[RowType]):
             self.table = t
             return
 
-        logger.warning("reference to missing table: %s" % table_name)
+        # this may not be a problem, e.g. when ManifestResource Implementation=0
         self.table = None
 
 
