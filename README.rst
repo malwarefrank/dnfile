@@ -47,6 +47,9 @@ attribute of a dnPE object.
 
 .. code-block:: python
 
+    import dnfile
+    import hashlib
+
     pe = dnfile.dnPE(FILEPATH)
 
     # access the directory entry raw structure values
@@ -64,12 +67,31 @@ attribute of a dnPE object.
     # the last Metadata tables stream can also be accessed by a shortcut
     num_of_tables = len(pe.net.mdtables.tables_list)
 
+    # create a set to hold the hashes of all resources
+    res_hash = set()
+    # access the resources
+    for r in pe.net.resources:
+        # if resource data is a simple byte stream
+        if isinstance(r.data, bytes):
+            # hash it and add the hash to the set
+            res_hash.add(hashlib.sha256(r.data).hexdigest())
+        # if resource data is a ResourceSet, a dotnet-specific datatype
+        elif isinstance(r.data, dnfile.resource.ResourceSet):
+            # if there are no entries
+            if not r.data.entries:
+                # skip it
+                continue
+            # for each entry in the ResourceSet
+            for entry in r.data.entries:
+                # if it has data
+                if entry.data:
+                    # hash it and add the hash to the set
+                    res_hash.add(hashlib.sha256(entry.data).hexdigest())
 
 
 TODO
 ----
 
-* parse .NET resources
 * more tests
 * Documentation on readthedocs
 
