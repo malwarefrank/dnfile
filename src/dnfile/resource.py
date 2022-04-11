@@ -66,14 +66,14 @@ class InternalResource(base.ClrResource):
 
 
 class ResourceEntryStruct(object):
-    Type: Optional[bytes]
+    Type: Optional[int]
     Hash: Optional[int]
     NamePtr: Optional[int]
     DataOffset: Optional[int]
     Name: Optional[bytes]
 
     def __init__(self):
-        self.Type: Optional[bytes] = None
+        self.Type: Optional[int] = None
         self.Hash: Optional[int] = None
         self.NamePtr: Optional[int] = None
         self.DataOffset: Optional[int] = None
@@ -108,8 +108,8 @@ class ResourceSetStruct(object):
 
 
 class ResourceSet(object):
-    parent: Optional[Union[ExternalResource, InternalResource]]
-    struct: ResourceSetStruct
+    parent: Optional[base.ClrResource]
+    struct: Optional[ResourceSetStruct]
     entries: List[ResourceEntry]
     MAGIC: int = 0xbeefcace
     MAGIC_BYTES: bytes = b"\xCE\xCA\xEF\xBE"
@@ -119,8 +119,8 @@ class ResourceSet(object):
         self._min_valid_size = 7 * 4
         self.entries: List[ResourceEntry] = list()
         self.resource_types: List[bytes] = list()
-        self.struct: ResourceSetStruct = None
-        self.parent: Optional[Union[ExternalResource, InternalResource]] = parent
+        self.struct: Optional[ResourceSetStruct] = None
+        self.parent: Optional[base.ClrResource] = parent
 
     def valid(self):
         if len(self._data) < self._min_valid_size:
@@ -201,7 +201,7 @@ class ResourceSet(object):
             else:
                 self.read_rsrc_data_v2(self.resource_types, e)
 
-    def read_serialized_data(self, offset: int) -> Tuple[Optional[bytes], int]:
+    def read_serialized_data(self, offset: int) -> Tuple[bytes, int]:
         """
         Read a serialized data (compressed int size, followed by data of that many bytes).
 
@@ -217,12 +217,13 @@ class ResourceSet(object):
         nbytes += size
         return value, nbytes
 
-    def read_serialized_string(self, offset: int, encoding="utf-8") -> Tuple[Optional[str], int]:
+    def read_serialized_string(self, offset: int, encoding="utf-8") -> Tuple[str, int]:
         val, n = self.read_serialized_data(offset)
-        val = val.decode(encoding)
-        return val, n
+        return val.decode(encoding), n
 
     def read_rsrc_data_v1(self, userTypes: List[bytes], entry: ResourceEntry):
+        if self.struct is None or self.struct.DataSectionOffset is None or entry.struct.DataOffset is None:
+            return
         edata_start = self.struct.DataSectionOffset + entry.struct.DataOffset
         t = int.from_bytes(self._data[edata_start:edata_start + 4], byteorder="little", signed=False)
         entry.struct.Type = t
@@ -254,7 +255,10 @@ class ResourceSet(object):
             try:
                 data, n = self.read_serialized_data(edata_start)
             except ValueError:
-                raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, edata_start))
+                if self.parent:
+                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, edata_start))
+                else:
+                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at unknown rsrc offset {}".format(edata_start))
             entry.data = data
             try:
                 entry.value = data.decode("utf-8")
@@ -308,8 +312,8 @@ class ResourceSet(object):
             # https://stackoverflow.com/questions/3169517/python-c-sharp-binary-datetime-encoding
             secs = x / 10.0 ** 7
             delta = datetime.timedelta(seconds=secs)
-            ts = datetime.datetime(1, 1, 1) + delta
-            entry.value = ts
+            dt = datetime.datetime(1, 1, 1) + delta
+            entry.value = dt
         elif tn == "System.TimeSpan":
             # TODO return resourceDataFactory.Create(new TimeSpan(reader.ReadInt64()));
             tsize = 8
@@ -333,7 +337,8 @@ class ResourceSet(object):
             pass
 
     def read_rsrc_data_v2(self, userTypes: List[bytes], entry: ResourceEntry):
-        # TODO
+        if self.struct is None or self.struct.DataSectionOffset is None or entry.struct.DataOffset is None:
+            return
         edata_start = self.struct.DataSectionOffset + entry.struct.DataOffset
         # dnlib reads four bytes, but it looks like one byte in the files I have
         t = int.from_bytes(self._data[edata_start:edata_start + 1], byteorder="little", signed=True)
@@ -355,7 +360,10 @@ class ResourceSet(object):
             try:
                 data, n = self.read_serialized_data(edata_start)
             except ValueError:
-                raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, edata_start))
+                if self.parent:
+                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, edata_start))
+                else:
+                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at unknown rsrc offset {}".format(edata_start))
             entry.data = data
             try:
                 entry.value = data.decode("utf-8")
@@ -420,8 +428,8 @@ class ResourceSet(object):
             # https://stackoverflow.com/questions/3169517/python-c-sharp-binary-datetime-encoding
             secs = x / 10.0 ** 7
             delta = datetime.timedelta(seconds=secs)
-            ts = datetime.datetime(1, 1, 1) + delta
-            entry.value = ts
+            dt = datetime.datetime(1, 1, 1) + delta
+            entry.value = dt
         elif t == ResourceTypeCode.TimeSpan:
             entry.type_name = "System.TimeSpan"
             # TODO return resourceDataFactory.Create(new TimeSpan(reader.ReadInt64()));

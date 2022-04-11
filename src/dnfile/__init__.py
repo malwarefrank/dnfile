@@ -515,7 +515,6 @@ class ClrData(DataContainer):
         if self.struct.ResourcesRva > 0 and self.mdtables and self.mdtables.ManifestResource and self.mdtables.ManifestResource.num_rows > 0:
             # for each row
             for row in self.mdtables.ManifestResource.rows:
-                row: mdtable.ManifestResourceRow
                 # TODO: handle external resources
                 if row.Implementation is None:
                     # internal resource, embedded in this file
