@@ -254,7 +254,7 @@ class ResourceSet(object):
             try:
                 data, n = self.read_serialized_data(edata_start)
             except ValueError:
-                raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, offset))
+                raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, edata_start))
             entry.data = data
             try:
                 entry.value = data.decode("utf-8")
@@ -355,7 +355,7 @@ class ResourceSet(object):
             try:
                 data, n = self.read_serialized_data(edata_start)
             except ValueError:
-                raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, offset))
+                raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, edata_start))
             entry.data = data
             try:
                 entry.value = data.decode("utf-8")
