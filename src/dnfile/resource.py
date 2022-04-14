@@ -225,7 +225,7 @@ class ResourceSet(object):
         if self.struct is None or self.struct.DataSectionOffset is None or entry.struct.DataOffset is None:
             return
         edata_start = self.struct.DataSectionOffset + entry.struct.DataOffset
-        t = int.from_bytes(self._data[edata_start:edata_start + 4], byteorder="little", signed=False)
+        t = int.from_bytes(self._data[edata_start:edata_start + 1], byteorder="little", signed=False)
         entry.struct.Type = t
         edata_start += 4
         # https://github.com/0xd4d/dnlib/blob/master/src/DotNet/Resources/ResourceReader.cs
@@ -251,6 +251,7 @@ class ResourceSet(object):
             tn = None
         entry.type_name = tn
         # switch on type
+        # https://github.com/0xd4d/dnlib/blob/master/src/IO/DataReader.cs
         if tn == "System.string":
             try:
                 data, n = self.read_serialized_data(edata_start)
@@ -277,6 +278,10 @@ class ResourceSet(object):
             tsize = 1
             entry.data = self._data[edata_start:edata_start + tsize]
             entry.value = entry.data
+        elif tn == "System.Boolean":
+            tsize = 1
+            entry.data = self._data[edata_start:edata_start + tsize]
+            entry.value = entry.data != 0
         elif tn == "System.Int16":
             tsize = 2
             entry.data = self._data[edata_start:edata_start + tsize]
@@ -350,6 +355,7 @@ class ResourceSet(object):
             # TODO warn/error
             return
         # switch on type
+        # https://github.com/0xd4d/dnlib/blob/master/src/IO/DataReader.cs
         if t == ResourceTypeCode.Null:
             # Null
             entry.type_name = "Null"
@@ -370,6 +376,10 @@ class ResourceSet(object):
             except UnicodeDecodeError:
                 # TODO warn/error
                 pass
+        elif t == ResourceTypeCode.Boolean:
+            entry.type_name = "System.Boolean"
+            entry.data = self._data[edata_start]
+            entry.value = entry.data != 0
         elif t == ResourceTypeCode.Int32:
             entry.type_name = "System.Int32"
             tsize = 4
