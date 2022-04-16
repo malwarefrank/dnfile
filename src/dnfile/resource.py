@@ -350,7 +350,7 @@ class ResourceSet(object):
         entry.struct.Type = t
         edata_start += 1
         # check for invalid type code
-        if t < 0 or t >= ResourceTypeCode.StartOfUserTypes + len(userTypes) - 1:
+        if t < 0 or t >= ResourceTypeCode.StartOfUserTypes + len(userTypes):
             # invalid resource type
             # TODO warn/error
             return
@@ -473,7 +473,6 @@ class ResourceSet(object):
             entry.data = self._data[edata_start:edata_start + tsize + dsize]
             entry.value = self._data[edata_start + tsize:edata_start + tsize + dsize]
         elif t >= ResourceTypeCode.StartOfUserTypes:
-            # TODO
             # get type string
             ts = userTypes[t - ResourceTypeCode.StartOfUserTypes]
             # remove comma postfix
