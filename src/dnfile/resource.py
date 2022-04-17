@@ -38,6 +38,225 @@ class ResourceTypeCode(enum.IntEnum):
     StartOfUserTypes = 0x40
 
 
+ResourceTypeStrings = {
+    ResourceTypeCode.Null:      "Null",
+    ResourceTypeCode.String:    "System.String",
+    ResourceTypeCode.Boolean:   "System.Boolean",
+    ResourceTypeCode.Char:      "System.Char",
+    ResourceTypeCode.Byte:      "System.Byte",
+    ResourceTypeCode.SByte:     "System.SByte",
+    ResourceTypeCode.Int16:     "System.Int16",
+    ResourceTypeCode.UInt16:    "System.UInt16",
+    ResourceTypeCode.Int32:     "System.Int32",
+    ResourceTypeCode.UInt32:    "System.UInt32",
+    ResourceTypeCode.Int64:     "System.Int64",
+    ResourceTypeCode.UInt64:    "System.UInt64",
+    ResourceTypeCode.Single:    "System.Single",
+    ResourceTypeCode.Double:    "System.Double",
+    ResourceTypeCode.Decimal:   "System.Decimal",
+    ResourceTypeCode.DateTime:  "System.DateTime",
+    ResourceTypeCode.TimeSpan:  "System.TimeSpan",
+    ResourceTypeCode.ByteArray: "System.ByteArray",
+    ResourceTypeCode.Stream:    "System.Stream",
+    }
+
+
+class ResourceTypeFactory(object):
+
+    def read_serialized_data(self, data: bytes, offset: int) -> Tuple[bytes, int]:
+        """
+        Read a serialized data (compressed int size, followed by data of that many bytes).
+
+        Return the data (bytes) and number of bytes read (size + data).
+        """
+        x = utils.read_compressed_int(data[offset:offset + 4])
+        if x is None:
+            raise ValueError("CLR resource error: not enough data at offset")
+        size = x[0]
+        nbytes = x[1]
+        offset += nbytes
+        value = data[offset:offset + size]
+        nbytes += size
+        return value, nbytes
+
+    def read_serialized_string(self, data: bytes, offset: int, encoding="utf-8") -> Tuple[str, int]:
+        val, n = self.read_serialized_data(data, offset)
+        return val.decode(encoding), n
+
+    def read_rsrc_data_v1(self, data: bytes, offset: int, userTypes: List[bytes], entry: "ResourceEntry"):
+        t = int.from_bytes(data[offset:offset + 1], byteorder="little", signed=False)
+        entry.struct.Type = t
+        offset += 4
+        # https://github.com/0xd4d/dnlib/blob/master/src/DotNet/Resources/ResourceReader.cs
+        if t == -1:
+            # Null
+            entry.type_name = "Null"
+            entry.data = b""
+            # entry.value is already None
+        elif t < 0 or t >= len(userTypes):
+            # invalid resource type
+            # TODO warn/error
+            return
+        # get type string
+        ts = userTypes[t]
+        # remove comma postfix
+        comma_loc = ts.find(b",")
+        if comma_loc > 0:
+            ts = ts[:comma_loc]
+        try:
+            tn = ts.decode("utf-8")
+        except UnicodeDecodeError as e:
+            # TODO warn/error
+            tn = None
+        entry.type_name = tn
+        d, v = self.type_str_to_type(entry.type_name, data, offset)
+        if d is not None: entry.data = d
+        if v is not None: entry.value = v
+
+    def read_rsrc_data_v2(self, data: bytes, offset: int, userTypes: List[bytes], entry: "ResourceEntry"):
+        # dnlib reads four bytes, but it looks like one byte in the files I have
+        t = int.from_bytes(data[offset:offset + 1], byteorder="little", signed=True)
+        entry.struct.Type = t
+        offset += 1
+        # check for invalid type code
+        if t < 0 or t >= ResourceTypeCode.StartOfUserTypes + len(userTypes):
+            # invalid resource type
+            # TODO warn/error
+            return
+        # https://github.com/0xd4d/dnlib/blob/master/src/IO/DataReader.cs
+        if t in ResourceTypeStrings:
+            entry.type_name = ResourceTypeStrings[t]
+            d, v = self.type_str_to_type(entry.type_name, data, offset)
+            if d is not None: entry.data = d
+            if v is not None: entry.value = v
+        elif t >= ResourceTypeCode.StartOfUserTypes:
+            # get type string
+            ts = userTypes[t - ResourceTypeCode.StartOfUserTypes]
+            # remove comma postfix
+            comma_loc = ts.find(b",")
+            if comma_loc > 0:
+                ts = ts[:comma_loc]
+            try:
+                tn = ts.decode("utf-8")
+            except UnicodeDecodeError as e:
+                # TODO warn/error
+                tn = None
+            entry.type_name = tn
+        else:
+            # TODO
+            pass
+
+    def type_str_to_type(self, type_name: str, data: bytes, offset: int) -> Tuple[Optional[bytes],Optional[Any]]:
+        """
+        Given a type string, data buffer, and offset into that buffer.
+        Return a tuple of the raw data and the deserialized value.
+        """
+        # switch on type
+        # https://github.com/0xd4d/dnlib/blob/master/src/IO/DataReader.cs
+        d, v = None, None
+        if type_name == "Null":
+            d = b""
+        elif type_name == "System.String":
+            d, n = self.read_serialized_data(data, offset)
+            try:
+                v = d.decode("utf-8")
+            except UnicodeDecodeError:
+                # TODO warn/error
+                pass
+        elif type_name == "System.Int32":
+            tsize = 4
+            d = data[offset:offset + tsize]
+            v = int.from_bytes(d, byteorder="little", signed=False)
+        elif type_name == "System.Byte":
+            tsize = 1
+            d = data[offset:offset + tsize]
+            v = d
+        elif type_name == "System.SByte":
+            tsize = 1
+            d = data[offset:offset + tsize]
+            v = d
+        elif type_name == "System.Boolean":
+            tsize = 1
+            d = data[offset:offset + tsize]
+            v = d[0] != 0
+        elif type_name == "System.Char":
+            tsize = 2
+            d = data[offset:offset + tsize]
+            try:
+                v = d.decode("utf-16")
+            except UnicodeDecodeError:
+                # TODO warn/error
+                pass
+        elif type_name == "System.Int16":
+            tsize = 2
+            d = data[offset:offset + tsize]
+            v = int.from_bytes(d, byteorder="little", signed=False)
+        elif type_name == "System.Int64":
+            tsize = 8
+            d = data[offset:offset + tsize]
+            v = int.from_bytes(d, byteorder="little", signed=False)
+        elif type_name == "System.UInt16":
+            tsize = 2
+            d = data[offset:offset + tsize]
+            v = int.from_bytes(d, byteorder="little", signed=False)
+        elif type_name == "System.UInt32":
+            tsize = 4
+            d = data[offset:offset + tsize]
+            v = int.from_bytes(d, byteorder="little", signed=False)
+        elif type_name == "System.UInt64":
+            tsize = 8
+            d = data[offset:offset + tsize]
+            v = int.from_bytes(d, byteorder="little", signed=False)
+        elif type_name == "System.Single":
+            tsize = 4
+            d = data[offset:offset + tsize]
+            v = struct.unpack("<f", d)[0]
+        elif type_name == "System.Double":
+            tsize = 8
+            d = data[offset:offset + tsize]
+            v = struct.unpack("<d", d)[0]
+        elif type_name == "System.DateTime":
+            tsize = 8
+            d = data[offset:offset + tsize]
+            x = struct.unpack("<q", d)[0]
+            # https://stackoverflow.com/questions/3169517/python-c-sharp-binary-datetime-encoding
+            secs = x / 10.0 ** 7
+            delta = datetime.timedelta(seconds=secs)
+            dt = datetime.datetime(1, 1, 1) + delta
+            v = dt
+        elif type_name == "System.TimeSpan":
+            # TODO return resourceDataFactory.Create(new TimeSpan(reader.ReadInt64()));
+            tsize = 8
+            d = data[offset:offset + tsize]
+        elif type_name == "System.Decimal":
+            # https://referencesource.microsoft.com/mscorlib/system/decimal.cs.html
+            sign_mask = 0x80000000
+            scale_mask = 0x00FF0000
+            tsize = 16
+            d = data[offset:offset + tsize]
+            low, med, high, flags = struct.unpack("<IIII", d)
+            v = low | med << 8 | high << 16
+            scale = scale_mask & flags
+            if scale > 0:
+                v = v / 10**scale
+            if sign_mask & flags:
+                v = -v
+        elif type_name == "System.ByteArray":
+            tsize = 4
+            dsize = int.from_bytes(data[offset:offset + tsize], byteorder="little", signed=False)
+            d = data[offset:offset + tsize + dsize]
+            v = data[offset + tsize:offset + tsize + dsize]
+        elif type_name == "System.Stream":
+            tsize = 4
+            dsize = int.from_bytes(data[offset:offset + tsize], byteorder="little", signed=False)
+            d = data[offset:offset + tsize + dsize]
+            v = data[offset + tsize:offset + tsize + dsize]
+        else:
+            # TODO
+            pass
+        return d, v
+
+
 class ExternalResource(base.ClrResource):
     metadata: base.MDTableRow
 
@@ -184,6 +403,7 @@ class ResourceSet(object):
         offset += 4
         # table_of_names = current offset
         self.struct.TableOfNames = offset
+        rsrc_factory = ResourceTypeFactory()
         for e in self.entries:
             offset = self.struct.TableOfNames + e.struct.NamePtr
             try:
@@ -196,10 +416,20 @@ class ResourceSet(object):
                 pass
             offset += size
             e.struct.DataOffset = int.from_bytes(self._data[offset:offset + 4], byteorder="little")
-            if self.struct.Version == 1:
-                self.read_rsrc_data_v1(self.resource_types, e)
-            else:
-                self.read_rsrc_data_v2(self.resource_types, e)
+            if self.struct.DataSectionOffset is None:
+                continue
+            e_data_offset = self.struct.DataSectionOffset + e.struct.DataOffset
+            try:
+                if self.struct.Version == 1:
+                    rsrc_factory.read_rsrc_data_v1(self._data, e_data_offset, self.resource_types, e)
+                else:
+                    rsrc_factory.read_rsrc_data_v2(self._data, e_data_offset, self.resource_types, e)
+            except ValueError:
+                # TODO: further entries may be ok; delay this exception?
+                if self.parent:
+                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, e_data_offset))
+                else:
+                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at unknown rsrc offset {}".format(e_data_offset))
 
     def read_serialized_data(self, offset: int) -> Tuple[bytes, int]:
         """
@@ -220,271 +450,3 @@ class ResourceSet(object):
     def read_serialized_string(self, offset: int, encoding="utf-8") -> Tuple[str, int]:
         val, n = self.read_serialized_data(offset)
         return val.decode(encoding), n
-
-    def read_rsrc_data_v1(self, userTypes: List[bytes], entry: ResourceEntry):
-        if self.struct is None or self.struct.DataSectionOffset is None or entry.struct.DataOffset is None:
-            return
-        edata_start = self.struct.DataSectionOffset + entry.struct.DataOffset
-        t = int.from_bytes(self._data[edata_start:edata_start + 1], byteorder="little", signed=False)
-        entry.struct.Type = t
-        edata_start += 4
-        # https://github.com/0xd4d/dnlib/blob/master/src/DotNet/Resources/ResourceReader.cs
-        if t == -1:
-            # Null
-            entry.type_name = "Null"
-            entry.data = b""
-            # entry.value is already None
-        elif t < 0 or t >= len(userTypes):
-            # invalid resource type
-            # TODO warn/error
-            return
-        # get type string
-        ts = userTypes[t]
-        # remove comma postfix
-        comma_loc = ts.find(b",")
-        if comma_loc > 0:
-            ts = ts[:comma_loc]
-        try:
-            tn = ts.decode("utf-8")
-        except UnicodeDecodeError as e:
-            # TODO warn/error
-            tn = None
-        entry.type_name = tn
-        # switch on type
-        # https://github.com/0xd4d/dnlib/blob/master/src/IO/DataReader.cs
-        if tn == "System.string":
-            try:
-                data, n = self.read_serialized_data(edata_start)
-            except ValueError:
-                if self.parent:
-                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, edata_start))
-                else:
-                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at unknown rsrc offset {}".format(edata_start))
-            entry.data = data
-            try:
-                entry.value = data.decode("utf-8")
-            except UnicodeDecodeError:
-                # TODO warn/error
-                pass
-        elif tn == "System.Int32":
-            tsize = 4
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif tn == "System.Byte":
-            tsize = 1
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = entry.data
-        elif tn == "System.SByte":
-            tsize = 1
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = entry.data
-        elif tn == "System.Boolean":
-            tsize = 1
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = entry.data != 0
-        elif tn == "System.Int16":
-            tsize = 2
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif tn == "System.Int64":
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif tn == "System.UInt16":
-            tsize = 2
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif tn == "System.UInt32":
-            tsize = 4
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif tn == "System.UInt64":
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif tn == "System.Single":
-            tsize = 4
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = struct.unpack("<f", entry.data)[0]
-        elif tn == "System.Double":
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = struct.unpack("<d", entry.data)[0]
-        elif tn == "System.DateTime":
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-            x = struct.unpack("<q", entry.data)[0]
-            # https://stackoverflow.com/questions/3169517/python-c-sharp-binary-datetime-encoding
-            secs = x / 10.0 ** 7
-            delta = datetime.timedelta(seconds=secs)
-            dt = datetime.datetime(1, 1, 1) + delta
-            entry.value = dt
-        elif tn == "System.TimeSpan":
-            # TODO return resourceDataFactory.Create(new TimeSpan(reader.ReadInt64()));
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-        elif tn == "System.Decimal":
-            # https://referencesource.microsoft.com/mscorlib/system/decimal.cs.html
-            sign_mask = 0x80000000
-            scale_mask = 0x00FF0000
-            tsize = 16
-            entry.data = self._data[edata_start:edata_start + tsize]
-            low, med, high, flags = struct.unpack("<IIII", entry.data)
-            v = low | med << 8 | high << 16
-            scale = scale_mask & flags
-            if scale > 0:
-                v = v / 10**scale
-            if sign_mask & flags:
-                v = -v
-            entry.value = v
-        else:
-            # TODO
-            pass
-
-    def read_rsrc_data_v2(self, userTypes: List[bytes], entry: ResourceEntry):
-        if self.struct is None or self.struct.DataSectionOffset is None or entry.struct.DataOffset is None:
-            return
-        edata_start = self.struct.DataSectionOffset + entry.struct.DataOffset
-        # dnlib reads four bytes, but it looks like one byte in the files I have
-        t = int.from_bytes(self._data[edata_start:edata_start + 1], byteorder="little", signed=True)
-        entry.struct.Type = t
-        edata_start += 1
-        # check for invalid type code
-        if t < 0 or t >= ResourceTypeCode.StartOfUserTypes + len(userTypes):
-            # invalid resource type
-            # TODO warn/error
-            return
-        # switch on type
-        # https://github.com/0xd4d/dnlib/blob/master/src/IO/DataReader.cs
-        if t == ResourceTypeCode.Null:
-            # Null
-            entry.type_name = "Null"
-            entry.data = b""
-            # entry.value is already None
-        elif t == ResourceTypeCode.String:
-            entry.type_name = "System.String"
-            try:
-                data, n = self.read_serialized_data(edata_start)
-            except ValueError:
-                if self.parent:
-                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, edata_start))
-                else:
-                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at unknown rsrc offset {}".format(edata_start))
-            entry.data = data
-            try:
-                entry.value = data.decode("utf-8")
-            except UnicodeDecodeError:
-                # TODO warn/error
-                pass
-        elif t == ResourceTypeCode.Boolean:
-            entry.type_name = "System.Boolean"
-            entry.data = self._data[edata_start]
-            entry.value = entry.data != 0
-        elif t == ResourceTypeCode.Int32:
-            entry.type_name = "System.Int32"
-            tsize = 4
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif t == ResourceTypeCode.Byte:
-            entry.type_name = "System.Byte"
-            tsize = 1
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = entry.data
-        elif t == ResourceTypeCode.SByte:
-            entry.type_name = "System.SByte"
-            tsize = 1
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = entry.data
-        elif t == ResourceTypeCode.Int16:
-            entry.type_name = "System.Int16"
-            tsize = 2
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif t == ResourceTypeCode.Int64:
-            entry.type_name = "System.Int64"
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif t == ResourceTypeCode.UInt16:
-            entry.type_name = "System.UInt16"
-            tsize = 2
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif t == ResourceTypeCode.UInt32:
-            entry.type_name = "System.UInt32"
-            tsize = 4
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif t == ResourceTypeCode.UInt64:
-            entry.type_name = "System.UInt64"
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = int.from_bytes(entry.data, byteorder="little", signed=False)
-        elif t == ResourceTypeCode.Single:
-            entry.type_name = "System.Single"
-            tsize = 4
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = struct.unpack("<f", entry.data)[0]
-        elif t == ResourceTypeCode.Double:
-            entry.type_name = "System.Double"
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-            entry.value = struct.unpack("<d", entry.data)[0]
-        elif t == ResourceTypeCode.DateTime:
-            entry.type_name = "System.DateTime"
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-            x = struct.unpack("<q", entry.data)[0]
-            # https://stackoverflow.com/questions/3169517/python-c-sharp-binary-datetime-encoding
-            secs = x / 10.0 ** 7
-            delta = datetime.timedelta(seconds=secs)
-            dt = datetime.datetime(1, 1, 1) + delta
-            entry.value = dt
-        elif t == ResourceTypeCode.TimeSpan:
-            entry.type_name = "System.TimeSpan"
-            # TODO return resourceDataFactory.Create(new TimeSpan(reader.ReadInt64()));
-            tsize = 8
-            entry.data = self._data[edata_start:edata_start + tsize]
-        elif t == ResourceTypeCode.Decimal:
-            entry.type_name = "System.Decimal"
-            # https://referencesource.microsoft.com/mscorlib/system/decimal.cs.html
-            sign_mask = 0x80000000
-            scale_mask = 0x00FF0000
-            tsize = 16
-            entry.data = self._data[edata_start:edata_start + tsize]
-            low, med, high, flags = struct.unpack("<IIII", entry.data)
-            v = low | med << 8 | high << 16
-            scale = scale_mask & flags
-            if scale > 0:
-                v = v / 10**scale
-            if sign_mask & flags:
-                v = -v
-            entry.value = v
-        elif t == ResourceTypeCode.ByteArray:
-            entry.type_name = "System.ByteArray"
-            tsize = 4
-            dsize = int.from_bytes(self._data[edata_start:edata_start + tsize], byteorder="little", signed=False)
-            entry.data = self._data[edata_start:edata_start + tsize + dsize]
-            entry.value = self._data[edata_start + tsize:edata_start + tsize + dsize]
-        elif t == ResourceTypeCode.Stream:
-            entry.type_name = "System.Stream"
-            tsize = 4
-            dsize = int.from_bytes(self._data[edata_start:edata_start + tsize], byteorder="little", signed=False)
-            entry.data = self._data[edata_start:edata_start + tsize + dsize]
-            entry.value = self._data[edata_start + tsize:edata_start + tsize + dsize]
-        elif t >= ResourceTypeCode.StartOfUserTypes:
-            # get type string
-            ts = userTypes[t - ResourceTypeCode.StartOfUserTypes]
-            # remove comma postfix
-            comma_loc = ts.find(b",")
-            if comma_loc > 0:
-                ts = ts[:comma_loc]
-            try:
-                tn = ts.decode("utf-8")
-            except UnicodeDecodeError as e:
-                # TODO warn/error
-                tn = None
-            entry.type_name = tn
-        else:
-            # TODO
-            pass
