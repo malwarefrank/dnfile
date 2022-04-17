@@ -291,6 +291,44 @@ class MetaDataTables(base.ClrStream):
         strings_offset_size = 0
         guids_offset_size = 0
         blobs_offset_size = 0
+        self.Module: Optional[mdtable.Module] = None
+        self.TypeRef: Optional[mdtable.TypeRef] = None
+        self.TypeDef: Optional[mdtable.TypeDef] = None
+        self.Field: Optional[mdtable.Field] = None
+        self.MethodDef: Optional[mdtable.MethodDef] = None
+        self.Param: Optional[mdtable.Param] = None
+        self.InterfaceImpl: Optional[mdtable.InterfaceImpl] = None
+        self.MemberRef: Optional[mdtable.MemberRef] = None
+        self.Constant: Optional[mdtable.Constant] = None
+        self.CustomAttribute: Optional[mdtable.CustomAttribute] = None
+        self.FieldMarshal: Optional[mdtable.FieldMarshal] = None
+        self.DeclSecurity: Optional[mdtable.DeclSecurity] = None
+        self.ClassLayout: Optional[mdtable.ClassLayout] = None
+        self.FieldLayout: Optional[mdtable.FieldLayout] = None
+        self.StandAloneSig: Optional[mdtable.StandAloneSig] = None
+        self.EventMap: Optional[mdtable.EventMap] = None
+        self.Event: Optional[mdtable.Event] = None
+        self.PropertyMap: Optional[mdtable.PropertyMap] = None
+        self.Property: Optional[mdtable.Property] = None
+        self.MethodSemantics: Optional[mdtable.MethodSemantics] = None
+        self.MethodImpl: Optional[mdtable.MethodImpl] = None
+        self.ModuleRef: Optional[mdtable.ModuleRef] = None
+        self.TypeSpec: Optional[mdtable.TypeSpec] = None
+        self.ImplMap: Optional[mdtable.ImplMap] = None
+        self.FieldRva: Optional[mdtable.FieldRva] = None
+        self.Assembly: Optional[mdtable.Assembly] = None
+        self.AssemblyProcessor: Optional[mdtable.AssemblyProcessor] = None
+        self.AssemblyOS: Optional[mdtable.AssemblyOS] = None
+        self.AssemblyRef: Optional[mdtable.AssemblyRef] = None
+        self.AssemblyRefProcessor: Optional[mdtable.AssemblyRefProcessor] = None
+        self.AssemblyRefOS: Optional[mdtable.AssemblyRefOS] = None
+        self.File: Optional[mdtable.File] = None
+        self.ExportedType: Optional[mdtable.ExportedType] = None
+        self.ManifestResource: Optional[mdtable.ManifestResource] = None
+        self.NestedClass: Optional[mdtable.NestedClass] = None
+        self.GenericParam: Optional[mdtable.GenericParam] = None
+        self.GenericParamConstraint: Optional[mdtable.GenericParamConstraint] = None
+        self.Unused: Optional[mdtable.Unused] = None
 
     def parse(self, streams: List[base.ClrStream]):
         """
