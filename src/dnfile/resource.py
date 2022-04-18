@@ -1,7 +1,7 @@
 import enum
 import struct
 import datetime
-from typing import Any, List, Tuple, Union, Optional
+from typing import Any, Dict, List, Tuple, Union, Optional
 
 from . import base, utils, errors, mdtable
 
@@ -38,7 +38,7 @@ class ResourceTypeCode(enum.IntEnum):
     StartOfUserTypes = 0x40
 
 
-ResourceTypeStrings = {
+ResourceTypeStrings: Dict[int, str] = {
     ResourceTypeCode.Null:      "Null",
     ResourceTypeCode.String:    "System.String",
     ResourceTypeCode.Boolean:   "System.Boolean",
@@ -58,7 +58,7 @@ ResourceTypeStrings = {
     ResourceTypeCode.TimeSpan:  "System.TimeSpan",
     ResourceTypeCode.ByteArray: "System.ByteArray",
     ResourceTypeCode.Stream:    "System.Stream",
-    }
+}
 
 
 class ResourceTypeFactory(object):
@@ -109,9 +109,12 @@ class ResourceTypeFactory(object):
             # TODO warn/error
             tn = None
         entry.type_name = tn
-        d, v = self.type_str_to_type(entry.type_name, data, offset)
-        if d is not None: entry.data = d
-        if v is not None: entry.value = v
+        if entry.type_name:
+            d, v = self.type_str_to_type(entry.type_name, data, offset)
+            if d is not None:
+                entry.data = d
+            if v is not None:
+                entry.value = v
 
     def read_rsrc_data_v2(self, data: bytes, offset: int, userTypes: List[bytes], entry: "ResourceEntry"):
         # dnlib reads four bytes, but it looks like one byte in the files I have
@@ -127,8 +130,10 @@ class ResourceTypeFactory(object):
         if t in ResourceTypeStrings:
             entry.type_name = ResourceTypeStrings[t]
             d, v = self.type_str_to_type(entry.type_name, data, offset)
-            if d is not None: entry.data = d
-            if v is not None: entry.value = v
+            if d is not None:
+                entry.data = d
+            if v is not None:
+                entry.value = v
         elif t >= ResourceTypeCode.StartOfUserTypes:
             # get type string
             ts = userTypes[t - ResourceTypeCode.StartOfUserTypes]
@@ -146,115 +151,116 @@ class ResourceTypeFactory(object):
             # TODO
             pass
 
-    def type_str_to_type(self, type_name: str, data: bytes, offset: int) -> Tuple[Optional[bytes],Optional[Any]]:
+    def type_str_to_type(self, type_name: str, data: bytes, offset: int) -> Tuple[Optional[bytes], Optional[Any]]:
         """
         Given a type string, data buffer, and offset into that buffer.
         Return a tuple of the raw data and the deserialized value.
         """
         # switch on type
         # https://github.com/0xd4d/dnlib/blob/master/src/IO/DataReader.cs
-        d, v = None, None
+        final_bytes: Optional[bytes] = None
+        final_value: Optional[Any] = None
         if type_name == "Null":
-            d = b""
+            final_bytes = b""
         elif type_name == "System.String":
-            d, n = self.read_serialized_data(data, offset)
+            final_bytes, n = self.read_serialized_data(data, offset)
             try:
-                v = d.decode("utf-8")
+                final_value = final_bytes.decode("utf-8")
             except UnicodeDecodeError:
                 # TODO warn/error
                 pass
         elif type_name == "System.Int32":
             tsize = 4
-            d = data[offset:offset + tsize]
-            v = int.from_bytes(d, byteorder="little", signed=False)
+            final_bytes = data[offset:offset + tsize]
+            final_value = int.from_bytes(final_bytes, byteorder="little", signed=False)
         elif type_name == "System.Byte":
             tsize = 1
-            d = data[offset:offset + tsize]
-            v = d
+            final_bytes = data[offset:offset + tsize]
+            final_value = final_bytes
         elif type_name == "System.SByte":
             tsize = 1
-            d = data[offset:offset + tsize]
-            v = d
+            final_bytes = data[offset:offset + tsize]
+            final_value = final_bytes
         elif type_name == "System.Boolean":
             tsize = 1
-            d = data[offset:offset + tsize]
-            v = d[0] != 0
+            final_bytes = data[offset:offset + tsize]
+            final_value = final_bytes[0] != 0
         elif type_name == "System.Char":
             tsize = 2
-            d = data[offset:offset + tsize]
+            final_bytes = data[offset:offset + tsize]
             try:
-                v = d.decode("utf-16")
+                final_value = final_bytes.decode("utf-16")
             except UnicodeDecodeError:
                 # TODO warn/error
                 pass
         elif type_name == "System.Int16":
             tsize = 2
-            d = data[offset:offset + tsize]
-            v = int.from_bytes(d, byteorder="little", signed=False)
+            final_bytes = data[offset:offset + tsize]
+            final_value = int.from_bytes(final_bytes, byteorder="little", signed=False)
         elif type_name == "System.Int64":
             tsize = 8
-            d = data[offset:offset + tsize]
-            v = int.from_bytes(d, byteorder="little", signed=False)
+            final_bytes = data[offset:offset + tsize]
+            final_value = int.from_bytes(final_bytes, byteorder="little", signed=False)
         elif type_name == "System.UInt16":
             tsize = 2
-            d = data[offset:offset + tsize]
-            v = int.from_bytes(d, byteorder="little", signed=False)
+            final_bytes = data[offset:offset + tsize]
+            final_value = int.from_bytes(final_bytes, byteorder="little", signed=False)
         elif type_name == "System.UInt32":
             tsize = 4
-            d = data[offset:offset + tsize]
-            v = int.from_bytes(d, byteorder="little", signed=False)
+            final_bytes = data[offset:offset + tsize]
+            final_value = int.from_bytes(final_bytes, byteorder="little", signed=False)
         elif type_name == "System.UInt64":
             tsize = 8
-            d = data[offset:offset + tsize]
-            v = int.from_bytes(d, byteorder="little", signed=False)
+            final_bytes = data[offset:offset + tsize]
+            final_value = int.from_bytes(final_bytes, byteorder="little", signed=False)
         elif type_name == "System.Single":
             tsize = 4
-            d = data[offset:offset + tsize]
-            v = struct.unpack("<f", d)[0]
+            final_bytes = data[offset:offset + tsize]
+            final_value = struct.unpack("<f", final_bytes)[0]
         elif type_name == "System.Double":
             tsize = 8
-            d = data[offset:offset + tsize]
-            v = struct.unpack("<d", d)[0]
+            final_bytes = data[offset:offset + tsize]
+            final_value = struct.unpack("<d", final_bytes)[0]
         elif type_name == "System.DateTime":
             tsize = 8
-            d = data[offset:offset + tsize]
-            x = struct.unpack("<q", d)[0]
+            final_bytes = data[offset:offset + tsize]
+            x = struct.unpack("<q", final_bytes)[0]
             # https://stackoverflow.com/questions/3169517/python-c-sharp-binary-datetime-encoding
             secs = x / 10.0 ** 7
             delta = datetime.timedelta(seconds=secs)
             dt = datetime.datetime(1, 1, 1) + delta
-            v = dt
+            final_value = dt
         elif type_name == "System.TimeSpan":
             # TODO return resourceDataFactory.Create(new TimeSpan(reader.ReadInt64()));
             tsize = 8
-            d = data[offset:offset + tsize]
+            final_bytes = data[offset:offset + tsize]
         elif type_name == "System.Decimal":
             # https://referencesource.microsoft.com/mscorlib/system/decimal.cs.html
             sign_mask = 0x80000000
             scale_mask = 0x00FF0000
             tsize = 16
-            d = data[offset:offset + tsize]
-            low, med, high, flags = struct.unpack("<IIII", d)
-            v = low | med << 8 | high << 16
+            final_bytes = data[offset:offset + tsize]
+            low, med, high, flags = struct.unpack("<IIII", final_bytes)
+            final_value = low | med << 8 | high << 16
             scale = scale_mask & flags
             if scale > 0:
-                v = v / 10**scale
+                final_value = final_value / 10**scale
             if sign_mask & flags:
-                v = -v
+                final_value = -final_value
         elif type_name == "System.ByteArray":
             tsize = 4
             dsize = int.from_bytes(data[offset:offset + tsize], byteorder="little", signed=False)
-            d = data[offset:offset + tsize + dsize]
-            v = data[offset + tsize:offset + tsize + dsize]
+            final_bytes = data[offset:offset + tsize + dsize]
+            final_value = data[offset + tsize:offset + tsize + dsize]
         elif type_name == "System.Stream":
             tsize = 4
             dsize = int.from_bytes(data[offset:offset + tsize], byteorder="little", signed=False)
-            d = data[offset:offset + tsize + dsize]
-            v = data[offset + tsize:offset + tsize + dsize]
+            final_bytes = data[offset:offset + tsize + dsize]
+            final_value = data[offset + tsize:offset + tsize + dsize]
         else:
             # TODO
             pass
-        return d, v
+        return final_bytes, final_value
 
 
 class ExternalResource(base.ClrResource):
