@@ -29,10 +29,13 @@ def show_strings(fname):
                 break
 
             buf, readlen = ret
-            # convert to a UserString object
-            s = dnfile.stream.UserString(buf)
-            # display the decoded string
-            print(s.value)
+            try:
+                # convert to a UserString object
+                s = dnfile.stream.UserString(buf)
+                # display the decoded string
+                print(s.value)
+            except UnicodeDecodeError:
+                print(f"Bad string: {buf}")
             # continue to next entry
             offset += readlen
 
