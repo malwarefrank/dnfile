@@ -519,14 +519,24 @@ class ClrData(DataContainer):
                 if row.Implementation is None:
                     # internal resource, embedded in this file
                     rva = self.struct.ResourcesRva + row.Offset
-                    buf = pe.get_data(rva, 4)
+                    try:
+                        buf = pe.get_data(rva, 4)
+                    except PEFormatError as e:
+                        # warn
+                        pe.add_warning("CLR resource parse error, expected more data at rva 0x{:02x}".format(rva))
+                        continue
                     if not buf or len(buf) < 4:
                         # warn
                         pe.add_warning("CLR resource parse error, expected at least 4 bytes at rva 0x{:02x}".format(rva))
                         continue
                     size = int.from_bytes(buf, byteorder="little")
                     rsrc_rva = rva + 4
-                    rdata = pe.get_data(rsrc_rva, size)
+                    try:
+                        rdata = pe.get_data(rsrc_rva, size)
+                    except PEFormatError as e:
+                        # warn
+                        pe.add_warning("CLR resource parse error, expected more data at rva 0x{:02x}".format(rsrc_rva))
+                        continue
                     if not rdata or len(rdata) < size:
                         pe.add_warning("CLR resource parse error, expected more data at rva 0x{:02x}".format(rsrc_rva))
                         continue
@@ -534,12 +544,12 @@ class ClrData(DataContainer):
                     res.rva = rsrc_rva
                     res.size = size
                     res.data = rdata
-                    try:
-                        res.parse()
-                    except errors.dnFormatError as e:
-                        pe.add_warning("CLR resource parse error: {}".format(str(e)))
-                        continue
                     self.resources.append(res)
+            for rsrc in self.resources:
+                try:
+                    rsrc.parse()
+                except errors.dnFormatError as e:
+                    pe.add_warning("CLR resource parse error for '{}' at 0x{:02x}: {}".format(rsrc.name, rsrc.rva, str(e)))
 
 
 class ClrStreamFactory(object):
