@@ -549,7 +549,10 @@ class ClrData(DataContainer):
                 try:
                     rsrc.parse()
                 except errors.dnFormatError as e:
-                    pe.add_warning("CLR resource parse error for '{}' at 0x{:02x}: {}".format(rsrc.name, rsrc.rva, str(e)))
+                    if isinstance(rsrc, resource.InternalResource):
+                        pe.add_warning("CLR resource parse error for '{}' at 0x{:02x}: {}".format(rsrc.name, rsrc.rva, str(e)))
+                    else:
+                        pe.add_warning("CLR resource parse error for '{}': {}".format(rsrc.name, str(e)))
 
 
 class ClrStreamFactory(object):
