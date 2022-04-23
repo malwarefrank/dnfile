@@ -503,7 +503,7 @@ class CodedIndex(MDTableIndex[RowType]):
             self.table = t
             return
 
-        logger.warning("reference to missing table: %s" % table_name)
+        # this may not be a problem, e.g. when ManifestResource Implementation=0
         self.table = None
 
 
@@ -568,7 +568,6 @@ class ClrMetaDataTable(Generic[RowType]):
         num_rows = tables_rowcounts[self.number]
         if num_rows is None:
             # the table doesn't exist, so create the instance, but with zero rows.
-            logger.warning("reference to missing table: %d" % (self.number))
             num_rows = 0
 
         self.is_sorted: bool = is_sorted
@@ -673,3 +672,18 @@ class ClrMetaDataTable(Generic[RowType]):
         use `__getitem__` when you want 0-based indexing.
         """
         return self[row_index - 1]
+
+
+class ClrResource(abc.ABC):
+    def __init__(self, name: str, public: bool = False, private: bool = False):
+        self.name: str = name
+        self.public: bool = public
+        self.private: bool = private
+        self.data: Optional[bytes] = None
+
+    def set_data(self, data: bytes):
+        self.data = data
+
+    @abc.abstractmethod
+    def parse(self):
+        raise NotImplementedError()

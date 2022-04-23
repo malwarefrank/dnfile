@@ -244,44 +244,44 @@ class MetaDataTables(base.ClrStream):
 
     # from https://www.ntcore.com/files/dotnetformat.htm
     # and https://referencesource.microsoft.com/System.AddIn/System/Addin/MiniReflection/MetadataReader/Metadata.cs.html#123
-    Module:                 mdtable.Module
-    TypeRef:                mdtable.TypeRef
-    TypeDef:                mdtable.TypeDef
-    Field:                  mdtable.Field
-    MethodDef:              mdtable.MethodDef
-    Param:                  mdtable.Param
-    InterfaceImpl:          mdtable.InterfaceImpl
-    MemberRef:              mdtable.MemberRef
-    Constant:               mdtable.Constant
-    CustomAttribute:        mdtable.CustomAttribute
-    FieldMarshal:           mdtable.FieldMarshal
-    DeclSecurity:           mdtable.DeclSecurity
-    ClassLayout:            mdtable.ClassLayout
-    FieldLayout:            mdtable.FieldLayout
-    StandAloneSig:          mdtable.StandAloneSig
-    EventMap:               mdtable.EventMap
-    Event:                  mdtable.Event
-    PropertyMap:            mdtable.PropertyMap
-    Property:               mdtable.Property
-    MethodSemantics:        mdtable.MethodSemantics
-    MethodImpl:             mdtable.MethodImpl
-    ModuleRef:              mdtable.ModuleRef
-    TypeSpec:               mdtable.TypeSpec
-    ImplMap:                mdtable.ImplMap
-    FieldRva:               mdtable.FieldRva
-    Assembly:               mdtable.Assembly
-    AssemblyProcessor:      mdtable.AssemblyProcessor
-    AssemblyOS:             mdtable.AssemblyOS
-    AssemblyRef:            mdtable.AssemblyRef
-    AssemblyRefProcessor:   mdtable.AssemblyRefProcessor
-    AssemblyRefOS:          mdtable.AssemblyRefOS
-    File:                   mdtable.File
-    ExportedType:           mdtable.ExportedType
-    ManifestResource:       mdtable.ManifestResource
-    NestedClass:            mdtable.NestedClass
-    GenericParam:           mdtable.GenericParam
-    GenericParamConstraint: mdtable.GenericParamConstraint
-    Unused:                 mdtable.Unused
+    Module:                 Optional[mdtable.Module]
+    TypeRef:                Optional[mdtable.TypeRef]
+    TypeDef:                Optional[mdtable.TypeDef]
+    Field:                  Optional[mdtable.Field]
+    MethodDef:              Optional[mdtable.MethodDef]
+    Param:                  Optional[mdtable.Param]
+    InterfaceImpl:          Optional[mdtable.InterfaceImpl]
+    MemberRef:              Optional[mdtable.MemberRef]
+    Constant:               Optional[mdtable.Constant]
+    CustomAttribute:        Optional[mdtable.CustomAttribute]
+    FieldMarshal:           Optional[mdtable.FieldMarshal]
+    DeclSecurity:           Optional[mdtable.DeclSecurity]
+    ClassLayout:            Optional[mdtable.ClassLayout]
+    FieldLayout:            Optional[mdtable.FieldLayout]
+    StandAloneSig:          Optional[mdtable.StandAloneSig]
+    EventMap:               Optional[mdtable.EventMap]
+    Event:                  Optional[mdtable.Event]
+    PropertyMap:            Optional[mdtable.PropertyMap]
+    Property:               Optional[mdtable.Property]
+    MethodSemantics:        Optional[mdtable.MethodSemantics]
+    MethodImpl:             Optional[mdtable.MethodImpl]
+    ModuleRef:              Optional[mdtable.ModuleRef]
+    TypeSpec:               Optional[mdtable.TypeSpec]
+    ImplMap:                Optional[mdtable.ImplMap]
+    FieldRva:               Optional[mdtable.FieldRva]
+    Assembly:               Optional[mdtable.Assembly]
+    AssemblyProcessor:      Optional[mdtable.AssemblyProcessor]
+    AssemblyOS:             Optional[mdtable.AssemblyOS]
+    AssemblyRef:            Optional[mdtable.AssemblyRef]
+    AssemblyRefProcessor:   Optional[mdtable.AssemblyRefProcessor]
+    AssemblyRefOS:          Optional[mdtable.AssemblyRefOS]
+    File:                   Optional[mdtable.File]
+    ExportedType:           Optional[mdtable.ExportedType]
+    ManifestResource:       Optional[mdtable.ManifestResource]
+    NestedClass:            Optional[mdtable.NestedClass]
+    GenericParam:           Optional[mdtable.GenericParam]
+    GenericParamConstraint: Optional[mdtable.GenericParamConstraint]
+    Unused:                 Optional[mdtable.Unused]
 
     def __init__(self, metadata_rva: int, stream_struct: base.StreamStruct, stream_data: bytes):
         super().__init__(metadata_rva, stream_struct, stream_data)
@@ -291,6 +291,44 @@ class MetaDataTables(base.ClrStream):
         strings_offset_size = 0
         guids_offset_size = 0
         blobs_offset_size = 0
+        self.Module: Optional[mdtable.Module] = None
+        self.TypeRef: Optional[mdtable.TypeRef] = None
+        self.TypeDef: Optional[mdtable.TypeDef] = None
+        self.Field: Optional[mdtable.Field] = None
+        self.MethodDef: Optional[mdtable.MethodDef] = None
+        self.Param: Optional[mdtable.Param] = None
+        self.InterfaceImpl: Optional[mdtable.InterfaceImpl] = None
+        self.MemberRef: Optional[mdtable.MemberRef] = None
+        self.Constant: Optional[mdtable.Constant] = None
+        self.CustomAttribute: Optional[mdtable.CustomAttribute] = None
+        self.FieldMarshal: Optional[mdtable.FieldMarshal] = None
+        self.DeclSecurity: Optional[mdtable.DeclSecurity] = None
+        self.ClassLayout: Optional[mdtable.ClassLayout] = None
+        self.FieldLayout: Optional[mdtable.FieldLayout] = None
+        self.StandAloneSig: Optional[mdtable.StandAloneSig] = None
+        self.EventMap: Optional[mdtable.EventMap] = None
+        self.Event: Optional[mdtable.Event] = None
+        self.PropertyMap: Optional[mdtable.PropertyMap] = None
+        self.Property: Optional[mdtable.Property] = None
+        self.MethodSemantics: Optional[mdtable.MethodSemantics] = None
+        self.MethodImpl: Optional[mdtable.MethodImpl] = None
+        self.ModuleRef: Optional[mdtable.ModuleRef] = None
+        self.TypeSpec: Optional[mdtable.TypeSpec] = None
+        self.ImplMap: Optional[mdtable.ImplMap] = None
+        self.FieldRva: Optional[mdtable.FieldRva] = None
+        self.Assembly: Optional[mdtable.Assembly] = None
+        self.AssemblyProcessor: Optional[mdtable.AssemblyProcessor] = None
+        self.AssemblyOS: Optional[mdtable.AssemblyOS] = None
+        self.AssemblyRef: Optional[mdtable.AssemblyRef] = None
+        self.AssemblyRefProcessor: Optional[mdtable.AssemblyRefProcessor] = None
+        self.AssemblyRefOS: Optional[mdtable.AssemblyRefOS] = None
+        self.File: Optional[mdtable.File] = None
+        self.ExportedType: Optional[mdtable.ExportedType] = None
+        self.ManifestResource: Optional[mdtable.ManifestResource] = None
+        self.NestedClass: Optional[mdtable.NestedClass] = None
+        self.GenericParam: Optional[mdtable.GenericParam] = None
+        self.GenericParamConstraint: Optional[mdtable.GenericParamConstraint] = None
+        self.Unused: Optional[mdtable.Unused] = None
 
     def parse(self, streams: List[base.ClrStream]):
         """
