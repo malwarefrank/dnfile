@@ -2,6 +2,14 @@
 History
 =======
 
+0.11.0 (2022)
+-------------
+* FEATURE: access .NET resources (not same as PE resources!) by a shortcut
+* BUGFIX: dnstrings example
+* more attributes default to None
+* update dev dependencies
+* remove some warnings
+
 0.10.0 (2022)
 -------------
 
