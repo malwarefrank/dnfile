@@ -6,7 +6,8 @@ dnfile, .NET Executable file parser
 REFERENCES
 
     https://www.ntcore.com/files/dotnetformat.htm
-    https://referencesource.microsoft.com/System.AddIn/System/Addin/MiniReflection/MetadataReader/Metadata.cs.html#123
+    https://referencesource.microsoft.com/System.AddIn/System/Addin/MiniReflection/MetadataReader/Metadata.cs.html
+    https://asmresolver.readthedocs.io/en/latest/peimage/dotnet.html#metadata-streams
 
 
 Copyright (c) 2020-2022 MalwareFrank
@@ -559,6 +560,7 @@ class ClrStreamFactory(object):
     _name_type_map = {
         b"#~": stream.MetaDataTables,
         b"#-": stream.MetaDataTables,
+        b"#Schema": stream.MetaDataTables,
         b"#Strings": stream.StringsHeap,
         b"#GUID": stream.GuidHeap,
         b"#Blob": stream.BlobHeap,
