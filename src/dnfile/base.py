@@ -367,7 +367,8 @@ class MDTableRow(abc.ABC):
                         next_row_reference = getattr(next_row.struct, struct_name, None)
                         run_end_index = max_row
                         if next_row_reference is not None:
-                            run_end_index = min(next_row_reference, max_row)
+                            # row end index is inclusive so row end index must equal next row index minus 1, if less than max row
+                            run_end_index = min(next_row_reference - 1, max_row)
 
                     else:
                         # then we read from the target table,
@@ -379,7 +380,7 @@ class MDTableRow(abc.ABC):
                     # start == end and end == max_row.
                     # otherwise, if start == end, then run is empty.
                     if (run_start_index != run_end_index) or (run_end_index == max_row):
-                        # row indexes are 1-indexed, so our range goes to end+1
+                        # row indexes are inclusive, so our range goes to end+1
                         for row_index in range(run_start_index, run_end_index + 1):
                             run.append(MDTableIndex(table, row_index))
 

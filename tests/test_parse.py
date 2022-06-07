@@ -185,26 +185,23 @@ def test_typedef_extends():
 
 
 def test_typedef_members():
-    path = fixtures.get_data_path_by_name("hello-world.exe")
+    path = fixtures.get_data_path_by_name("ModuleCode_x86.exe")
 
     dn = dnfile.dnPE(path)
     assert dn.net is not None
 
     typedefs = dn.net.mdtables.TypeDef
     assert typedefs[0].TypeName == "<Module>"
-    assert typedefs[1].TypeName == "HelloWorld"
+    assert typedefs[5].TypeName == "ModuleLoadException"
 
-    # neither class has fields
-    assert len(typedefs[0].FieldList) == 0
-    assert len(typedefs[1].FieldList) == 0
+    assert len(typedefs[0].FieldList) == 52
+    assert len(typedefs[5].FieldList) == 0
 
-    # <Module> has no methods
-    assert len(typedefs[0].MethodList) == 0
-    # HelloWorld has two methods: Main and .ctor
-    assert len(typedefs[1].MethodList) == 2
+    assert len(typedefs[0].MethodList) == 76
+    assert len(typedefs[5].MethodList) == 3
 
-    assert typedefs[1].MethodList[0].row.Name == "Main"
-    assert typedefs[1].MethodList[1].row.Name == ".ctor"
+    assert typedefs[0].MethodList[0].row.Name == "rc4_init"
+    assert typedefs[5].MethodList[0].row.Name == ".ctor"
 
 
 def test_method_params():
