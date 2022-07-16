@@ -1103,7 +1103,7 @@ class MethodSemanticsRow(MDTableRow):
     }
 
     _struct_indexes = {
-        "Method_Index": ("Method", "Method"),
+        "Method_Index": ("Method", "MethodDef"),
     }
     _struct_codedindexes = {
         "Association_CodedIndex": ("Association", codedindex.HasSemantics),
