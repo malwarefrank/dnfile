@@ -1,4 +1,4 @@
-name: Publish Python distribution to TestPyPI
+name: Publish Python distribution to PyPI and TestPyPI
 on:
   push:
     tags:
@@ -6,7 +6,7 @@ on:
     - v1.**
 jobs:
   build-n-publish:
-    name: Build and publish Python distributions to TestPyPI
+    name: Build and publish Python distributions to PyPI and TestPyPI
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
@@ -38,3 +38,7 @@ jobs:
       with:
         password: ${{ secrets.TEST_PYPI_TOKEN }}
         repository_url: https://test.pypi.org/legacy/
+    - name: Publish distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.PYPI_TOKEN }}
