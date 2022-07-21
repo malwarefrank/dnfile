@@ -1,5 +1,9 @@
 name: Publish Python distribution to TestPyPI
-on: push
+on:
+  push:
+    tags:
+    - v0.**
+    - v1.**
 jobs:
   build-n-publish:
     name: Build and publish Python distributions to TestPyPI
@@ -30,7 +34,6 @@ jobs:
         bdist_wheel
         --dist-dir dist/
     - name: Publish distribution to Test PyPI
-      if: startsWith(github.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@master
       with:
         password: ${{ secrets.TEST_PYPI_TOKEN }}
