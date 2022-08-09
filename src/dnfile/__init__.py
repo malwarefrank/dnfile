@@ -14,7 +14,7 @@ Copyright (c) 2020-2022 MalwareFrank
 """
 
 __author__ = """MalwareFrank"""
-__version__ = "0.11.2"
+__version__ = "0.12.0"
 
 import copy as _copymod
 import codecs
