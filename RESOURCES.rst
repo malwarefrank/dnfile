@@ -75,16 +75,18 @@ ManifestResource Design
 The ManifestResource table contains zero or more objects of type
 ManifestResourceRow.
 
-ManifestResourceRow
+ManifestResourceRow:
+
 * Offset
 * Flags
   * mrPublic
   * mrPrivate
 * Name
-* Implementation | None (means InternalResource)
-  * row: FileRow | AssemblyRefRow
+* Implementation or None (means InternalResource)
+  * row: FileRow or AssemblyRefRow
 
-According to ECMA-335
+According to ECMA-335:
+
 * Offset shall be a valid offset into the target file, starting from the Resource entry in the CLI header
 * If the resource is an index into the File table, Offset shall be zero
 * If Implementation is null, then Offset shall be a valid offset in the current file, starting from the Resource entry in the CLI header
@@ -96,26 +98,32 @@ dnPE.net.resources list.
 Resource data types
 -------------------
 
-class ClrResource(abc.ABC)
+class ClrResource(abc.ABC):
+
 * name: str
 * public: bool
 * private: bool
 * data: Optional[bytes | ResourceSet]
 
-class ExternalResource(ClrResource)
+class ExternalResource(ClrResource):
+
 * metadata: MDTableRow
 
-class FileResource(ExternalResource)
+class FileResource(ExternalResource):
+
 * metadata: FileRow
 
-class AssemblyResource(ExternalResource)
+class AssemblyResource(ExternalResource):
+
 * metadata: AssemblyRefRow
 
-class InternalResource(ClrResource)
+class InternalResource(ClrResource):
+
 * rva
 * size
 
-class ResourceSet(object)
+class ResourceSet(object):
+
 * parent: ClrResource
 * struct
   * Magic: int
@@ -129,11 +137,12 @@ class ResourceSet(object)
 * entries: List[ResourceEntry]
 * resource_types
 
-ResourceEntry(ClrResource)
+ResourceEntry(ClrResource):
+
 - struct
-	- Type: Optional[bytes]
-	- Hash: Optional[int]
-	- NamePtr: Optional[int]
-	- DataOffset: Optional[int]
-- name: Optional[bytes]
+  - Type: Optional[bytes]
+  - Hash: Optional[int]
+  - NamePtr: Optional[int]
+  - DataOffset: Optional[int]
+  - name: Optional[bytes]
 - data: Optional[bytes]
