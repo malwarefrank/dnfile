@@ -2,6 +2,13 @@
 History
 =======
 
+0.12.0 (2022)
+-------------
+* FEATURE: parse ``#Schema`` stream as MetaDataTables
+* BUGFIX: MDTableRow off-by-one for end of run
+* BUGFIX: MethodSemanticsRow typo list of tables for the Method Index
+* more test data
+
 0.11.0 (2022)
 -------------
 * FEATURE: access .NET resources (not same as PE resources!) by a shortcut
