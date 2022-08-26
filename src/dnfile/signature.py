@@ -13,7 +13,8 @@ we couldn't guess at all the uses for interacting with signatures.
 
 The best references for this parsing are:
   - ECMA-335 6th Edition, II.23.1 and II.23.2
-  - dnlib SignatureReader.cs
+  - https://github.com/0xd4d/dnlib/blob/master/src/DotNet/SignatureReader.cs
+  - https://github.com/jimschubert/clr-profiler/blob/master/src/ILRewrite10Source/ILRewriteProfiler/sigparse.inl
 """
 
 import io
@@ -198,8 +199,11 @@ class Element:
             return f"byref {str(self.value)}"
         elif self.ty == ElementType.SZARRAY:
             return f"{str(self.value)}[]"
+        elif self.ty == ElementType.CLASS:
+            return str(self.value)
+        elif self.ty == ElementType.VAR or self.ty == ElementType.MVAR:
+            return f"{str(self.ty)} {str(self.value)}"
         else:
-            # TODO: CLASS
             # TODO: VAR
             # TODO: ARRAY
             # TODO: GENERICINST
@@ -217,7 +221,60 @@ class Element:
             # TODO: FIELD
             # TODO: PROPERTY
             # TODO: ENUM
-            raise NotImplementedError("type: " + repr(self))
+            raise NotImplementedError("type: " + repr(self.ty))
+
+
+class GenericInstElement(Element):
+    """
+    This is a special case of Element as it may include type args.
+    """
+    def __init__(self, ty: ElementType, value: Optional[Any] = None, arg_types: Optional[List[Element]] = None):
+        super().__init__(ty, value)
+        # GenericInst may have type args
+        self.arg_types = arg_types
+
+    def __str__(self):
+        if self.ty == ElementType.GENERICINST:
+            # TODO: test
+            ret = f"GENERICINST {str(self.value)}"
+            if self.arg_types:
+                ret += f"({str(self.arg_types[0])}"
+                for arg_type in self.arg_types[1:]:
+                    ret += f", {str(arg_type)}"
+                ret += ")"
+            return ret
+        else:
+            return super().__str__()
+
+
+class ArrayElement(Element):
+    """
+    This is a special case of Element as it includes rank, bounds, and low_bounds
+    """
+
+    def __init__(self, ty: ElementType, value: Optional[Any] = None, rank: Optional[int] = None, bounds: Optional[List[int]] = None, low_bounds: Optional[List[int]] = None):
+        super().__init__(ty, value)
+        self.rank = rank
+        self.bounds = bounds
+        self.low_bounds = low_bounds
+
+    def __str__(self):
+        if self.ty == ElementType.ARRAY:
+            # TODO: test
+            ret = f"{str(self.value)}"
+            for i in range(self.rank):
+                if i < len(self.low_bounds):
+                    low = self.low_bounds[i]
+                    if i < len(self.bounds):
+                        size = self.bounds[i]
+                    else:
+                        size = 0
+                    ret += f"[{low}:{size}]"
+                elif i < len(self.bounds):
+                    ret += f"[{self.bounds[i]}]"
+            return ret
+        else:
+            return super().__str__()
 
 
 class MethodSignature:
@@ -318,7 +375,7 @@ class Token(abc.ABC):
 
 
 class CodedToken(Token):
-    # this class sort-of duplicates dnlib.base.CodedIndex;
+    # this class sort-of duplicates .base.CodedIndex;
     # however, that class requires access to .NET metadata headers,
     # whereas this class doesn't attempt to resolve any tokens to rows.
     #
@@ -368,7 +425,10 @@ class SignatureReader(io.BytesIO):
         return v
 
     def read_u8(self):
-        return self.read(1)[0]
+        buf = self.read(1)
+        if len(buf) == 0:
+            raise ValueError("SignatureReader::read_u8 - Unexpected end of data")
+        return buf[0]
 
     def read_compressed_u32(self):
         """
@@ -441,6 +501,8 @@ class SignatureReader(io.BytesIO):
         ty = ElementType(self.read_u8())
         if ty.is_primitive():
             return Element(ty)
+        elif ty == ElementType.END:
+            return Element(ty)
         elif ty == ElementType.PTR:
             val = self.read_type()
             return Element(ty, val)
@@ -458,16 +520,53 @@ class SignatureReader(io.BytesIO):
             return Element(ty, val)
         elif ty == ElementType.OBJECT:
             return Element(ty)
+        elif ty == ElementType.I:
+            return Element(ty)
+        elif ty == ElementType.U:
+            return Element(ty)
+        elif ty == ElementType.GENERICINST:
+            # TODO: test
+            # type
+            val = self.read_type()
+            # type-arg-count
+            arg_count = self.read_compressed_u32()
+            # types
+            arg_types = list()
+            for _ in range(arg_count):
+                arg_types.append(self.read_type())
+            return GenericInstElement(ty, val, arg_types)
+        elif ty == ElementType.VAR or ty == ElementType.MVAR:
+            val = self.read_compressed_u32()
+            return Element(ty, val)
+        elif ty == ElementType.ARRAY:
+            # TODO: test
+            # type
+            val = self.read_type()
+            # number of dimensions
+            rank = self.read_compressed_u32()
+            # size
+            bound_count = self.read_compressed_u32()
+            if bound_count > rank:
+                # this shouldn't happen!  TODO: warn
+                bound_count = rank
+            bounds = list()
+            for _ in range(bound_count):
+                bound = self.read_compressed_i32()
+                bounds.append(bound)
+            # lower bounds
+            low_bound_count = self.read_compressed_u32()
+            if low_bound_count > rank:
+                # this shouldn't happen!  TODO: warn
+                low_bound_count = rank
+            low_bounds = list()
+            for _ in range(low_bound_count):
+                low_bound = self.read_compressed_i32()
+                low_bounds.append(low_bound)
+            return ArrayElement(ty, val, rank, bounds, low_bounds)
         else:
-            # TODO: VAR
-            # TODO: ARRAY
-            # TODO: GENERICINST
             # TODO: TYPEDBYREF
-            # TODO: I
-            # TODO: U
             # TODO: FNPTR
             # TODO: OBJECT
-            # TODO: MVAR
             # TODO: CMOD_REQD
             # TODO: CMOD_OPT
             # TODO: INTERNAL
@@ -488,9 +587,11 @@ class SignatureReader(io.BytesIO):
         flags = SignatureFlags(b1 & SIGNATURE_FLAGS_MASK)
         calling_convention = CallingConvention(b1 & CALLING_CONVENTION_MASK)
 
-        if flags & SignatureFlags.GENERIC:
-            generic_param_count = self.read_compressed_u32()
-            raise NotImplementedError("generic calling convention")
+        #if flags & SignatureFlags.GENERIC:
+        #    generic_param_count = self.read_compressed_u32()
+        #    raise NotImplementedError("generic calling convention")
+
+        # TODO: this is complicated, see ECMA-335 I.8.6.1.5
 
         param_count = self.read_compressed_u32()
 
