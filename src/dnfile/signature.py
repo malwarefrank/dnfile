@@ -158,63 +158,63 @@ class ElementType(enum.Enum):
 
 class Element:
     def __init__(self, ty: ElementType, value: Optional[Any] = None):
-        self.ty = ty
+        self.cor_type = ty
         self.value = value
 
     def __str__(self):
-        if self.ty == ElementType.VOID:
+        if self.cor_type == ElementType.VOID:
             return "void"
-        elif self.ty == ElementType.BOOLEAN:
+        elif self.cor_type == ElementType.BOOLEAN:
             return "boolean"
-        elif self.ty == ElementType.CHAR:
+        elif self.cor_type == ElementType.CHAR:
             return "char"
-        elif self.ty == ElementType.I1:
+        elif self.cor_type == ElementType.I1:
             return "sbyte"
-        elif self.ty == ElementType.U1:
+        elif self.cor_type == ElementType.U1:
             return "byte"
-        elif self.ty == ElementType.I2:
+        elif self.cor_type == ElementType.I2:
             return "int16"
-        elif self.ty == ElementType.U2:
+        elif self.cor_type == ElementType.U2:
             return "uint16"
-        elif self.ty == ElementType.I4:
+        elif self.cor_type == ElementType.I4:
             return "int32"
-        elif self.ty == ElementType.U4:
+        elif self.cor_type == ElementType.U4:
             return "uint32"
-        elif self.ty == ElementType.I8:
+        elif self.cor_type == ElementType.I8:
             return "int64"
-        elif self.ty == ElementType.U8:
+        elif self.cor_type == ElementType.U8:
             return "uint64"
-        elif self.ty == ElementType.R4:
+        elif self.cor_type == ElementType.R4:
             return "single"
-        elif self.ty == ElementType.R8:
+        elif self.cor_type == ElementType.R8:
             return "double"
-        elif self.ty == ElementType.STRING:
+        elif self.cor_type == ElementType.STRING:
             return "string"
-        elif self.ty == ElementType.OBJECT:
+        elif self.cor_type == ElementType.OBJECT:
             return "object"
-        elif self.ty == ElementType.I:
+        elif self.cor_type == ElementType.I:
             return "IntPtr"
-        elif self.ty == ElementType.U:
+        elif self.cor_type == ElementType.U:
             return "UIntPtr"
-        elif self.ty == ElementType.TYPEDBYREF:
+        elif self.cor_type == ElementType.TYPEDBYREF:
             return "TypedReference"
-        elif self.ty == ElementType.VALUETYPE:
+        elif self.cor_type == ElementType.VALUETYPE:
             # a TypeDefOrRefToken, not resolved here.
             # leave it up to some caller to resolve and render as they see fit.
             return f"valuetype {str(self.value)}"
-        elif self.ty == ElementType.PTR:
+        elif self.cor_type == ElementType.PTR:
             return f"ptr {str(self.value)}"
-        elif self.ty == ElementType.BYREF:
+        elif self.cor_type == ElementType.BYREF:
             return f"byref {str(self.value)}"
-        elif self.ty == ElementType.SZARRAY:
+        elif self.cor_type == ElementType.SZARRAY:
             return f"{str(self.value)}[]"
-        elif self.ty == ElementType.CLASS:
+        elif self.cor_type == ElementType.CLASS:
             return str(self.value)
-        elif self.ty == ElementType.VAR or self.ty == ElementType.MVAR:
-            return f"{str(self.ty)} {str(self.value)}"
-        elif self.ty == ElementType.CMOD_OPT or self.ty == ElementType.CMOD_REQD:
-            return f"{str(self.ty)} {str(self.value)}"
-        elif self.ty == ElementType.FNPTR:
+        elif self.cor_type == ElementType.VAR or self.cor_type == ElementType.MVAR:
+            return f"{str(self.cor_type)} {str(self.value)}"
+        elif self.cor_type == ElementType.CMOD_OPT or self.cor_type == ElementType.CMOD_REQD:
+            return f"{str(self.cor_type)} {str(self.value)}"
+        elif self.cor_type == ElementType.FNPTR:
             return f"FNPTR {str(self.value)}"
         # ARRAY handled by subclass
         # GENERICINST handled by subclass
@@ -229,7 +229,7 @@ class Element:
             # TODO: FIELD
             # TODO: PROPERTY
             # TODO: ENUM
-            raise NotImplementedError("type: " + repr(self.ty))
+            raise NotImplementedError("type: " + repr(self.cor_type))
 
 
 class GenericInstElement(Element):
@@ -242,7 +242,7 @@ class GenericInstElement(Element):
         self.arg_types = arg_types
 
     def __str__(self):
-        if self.ty == ElementType.GENERICINST:
+        if self.cor_type == ElementType.GENERICINST:
             # TODO: test
             ret = f"GENERICINST {str(self.value)}"
             if self.arg_types:
@@ -267,7 +267,7 @@ class ArrayElement(Element):
         self.low_bounds = low_bounds
 
     def __str__(self):
-        if self.ty == ElementType.ARRAY:
+        if self.cor_type == ElementType.ARRAY:
             # TODO: test
             ret = f"{str(self.value)}"
             for i in range(self.rank):
@@ -331,7 +331,7 @@ class FieldSignature:
     def __init__(self, flags: SignatureFlags, calling_convention: CallingConvention, ty: Element):
         self.flags = flags
         self.calling_convention = calling_convention
-        self.ty = ty
+        self.cor_type = ty
 
     def __str__(self):
         parts = []
@@ -348,7 +348,7 @@ class FieldSignature:
             # so, don't add extra spacing
             parts.append(" ")
 
-        parts.append(str(self.ty))
+        parts.append(str(self.cor_type))
         return "".join(parts)
 
 
@@ -607,7 +607,7 @@ class SignatureReader(io.BytesIO):
             param = self.read_type()
 
             if calling_convention == CallingConvention.VARARG:
-                if param.ty == ElementType.SENTINEL:
+                if param.cor_type == ElementType.SENTINEL:
                     params.append(param)
                     param = self.read_type()
 
