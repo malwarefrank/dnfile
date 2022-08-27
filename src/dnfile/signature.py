@@ -146,6 +146,15 @@ class ElementType(enum.Enum):
     def is_primitive(self):
         return ElementType.VOID.value <= self.value <= ElementType.STRING.value
 
+    def is_simple_type(self):
+        # https://referencesource.microsoft.com/mscorlib/system/reflection/emit/signaturehelper.cs.html
+        return self.is_primitive() or self.value in (
+                ElementType.TYPEDBYREF.value,
+                ElementType.I.value,
+                ElementType.U.value,
+                ElementType.OBJECT.value,
+                )
+
 
 class Element:
     def __init__(self, ty: ElementType, value: Optional[Any] = None):
@@ -203,14 +212,13 @@ class Element:
             return str(self.value)
         elif self.ty == ElementType.VAR or self.ty == ElementType.MVAR:
             return f"{str(self.ty)} {str(self.value)}"
+        elif self.ty == ElementType.CMOD_OPT or self.ty == ElementType.CMOD_REQD:
+            return f"{str(self.ty)} {str(self.value)}"
+        elif self.ty == ElementType.FNPTR:
+            return f"FNPTR {str(self.value)}"
+        # ARRAY handled by subclass
+        # GENERICINST handled by subclass
         else:
-            # TODO: VAR
-            # TODO: ARRAY
-            # TODO: GENERICINST
-            # TODO: FNPTR
-            # TODO: MVAR
-            # TODO: CMOD_REQD
-            # TODO: CMOD_OPT
             # TODO: INTERNAL
             # TODO: MODIFIER
             # TODO: SENTINEL
@@ -501,6 +509,8 @@ class SignatureReader(io.BytesIO):
         ty = ElementType(self.read_u8())
         if ty.is_primitive():
             return Element(ty)
+        elif ty.is_simple_type():
+            return Element(ty)
         elif ty == ElementType.END:
             return Element(ty)
         elif ty == ElementType.PTR:
@@ -518,12 +528,6 @@ class SignatureReader(io.BytesIO):
         elif ty == ElementType.SZARRAY:
             val = self.read_type()
             return Element(ty, val)
-        elif ty == ElementType.OBJECT:
-            return Element(ty)
-        elif ty == ElementType.I:
-            return Element(ty)
-        elif ty == ElementType.U:
-            return Element(ty)
         elif ty == ElementType.GENERICINST:
             # TODO: test
             # type
@@ -563,12 +567,13 @@ class SignatureReader(io.BytesIO):
                 low_bound = self.read_compressed_i32()
                 low_bounds.append(low_bound)
             return ArrayElement(ty, val, rank, bounds, low_bounds)
+        elif ty == ElementType.CMOD_OPT or ty == ElementType.CMOD_REQD:
+            token = TypeDefOrRefToken(self.read_token())
+            return Element(ty, token)
+        elif ty == ElementType.FNPTR:
+            method_sig = self.read_method_signature()
+            return Element(ty, method_sig)
         else:
-            # TODO: TYPEDBYREF
-            # TODO: FNPTR
-            # TODO: OBJECT
-            # TODO: CMOD_REQD
-            # TODO: CMOD_OPT
             # TODO: INTERNAL
             # TODO: MODIFIER
             # TODO: SENTINEL
