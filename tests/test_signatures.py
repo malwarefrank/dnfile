@@ -6,7 +6,7 @@ from dnfile.signature import SignatureReader, parse_field_signature, parse_metho
 
 
 def test_signature_reader_u32():
-    with pytest.raises(IndexError):
+    with pytest.raises(ValueError):
         SignatureReader(b"").read_compressed_u32()
 
     # these are the tests from
