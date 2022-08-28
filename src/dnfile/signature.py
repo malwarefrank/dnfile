@@ -286,11 +286,12 @@ class ArrayElement(Element):
 
 
 class MethodSignature:
-    def __init__(self, flags: SignatureFlags, calling_convention: CallingConvention, ret: Element, params: List[Element]):
+    def __init__(self, flags: SignatureFlags, calling_convention: CallingConvention, ret: Element, params: List[Element], generic_params_count: int = 0):
         self.flags = flags
         self.calling_convention = calling_convention
         self.ret = ret
         self.params = params
+        self.generic_params_count: int = generic_params_count
 
     def __str__(self):
         parts = []
@@ -314,9 +315,12 @@ class MethodSignature:
 
         if self.flags & SignatureFlags.GENERIC:
             parts.append("<")
-            # where do these come from?
+            i=0
+            for i in range(self.generic_params_count):
+                if i>0:
+                    parts.append(",")
+                parts.append(f"T{i}")
             parts.append(">")
-            raise NotImplementedError("generic arguments")
 
         parts.append("(")
         parts.extend(
@@ -540,7 +544,7 @@ class SignatureReader(io.BytesIO):
                 arg_types.append(self.read_type())
             return GenericInstElement(ty, val, arg_types)
         elif ty == ElementType.VAR or ty == ElementType.MVAR:
-            val = self.read_compressed_u32()
+            val = self.read_compressed_u32()  # index into generics/template list?
             return Element(ty, val)
         elif ty == ElementType.ARRAY:
             # TODO: test
@@ -592,9 +596,9 @@ class SignatureReader(io.BytesIO):
         flags = SignatureFlags(b1 & SIGNATURE_FLAGS_MASK)
         calling_convention = CallingConvention(b1 & CALLING_CONVENTION_MASK)
 
-        #if flags & SignatureFlags.GENERIC:
-        #    generic_param_count = self.read_compressed_u32()
-        #    raise NotImplementedError("generic calling convention")
+        generic_param_count = 0
+        if flags & SignatureFlags.GENERIC:
+            generic_param_count = self.read_compressed_u32()
 
         # TODO: this is complicated, see ECMA-335 I.8.6.1.5
 
@@ -613,7 +617,7 @@ class SignatureReader(io.BytesIO):
 
             params.append(param)
 
-        return MethodSignature(flags, calling_convention, ret_type, params)
+        return MethodSignature(flags, calling_convention, ret_type, params, generic_param_count)
 
     def read_field_signature(self) -> FieldSignature:
         b1 = self.read_u8()
