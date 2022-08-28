@@ -3,10 +3,10 @@ dnfile
 ======
 
 
-.. image:: https://img.shields.io/pypi/v/dnfile.svg
-        :target: https://pypi.python.org/pypi/dnfile
 .. image:: https://github.com/malwarefrank/dnfile/actions/workflows/lint.yml/badge.svg
         :target: https://github.com/malwarefrank/dnfile/actions/workflows/lint.yml
+.. image:: https://img.shields.io/pypi/v/dnfile.svg
+        :target: https://pypi.python.org/pypi/dnfile
 .. image:: https://pepy.tech/badge/dnfile
         :target: https://pepy.tech/project/dnfile
 
