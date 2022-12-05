@@ -6,7 +6,6 @@ from binascii import hexlify
 
 import dnfile
 
-
 for fname in sys.argv[1:]:
     print("===== {}".format(fname))
     # load .NET executable
@@ -47,5 +46,5 @@ for fname in sys.argv[1:]:
                                 dlen = 0
                             print("            {0:<10} {1}".format("Length:", dlen))
                             if other:
-                                for k,v in other.items():
+                                for k, v in other.items():
                                     print("            {0:<10} {1}".format(k, v))
