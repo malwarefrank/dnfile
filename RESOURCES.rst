@@ -34,11 +34,11 @@ Each InternalResource has a data member that is either bytes or a ResourceSet.
             print("    Name:   ", rsrc.name)
             print("    Public: ", rsrc.public)
             print("    Private:", rsrc.private)
-            if isinstance(rsrc, dnfile.resources.InternalResource):
+            if isinstance(rsrc, dnfile.resource.InternalResource):
                 if isinstance(rsrc.data, bytes):
                     print("    Type:   ", "bytes")
                     print("    Length: ", len(rsrc.data))
-                elif isinstance(rsrc.data, dnfile.resources.ResourceSet):
+                elif isinstance(rsrc.data, dnfile.resource.ResourceSet):
                     print("    Type:   ", "resource set")
                     print("    Length: ", rsrc.data.struct.NumberOfResources)
                     if rsrc.data.entries:

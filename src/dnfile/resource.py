@@ -285,8 +285,8 @@ class InternalResource(base.ClrResource):
         # attempt to parse as a ResourceSet
         rs = ResourceSet(self.data, self)
         if rs.valid():
-            rs.parse()
             self.data = rs
+            rs.parse()
         # otherwise treat as raw resource
 
 
@@ -410,13 +410,16 @@ class ResourceSet(object):
         # table_of_names = current offset
         self.struct.TableOfNames = offset
         rsrc_factory = ResourceTypeFactory()
+        problems = list()
         for e in self.entries:
             offset = self.struct.TableOfNames + e.struct.NamePtr
             try:
                 e.struct.Name, size = self.read_serialized_data(offset)
                 e.name = e.struct.Name.decode("utf-16")
             except ValueError:
-                raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for entries at '{}' rsrc offset {}".format(self.parent.name, offset))
+                # further entries may be ok; delay this exception
+                problems.append("CLR ResourceSet error: expected more data for entries at '{}' rsrc offset {}".format(self.parent.name, offset))
+                continue
             except UnicodeDecodeError:
                 # entry name is initialized to None, so just ignore
                 pass
@@ -431,11 +434,14 @@ class ResourceSet(object):
                 else:
                     rsrc_factory.read_rsrc_data_v2(self._data, e_data_offset, self.resource_types, e)
             except ValueError:
-                # TODO: further entries may be ok; delay this exception?
+                # further entries may be ok; delay this exception
                 if self.parent:
-                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, e_data_offset))
+                    problems.append("CLR ResourceSet error: expected more data for serialized data at '{}' rsrc offset {}".format(self.parent.name, e_data_offset))
                 else:
-                    raise errors.rsrcFormatError("CLR ResourceSet error: expected more data for serialized data at unknown rsrc offset {}".format(e_data_offset))
+                    problems.append("CLR ResourceSet error: expected more data for serialized data at unknown rsrc offset {}".format(e_data_offset))
+            continue
+        for p in problems:
+            raise errors.rsrcFormatError(p)
 
     def read_serialized_data(self, offset: int) -> Tuple[bytes, int]:
         """
