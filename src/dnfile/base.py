@@ -201,7 +201,7 @@ class MDTableRow(abc.ABC):
         """
         ...
 
-    def set_data(self, data: bytes, offset: int = None):
+    def set_data(self, data: bytes, offset: Optional[int] = None):
         """
         Parse the data and set struct for this row.
 
