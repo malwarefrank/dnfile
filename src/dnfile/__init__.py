@@ -25,8 +25,7 @@ from typing import Dict, List, Optional
 from pefile import PE as _PE
 from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, DataContainer, PEFormatError
 
-from . import base, enums, errors, stream, resource, mdtable
-from .method import Method, Param
+from . import base, enums, errors, stream, resource, mdtable, method
 
 logger = logging.getLogger(__name__)
 CLR_METADATA_SIGNATURE = 0x424A5342
@@ -423,6 +422,7 @@ class ClrData(DataContainer):
     blobs: Optional[stream.BlobHeap]
     mdtables: Optional[stream.MetaDataTables]
     resources: List[base.ClrResource]
+    methods: List[method.Method]
     Flags: Optional[enums.ClrHeaderFlags]
 
     # Structure description from:
@@ -485,6 +485,7 @@ class ClrData(DataContainer):
         self.blobs = None
         self.mdtables = None
         self.resources = list()
+        self.methods = list()
         self.Flags = None
 
         try:
@@ -555,6 +556,22 @@ class ClrData(DataContainer):
                         pe.add_warning("CLR resource parse error for '{}' at 0x{:02x}: {}".format(rsrc.name, rsrc.rva, str(e)))
                     else:
                         pe.add_warning("CLR resource parse error for '{}': {}".format(rsrc.name, str(e)))
+
+        # parse the methods
+        if self.mdtables and self.mdtables.MethodDef and self.mdtables.MethodDef.num_rows > 0:
+            # for each row
+            for row in self.mdtables.MethodDef.rows:
+                # TODO: handle external methods
+                m = MethodFactory.createMethod(pe, row)
+                self.methods.append(m)
+            for m in self.methods:
+                try:
+                    m.parse()
+                except errors.dnFormatError as e:
+                    if isinstance(m, method.InternalMethod):
+                        pe.add_warning("CLR method parse error for '{}' at 0x{:02x}: {}".format(m.name, m.rva, str(e)))
+                    else:
+                        pe.add_warning("CLR method parse error for '{}': {}".format(m.name, str(e)))
 
 
 class ClrStreamFactory(object):
@@ -642,11 +659,11 @@ class MethodFactory(object):
     @classmethod
     def createMethod(
         cls, pe: dnPE, row: mdtable.MethodDefRow
-    ) -> Optional[Method]:
+    ) -> Optional[method.Method]:
         m = method.InternalMethod(row.Name, row.Signature)
         # populate params list
-        for p_row in row.ParamList:
-            param = ParamFactory.createParam(pe, p_row)
+        for p_index in row.ParamList:
+            param = ParamFactory.createParam(pe, p_index.row)
             m.params.append(param)
         # rva = Rva
         m.rva = row.Rva
@@ -658,6 +675,4 @@ class MethodFactory(object):
         for name, value in row.ImplFlags:
             # skip "mi" prefix in name
             setattr(m.flags, name[2:], value)
-        # TODO: parse here, or after factory method?
-        m.parse()
         return m

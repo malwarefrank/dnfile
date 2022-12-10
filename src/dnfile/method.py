@@ -130,6 +130,9 @@ class Method:
         #       difference, which takes precedence?
         self.params: List[Param] = list()
 
+    def parse(self) -> None:
+        return
+
 
 class ExternalMethod(Method):
     # TODO: parent, parse()
@@ -153,6 +156,8 @@ class InternalMethod(Method):
 
     def __init__(self, name: str, signature: bytes):
         super().__init__(name, signature)
+        self.rva: int = 0
+        self.flags: Optional[MethodFlags] = None
         self.params: List[Param] = list()
 
     def parse(self):
