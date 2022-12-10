@@ -25,7 +25,8 @@ from typing import Dict, List, Optional
 from pefile import PE as _PE
 from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, DataContainer, PEFormatError
 
-from . import base, enums, errors, stream, resource
+from . import base, enums, errors, stream, resource, mdtable
+from .method import Method, Param
 
 logger = logging.getLogger(__name__)
 CLR_METADATA_SIGNATURE = 0x424A5342
@@ -615,3 +616,48 @@ class ClrStreamFactory(object):
             return None
         else:
             return s
+
+
+class ParamFactory(object):
+    @classmethod
+    def createParam(
+        cls, pe: dnPE, row: mdtable.ParamRow
+    ) -> Optional[method.Param]:
+        # TODO
+        # Copy attributes of the ParamRow.
+        # Param type is set later, after parsing method signature.
+        p = method.Param(
+            row.Sequence,
+            row.Name,
+            row.Flags.pdIn,
+            row.Flags.pdOut,
+            row.Flags.pdOptional
+        )
+        #self.value: Optional[Any] = None
+        return p
+
+
+class MethodFactory(object):
+
+    @classmethod
+    def createMethod(
+        cls, pe: dnPE, row: mdtable.MethodDefRow
+    ) -> Optional[Method]:
+        m = method.InternalMethod(row.Name, row.Signature)
+        # populate params list
+        for p_row in row.ParamList:
+            param = ParamFactory.createParam(pe, p_row)
+            m.params.append(param)
+        # rva = Rva
+        m.rva = row.Rva
+        # flags = Flags + ImplFlags
+        m.flags = method.MethodFlags()
+        for name, value in row.Flags:
+            # skip "md" prefix in name
+            setattr(m.flags, name[2:], value)
+        for name, value in row.ImplFlags:
+            # skip "mi" prefix in name
+            setattr(m.flags, name[2:], value)
+        # TODO: parse here, or after factory method?
+        m.parse()
+        return m
