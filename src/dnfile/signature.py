@@ -161,6 +161,15 @@ class Element:
         self.cor_type = ty
         self.value = value
 
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, Element):
+            return False
+        if __o.cor_type != self.cor_type:
+            return False
+        if __o.value != self.value:
+            return False
+        return True
+
     def __str__(self):
         if self.cor_type == ElementType.VOID:
             return "void"
@@ -293,6 +302,19 @@ class MethodSignature:
         self.params = params
         self.generic_params_count: int = generic_params_count
 
+    # TODO: __eq__
+    # Equality is complicated, see ECMA-335 I.8.6.1.6:
+    #     the calling conventions are identical;
+    #     both signatures are either static or instance;
+    #     the number of generic parameters is identical, if the method is generic;
+    #     for instance signatures the type of the this pointer of the overriding/hiding
+    #       signature is assignable-to (§I.8.7) the type of the this pointer of the
+    #       overridden/hidden signature;
+    #     the number and type signatures of the parameters are identical; and
+    #     the type signatures for the result are identical. [ Note: This includes void
+    #       (§II.23.2.11) if no value is returned. end note]
+    #     Note: when overriding/hiding the accessibility of items need not be identical
+
     def __str__(self):
         parts = []
 
@@ -337,6 +359,17 @@ class FieldSignature:
         self.calling_convention = calling_convention
         self.cor_type = ty
 
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, FieldSignature):
+            return False
+        if __o.flags != self.flags:
+            return False
+        if __o.calling_convention != self.calling_convention:
+            return False
+        if __o.cor_type != self.cor_type:
+            return False
+        return True
+
     def __str__(self):
         parts = []
 
@@ -361,6 +394,20 @@ class LocalSignature:
         self.flags = flags
         self.calling_convention = calling_convention
         self.locals = locals
+
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, LocalSignature):
+            return False
+        if __o.flags != self.flags:
+            return False
+        if __o.calling_convention != self.calling_convention:
+            return False
+        if len(__o.locals) != len(self.locals):
+            return False
+        for i in range(len(self.locals)):
+            if __o.locals[i] != self.locals[i]:
+                return False
+        return True
 
     def __str__(self):
         parts = []

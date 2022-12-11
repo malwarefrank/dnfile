@@ -559,9 +559,9 @@ class ClrData(DataContainer):
 
         # parse the methods
         if self.mdtables and self.mdtables.MethodDef and self.mdtables.MethodDef.num_rows > 0:
-            # for each row
+            # TODO: handle external methods
+            # for each MethodDef row
             for row in self.mdtables.MethodDef.rows:
-                # TODO: handle external methods
                 m = MethodFactory.createMethod(pe, row)
                 self.methods.append(m)
             for m in self.methods:
@@ -665,14 +665,16 @@ class MethodFactory(object):
         for p_index in row.ParamList:
             param = ParamFactory.createParam(pe, p_index.row)
             m.params.append(param)
-        # rva = Rva
+        # TODO: test if signature params agree with ParamList
         m.rva = row.Rva
-        # flags = Flags + ImplFlags
+        # flags = Flags + ImplFlags + signature.flags
         m.flags = method.MethodFlags()
+        # copy flags from MethodDefRow
         for name, value in row.Flags:
             # skip "md" prefix in name
             setattr(m.flags, name[2:], value)
         for name, value in row.ImplFlags:
             # skip "mi" prefix in name
             setattr(m.flags, name[2:], value)
+        # return the method
         return m
