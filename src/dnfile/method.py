@@ -82,14 +82,27 @@ class MethodFlags(object):
         return "\n".join(["{:<40}{:>8}".format(n, str(v)) for n, v in self])
 
 
+class ParamFlags(object):
+    Input       = False
+    Output      = False
+    Optional    = False
+
+    def __iter__(self):
+        for name in enums._getvars(self):
+            val = getattr(self, name)
+            if isinstance(val, bool):
+                yield name, val
+
+    def __repr__(self):
+        return "\n".join(["{:<40}{:>8}".format(n, str(v)) for n, v in self])
+
+
 class Param:
     sequence: Optional[int]
     name: Optional[str]
-    is_input: Optional[bool]
-    is_output: Optional[bool]
-    is_optional: Optional[bool]
+    flags: Optional[ParamFlags]
     # value: Optional[Any]
-    param_type: Optional[_sig.Element]
+    cor_type: Optional[_sig.Element]
 
     def __init__(
         self,
@@ -101,13 +114,17 @@ class Param:
     ):
         self.sequence = sequence
         self.name = name
-        self.is_input = is_input
-        self.is_output = is_output
-        self.is_optional = is_optional
-        self.param_type = None
+        self.flags = ParamFlags()
+        if is_input:
+            self.flags.Input = True
+        if is_output:
+            self.flags.Output = True
+        if is_optional:
+            self.flags.Optional = True
+        self.cor_type = None
 
     def set_type(self, t: _sig.Element):
-        self.param_type = t
+        self.cor_type = t
 
 
 class Method:
@@ -131,16 +148,19 @@ class Method:
         self.params: List[Param] = list()
 
     def parse(self) -> None:
+        """
+        Implemented in subclasses, if needed.
+        """
         return
 
 
 class ExternalMethod(Method):
-    # TODO: parent, parse()
+    # TODO
 
     def parse(self):
+        super().parse()
         # parse _sigraw to signature
         self.signature = _sig.parse_method_signature(self._sigraw)
-        # TODO: parse _row
 
 
 class InternalMethod(Method):
@@ -161,8 +181,16 @@ class InternalMethod(Method):
         self.params: List[Param] = list()
 
     def parse(self):
+        super().parse()
         ### parse _sigraw to signature
         self.signature = _sig.parse_method_signature(self._sigraw)
+        # copy flags from signature
+        if self.signature.flags & _sig.SignatureFlags.HAS_THIS:
+            self.flags.HasThis = True
+        if self.signature.flags & _sig.SignatureFlags.EXPLICIT_THIS:
+            self.flags.ExplicitThis = True
+        if self.signature.flags & _sig.SignatureFlags.GENERIC:
+            self.flags.Generic = True
         if len(self.params) != len(self.signature.params):
             # TODO: warn or error
             return
@@ -170,5 +198,3 @@ class InternalMethod(Method):
             # copy type from MethodDefSig to Param object
             p = self.params[i]
             p.set_type(self.signature.params[i])
-        
-            
