@@ -7,6 +7,7 @@ REFERENCES
 
     https://www.ntcore.com/files/dotnetformat.htm
     https://referencesource.microsoft.com/System.AddIn/System/Addin/MiniReflection/MetadataReader/Metadata.cs.html#123
+    ECMA-335, 6th Edition
 
 
 Copyright (c) 2020-2022 MalwareFrank
@@ -1981,30 +1982,30 @@ class GenericParam(ClrMetaDataTable[GenericParamRow]):
     _row_class = GenericParamRow
 
 
-#### GenericMethod Table
+#### MethodSpec Table
 #
 
 
-class GenericMethodRowStruct(RowStruct):
-    Unknown1_CodedIndex: int
-    Unknown2_BlobIndex: int
+class MethodSpecRowStruct(RowStruct):
+    Method_CodedIndex: int
+    Instantiation_BlobIndex: int
 
 
-class GenericMethodRow(MDTableRow):
-    Unknown1: codedindex.MethodDefOrRef
-    Unknown2: bytes
+class MethodSpecRow(MDTableRow):
+    Method: codedindex.MethodDefOrRef
+    Instantiation: bytes
 
-    _struct_class = GenericMethodRowStruct
+    _struct_class = MethodSpecRowStruct
 
     _struct_codedindexes = {
-        "Unknown1_CodedIndex": ("Unknown1", codedindex.MethodDefOrRef),
+        "Method_CodedIndex": ("Method", codedindex.MethodDefOrRef),
     }
     _struct_blobs = {
-        "Unknown2_BlobIndex": "Unknown2",
+        "Instantiation_BlobIndex": "Instantiation",
     }
 
     def _compute_format(self):
-        unknown1_size = self._clr_coded_index_struct_size(
+        method_size = self._clr_coded_index_struct_size(
             codedindex.MethodDefOrRef.tag_bits,
             codedindex.MethodDefOrRef.table_names,
         )
@@ -2012,17 +2013,17 @@ class GenericMethodRow(MDTableRow):
         return (
             "CLR_METADATA_TABLE_GENERICMETHOD",
             (
-                unknown1_size + ",Unknown1_CodedIndex",
-                blob_ind_size + ",Unknown2_BlobIndex",
+                method_size + ",Method_CodedIndex",
+                blob_ind_size + ",Instantiation_BlobIndex",
             ),
         )
 
 
-class GenericMethod(ClrMetaDataTable[GenericMethodRow]):
-    name = "GenericMethod"
+class MethodSpec(ClrMetaDataTable[MethodSpecRow]):
+    name = "MethodSpec"
     number = 43
 
-    _row_class = GenericMethodRow
+    _row_class = MethodSpecRow
 
 
 #### GenericParamConstraint Table
@@ -2135,7 +2136,7 @@ class ClrMetaDataTableFactory(object):
         40: ManifestResource,
         41: NestedClass,
         42: GenericParam,
-        43: GenericMethod,
+        43: MethodSpec,
         44: GenericParamConstraint,
         # 45 through 63 are not used
         62: Unused,

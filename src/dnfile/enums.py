@@ -841,7 +841,7 @@ class MetadataTables(_enum.IntEnum):
     ManifestResource = 40
     NestedClass = 41
     GenericParam = 42
-    GenericMethod = 43
+    MethodSpec = 43
     GenericParamConstraint = 44
     # 45 through 63 are not used
     Unused = 62
