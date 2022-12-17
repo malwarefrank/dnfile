@@ -255,10 +255,10 @@ class GenericInstElement(Element):
             # TODO: test
             ret = f"GENERICINST {str(self.value)}"
             if self.arg_types:
-                ret += f"({str(self.arg_types[0])}"
+                ret += f"<{str(self.arg_types[0])}"
                 for arg_type in self.arg_types[1:]:
                     ret += f", {str(arg_type)}"
-                ret += ")"
+                ret += ">"
             return ret
         else:
             return super().__str__()
@@ -308,11 +308,11 @@ class MethodSignature:
     #     both signatures are either static or instance;
     #     the number of generic parameters is identical, if the method is generic;
     #     for instance signatures the type of the this pointer of the overriding/hiding
-    #       signature is assignable-to (§I.8.7) the type of the this pointer of the
+    #       signature is assignable-to (I.8.7) the type of the this pointer of the
     #       overridden/hidden signature;
     #     the number and type signatures of the parameters are identical; and
     #     the type signatures for the result are identical. [ Note: This includes void
-    #       (§II.23.2.11) if no value is returned. end note]
+    #       (II.23.2.11) if no value is returned. end note]
     #     Note: when overriding/hiding the accessibility of items need not be identical
 
     def __str__(self):
