@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from . import enums, signature as _sig
 
@@ -103,6 +103,8 @@ class Param:
     flags: Optional[ParamFlags]
     # value: Optional[Any]
     cor_type: Optional[_sig.Element]
+    type_str: Optional[str]
+    prefix: Optional[str]
 
     def __init__(
         self,
@@ -122,9 +124,17 @@ class Param:
         if is_optional:
             self.flags.Optional = True
         self.cor_type = None
+        self.type_str = None
+        self.prefix = None
 
-    def set_type(self, t: _sig.Element):
+    def set_type(self, t: Union[_sig.Element, str]):
         self.cor_type = t
+
+    def __str__(self) -> str:
+        if self.prefix:
+            return f"{self.prefix} {self.cor_type}"
+        else:
+            return str(self.cor_type)
 
 
 class Method:
@@ -191,10 +201,15 @@ class InternalMethod(Method):
             self.flags.ExplicitThis = True
         if self.signature.flags & _sig.SignatureFlags.GENERIC:
             self.flags.Generic = True
-        if len(self.params) != len(self.signature.params):
+        copy_max = len(self.params)
+        if copy_max != len(self.signature.params):
             # TODO: warn or error
-            return
-        for i in range(len(self.params)):
+            copy_max = min(copy_max, len(self.signature.params))
+        for i in range(copy_max):
             # copy type from MethodDefSig to Param object
             p = self.params[i]
-            p.set_type(self.signature.params[i])
+            if self.signature.params[i].value:
+                p.prefix = self.signature.params[i].cor_type
+                p.set_type(self.signature.params[i].value)
+            else:
+                p.set_type(self.signature.params[i])
