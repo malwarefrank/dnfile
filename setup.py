@@ -53,6 +53,6 @@ setup(
     tests_require=test_requirements,
     extras_require={'test': test_requirements},
     url="https://github.com/malwarefrank/dnfile",
-    version="0.12.0",
+    version="0.13.0",
     zip_safe=False,
 )
