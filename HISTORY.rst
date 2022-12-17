@@ -2,6 +2,11 @@
 History
 =======
 
+0.13.0 (2022)
+-------------
+* BREAKING CHANGE: rename GenericMethod mdtable to MethodSpec per ECMA 335
+* parse more resources, even if there are exceptions
+
 0.12.0 (2022)
 -------------
 * FEATURE: parse ``#Schema`` stream as MetaDataTables
