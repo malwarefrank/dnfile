@@ -140,6 +140,9 @@ class TypeRefRow(MDTableRow):
             ),
         )
 
+    def __str__(self) -> str:
+        return f"{self.TypeNamespace}.{self.TypeName}"
+
 
 class TypeRef(ClrMetaDataTable[TypeRefRow]):
     name = "TypeRef"
@@ -205,6 +208,10 @@ class TypeDefRow(MDTableRow):
                 methodlist_size + ",MethodList_Index",
             ),
         )
+
+    def __str__(self) -> str:
+        #return super().__str__()
+        return f"{self.TypeNamespace}.{self.TypeName}"
 
 
 class TypeDef(ClrMetaDataTable[TypeDefRow]):

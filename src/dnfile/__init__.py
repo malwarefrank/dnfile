@@ -20,12 +20,12 @@ import copy as _copymod
 import codecs
 import struct as _struct
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from pefile import PE as _PE
 from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, DataContainer, PEFormatError
 
-from . import base, enums, errors, stream, resource, mdtable, method
+from . import base, enums, errors, stream, resource, mdtable, method, signature
 
 logger = logging.getLogger(__name__)
 CLR_METADATA_SIGNATURE = 0x424A5342
@@ -572,6 +572,24 @@ class ClrData(DataContainer):
                         pe.add_warning("CLR method parse error for '{}' at 0x{:02x}: {}".format(m.name, m.rva, str(e)))
                     else:
                         pe.add_warning("CLR method parse error for '{}': {}".format(m.name, str(e)))
+                # convert type defs/refs to str
+                for p in m.params:
+                    if p.cor_type is None:
+                        continue
+                    p.type_str = self._sig2str(p.cor_type)
+
+    def _sig2str(self, e: Union[signature.Token, signature.Element]) -> str:
+        if not e:
+            return ""
+        if isinstance(e, signature.Token):
+            if e.table_index in self.mdtables.tables:
+                type_row = self.mdtables.tables[e.table_index].get_with_row_index(e.row_index)
+                return str(type_row)
+        elif isinstance(e, signature.Element):
+            if e.value:
+                # recurse
+                return self._sig2str(e.cor_type) + " " + self._sig2str(e.value)
+        return str(e)
 
 
 class ClrStreamFactory(object):
