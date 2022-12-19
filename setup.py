@@ -18,7 +18,7 @@ setup_requirements = [
 
 test_requirements = [
     "pytest>=3",
-    "isort==5.10.1",
+    "isort==5.11.3",
     "pycodestyle==2.10.0",
     "mypy==0.991",
 ]
