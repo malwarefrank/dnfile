@@ -21,18 +21,14 @@ jobs:
         --user
         setuptools
         wheel
-    - name: Build sdist
+    - name: Build sdist and wheel
       run: >-
-        python
-        setup.py
-        sdist
-        --dist-dir dist/
-    - name: Build wheel
-      run: >-
-        python
-        setup.py
-        bdist_wheel
-        --dist-dir dist/
+        python -m
+        build
+        --sdist
+        --wheel
+        --outdir dist/
+        .
     - name: Publish distribution to Test PyPI
       uses: pypa/gh-action-pypi-publish@master
       with:
