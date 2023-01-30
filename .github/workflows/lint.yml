@@ -12,14 +12,12 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: "3.8"
-    - name: Install dependencies
-      run: pip install -e .[test]
-    - name: Lint with isort
-      run: isort --profile black --length-sort --line-width 120 -c .
-    - name: Lint with pycodestyle
-      run: pycodestyle --show-source src/dnfile examples tests
+    - name: Install tox
+      run: pip install tox
+    - name: Lint with isort and pycodestyle
+      run: tox -e lint
     - name: Check types with mypy
-      run: mypy --config-file .github/mypy/mypy.ini src/dnfile tests/
+      run: tox -e type
 
   test:
     runs-on: ubuntu-20.04
@@ -32,7 +30,7 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: "3.8"
-    - name: Install dependencies
-      run: pip install -e .[test]
+    - name: Install tox
+      run: pip install tox
     - name: Run tests
-      run: pytest -v tests/
+      run: tox -e py38
