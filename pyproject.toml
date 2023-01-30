@@ -1,0 +1,34 @@
+[project]
+name = "dnfile"
+authors = [{ name = "MalwareFrank" }]
+description = "Parse .NET executable files."
+license = { text = "MIT License" }
+keywords = ["dnfile"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+]
+requires-python = ">=3.5"
+dependencies = [
+    "pefile>=2019.4.18",
+]
+version = "0.13.0"
+dynamic = ["readme"]
+
+[project.urls]
+repository = "https://github.com/malwarefrank/dnfile"
+
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+readme = {file = ["README.rst", "HISTORY.rst"]}
