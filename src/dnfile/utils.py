@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from collections import deque
 import copy as _copymod
 import logging
 import functools as _functools
-from typing import Tuple, Optional
+from typing import Tuple, Optional, TypeVar, List
 
 logger = logging.getLogger(__name__)
 
@@ -83,3 +84,38 @@ def num_bytes_to_struct_char(n: int) -> Optional[str]:
     else:
         logger.warning("invalid format specifier: %d", n)
         return None
+
+_ListType = TypeVar("_ListType")
+
+class LazyList(List[_ListType]):
+    def __init__(self, eval_func, initial_size: int ):
+        self.eval_func = eval_func
+        super().__init__([None] * initial_size)
+
+    def __getitem__(self, __key):
+        __value = super().__getitem__(__key)
+        new = self.eval_func(__key, __value)
+        if __value != new:
+            super().__setitem__(__key, new)
+        return new
+
+    def __iter__(self):
+        i=0
+        for v in super().__iter__():
+            new = self.eval_func(i, v)
+            if v != new:
+                super().__setitem__(i, new)
+            yield new
+            i+=1
+
+    def eval_all(self):
+        deque(self, maxlen=0)
+
+    def truncate(self, length: int):
+        keep = super().__getitem__(slice(0, length))
+        self.clear()
+        self.extend(keep)
+
+    def __repr__(self) -> str:
+        self.eval_all()
+        return super().__repr__()

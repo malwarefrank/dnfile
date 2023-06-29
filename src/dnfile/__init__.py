@@ -57,8 +57,10 @@ class dnPE(_PE):
         data=None,
         fast_load=None,
         max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT,
+        clr_lazy_load=False,
     ):
         self._warnings = list()
+        self.clr_lazy_load = clr_lazy_load
         super().__init__(name, data, fast_load)
 
     def dump_info(self, dump=None, encoding="utf-8"):
@@ -216,7 +218,7 @@ class dnPE(_PE):
 
     def parse_clr_structure(self, rva, size) -> Optional["ClrData"]:
         try:
-            return ClrData(self, rva, size)
+            return ClrData(self, rva, size, self.clr_lazy_load)
         except errors.dnFormatError as e:
             logger.warning("failed to parse CLR data: %s",  e)
             return None
@@ -271,7 +273,7 @@ class ClrMetaData(DataContainer):
     # dw    NumberOfStreams
     # var   StreamHeaders
 
-    def __init__(self, pe: dnPE, rva: int, size: int):
+    def __init__(self, pe: dnPE, rva: int, size: int, lazy_load=False):
         """
         Given a dnPE object, MetaData RVA and MetaData Size.
         Raises dnFormatError if encounter problems parsing.
@@ -340,7 +342,7 @@ class ClrMetaData(DataContainer):
             # parse each stream
             for s in self.streams_list:
                 try:
-                    s.parse(self.streams_list)
+                    s.parse(self.streams_list, lazy_load=lazy_load)
                 except (errors.dnFormatError, PEFormatError) as e:
                     # other streams may parse, so add to warnings and continue
                     pe.add_warning("Unable to parse stream {!r}".format(s.struct.Name))
@@ -421,8 +423,15 @@ class ClrData(DataContainer):
     guids: Optional[stream.GuidHeap]
     blobs: Optional[stream.BlobHeap]
     mdtables: Optional[stream.MetaDataTables]
-    resources: List[base.ClrResource]
     Flags: Optional[enums.ClrHeaderFlags]
+
+    _resources: Optional[List[base.ClrResource]]
+    @property
+    def resources(self) -> List[base.ClrResource]:
+        if self._resources is None:
+            self._init_resources(self._pe)
+            assert self._resources is not None
+        return self._resources
 
     # Structure description from:
     # http://www.ntcore.com/files/dotnetformat.htm
@@ -451,7 +460,7 @@ class ClrData(DataContainer):
         ),
     )
 
-    def __init__(self, pe: dnPE, rva: int, size: int):
+    def __init__(self, pe: dnPE, rva: int, size: int, lazy_load: bool):
         """
         Given dnPE object, .NET header RVA and header size.
         Raises dnFormatError if problems parsing.
@@ -483,11 +492,11 @@ class ClrData(DataContainer):
         self.guids = None
         self.blobs = None
         self.mdtables = None
-        self.resources = list()
+        self._resources = None
         self.Flags = None
 
         try:
-            self.metadata = ClrMetaData(pe, metadata_rva, metadata_size)
+            self.metadata = ClrMetaData(pe, metadata_rva, metadata_size, lazy_load)
         except (errors.dnFormatError, PEFormatError) as e:
             logger.warning("failed to parse .NET metadata: %s", e)
             return
@@ -512,6 +521,13 @@ class ClrData(DataContainer):
         flags_object = enums.ClrHeaderFlags(clr_struct.Flags)
         self.Flags = flags_object
 
+        if not lazy_load:
+            self._init_resources(pe)
+        else:
+            setattr(self, "_pe", pe)
+
+    def _init_resources(self, pe):
+        self._resources = []
         # parse the resources
         if self.struct.ResourcesRva > 0 and self.mdtables and self.mdtables.ManifestResource and self.mdtables.ManifestResource.num_rows > 0:
             # for each row
@@ -545,8 +561,8 @@ class ClrData(DataContainer):
                     res.rva = rsrc_rva
                     res.size = size
                     res.data = rdata
-                    self.resources.append(res)
-            for rsrc in self.resources:
+                    self._resources.append(res)
+            for rsrc in self._resources:
                 try:
                     rsrc.parse()
                 except errors.dnFormatError as e:

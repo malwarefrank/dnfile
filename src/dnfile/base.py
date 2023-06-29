@@ -6,14 +6,15 @@ Copyright (c) 2020-2022 MalwareFrank
 """
 import abc
 import enum
+import functools as _functools
 import struct as _struct
-import typing
 import logging
 from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Union, Generic, TypeVar, Optional, Sequence
 
 from pefile import Structure
 
 from . import enums, errors
+from .utils import LazyList as _LazyList
 
 if TYPE_CHECKING:
     from . import stream
@@ -41,7 +42,7 @@ class ClrStream(abc.ABC):
         self._stream_table_entry_size = stream_struct.sizeof()
         self._data_size = len(stream_data)
 
-    def parse(self, streams: List):
+    def parse(self, streams: List, lazy_load: bool):
         """
         Parse the stream.
 
@@ -88,6 +89,12 @@ class ClrHeap(ClrStream):
 
 class RowStruct(Structure):
     pass
+
+
+class LoadState(enum.Enum):
+    Unloaded = 0
+    LazyLoaded = 1
+    Loaded = 2
 
 
 class MDTableRow(abc.ABC):
@@ -154,6 +161,8 @@ class MDTableRow(abc.ABC):
     _struct_enums: Dict[str, Tuple[str, Type[enum.IntEnum]]]         # also enum.IntEnum subclassA
     _struct_lists: Dict[str, Tuple[str, str]]                        # also Metadata table name
 
+    _loaded = LoadState.Unloaded
+
     def __init__(
         self,
         tables_rowcounts: List[Optional[int]],
@@ -191,6 +200,10 @@ class MDTableRow(abc.ABC):
         self.struct: RowStruct = self.__class__._struct_class(format=self._format)
         self.row_size: int = self.struct.sizeof()
 
+        self._class_struct_attrs, self._class_struct_attrs_tables = (
+            _row_class_struct_attrs(self.__class__)
+        )
+
     @abc.abstractmethod
     def _compute_format(self) -> Tuple[str, Sequence[str]]:
         """
@@ -212,6 +225,32 @@ class MDTableRow(abc.ABC):
         self.struct = self.__class__._struct_class(format=self._format, file_offset=offset)
         self.struct.__unpack__(data)
 
+    # can be safely parsed without all tables being initialized
+    CLASS_ATTRS = (
+        "_struct_asis", "_struct_strings", "_struct_guids",
+        "_struct_blobs", "_struct_flags", "_struct_enums",
+
+    )
+    # cannot be fully parsed without all tables being initialized
+    CLASS_ATTRS_TABLES = (
+        "_struct_codedindexes", "_struct_indexes","_struct_lists"
+    )
+
+    def setup_lazy_load(self, full_loader):
+        self._loaded = LoadState.LazyLoaded
+        self._full_loader = full_loader
+
+    def __getattr__(self, attr):
+        if self._loaded == LoadState.LazyLoaded:
+            if attr in self._class_struct_attrs:
+                loader = getattr(self, "_parse" + self._class_struct_attrs[attr])
+                loader()
+                return getattr(self, attr)
+            if attr in self._class_struct_attrs_tables:
+                self._full_loader()
+                return getattr(self, attr)
+        raise AttributeError(attr)
+
     def parse(self, tables: List["ClrMetaDataTable"], next_row: Optional["MDTableRow"]):
         """
         Parse the row data and set object attributes.  Should only be called after all rows of all tables
@@ -219,12 +258,26 @@ class MDTableRow(abc.ABC):
 
             next_row    the next row in the table, used for row lists (e.g. FieldList, MethodList)
         """
+        self._parse_struct_asis()
+        self._parse_struct_strings()
+        self._parse_struct_guids()
+        self._parse_struct_blobs()
+        self._parse_struct_flags()
+        self._parse_struct_enums()
+        self._parse_struct_codedindexes(tables, next_row)
+        self._parse_struct_indexes(tables, next_row)
+        self._parse_struct_lists(tables, next_row)
+        self._loaded = LoadState.Loaded
+
+
+    def _parse_struct_asis(self):
         # if there are any fields to copy as-is
         if hasattr(self.__class__, "_struct_asis"):
             for struct_name, attr_name in self.__class__._struct_asis.items():
                 # always define attribute, even if failed to parse
                 setattr(self, attr_name, getattr(self.struct, struct_name, None))
 
+    def _parse_struct_strings(self):
         # if strings
         if hasattr(self.__class__, "_struct_strings"):
             for struct_name, attr_name in self.__class__._struct_strings.items():
@@ -245,6 +298,7 @@ class MDTableRow(abc.ABC):
                 except IndexError:
                     logger.warning("failed to fetch string: unable to parse data")
 
+    def _parse_struct_guids(self):
         # if guids
         if hasattr(self.__class__, "_struct_guids"):
             for struct_name, attr_name in self.__class__._struct_guids.items():
@@ -260,6 +314,7 @@ class MDTableRow(abc.ABC):
                 except (IndexError, TypeError):
                     logger.warning("failed to fetch guid: unable to parse data")
 
+    def _parse_struct_blobs(self):
         # if blobs
         if hasattr(self.__class__, "_struct_blobs"):
             for struct_name, attr_name in self.__class__._struct_blobs.items():
@@ -274,6 +329,7 @@ class MDTableRow(abc.ABC):
                 except (IndexError, TypeError):
                     logger.warning("failed to fetch blob: unable to parse data")
 
+    def _parse_struct_codedindexes(self, tables, next_row):
         # if coded indexes
         if hasattr(self.__class__, "_struct_codedindexes") and tables:
             for struct_name, (
@@ -288,6 +344,7 @@ class MDTableRow(abc.ABC):
                 except (IndexError, TypeError):
                     logger.warning("failed to fetch coded index: unable to parse data")
 
+    def _parse_struct_flags(self):
         # if flags
         if hasattr(self.__class__, "_struct_flags"):
             for struct_name, (attr_name, flag_class) in self.__class__._struct_flags.items():
@@ -304,6 +361,7 @@ class MDTableRow(abc.ABC):
                 except ValueError:
                     logger.warning("failed to fetch flag: invalid flag data")
 
+    def _parse_struct_enums(self):
         # if enums
         if hasattr(self.__class__, "_struct_enums"):
             for struct_name, (attr_name, enum_class) in self.__class__._struct_enums.items():
@@ -320,6 +378,7 @@ class MDTableRow(abc.ABC):
                 except ValueError:
                     logger.warning("failed to fetch enum: invalid enum data")
 
+    def _parse_struct_indexes(self, tables, next_row):
         # if indexes
         if hasattr(self.__class__, "_struct_indexes") and tables:
             for struct_name, (attr_name, table_name) in self.__class__._struct_indexes.items():
@@ -337,6 +396,7 @@ class MDTableRow(abc.ABC):
                     else:
                         logger.warning("failed to fetch index reference: unable to parse data")
 
+    def _parse_struct_lists(self, tables, next_row):
         # if lists
         if hasattr(self.__class__, "_struct_lists") and tables:
             for struct_name, (attr_name, table_name) in self.__class__._struct_lists.items():
@@ -422,6 +482,21 @@ class MDTableRow(abc.ABC):
         else:
             # otherwise, size is a dword
             return "I"
+
+
+@_functools.cache
+def _row_class_struct_attrs(cls):
+    attrs = {
+        attr[0] if isinstance(attr, tuple) else attr: struct
+        for struct in MDTableRow.CLASS_ATTRS
+        for _, attr in getattr(cls, struct, {}).items()
+    }
+    attrs_tables = {
+        attr[0] if isinstance(attr, tuple) else attr: struct
+        for struct in MDTableRow.CLASS_ATTRS_TABLES
+        for _, attr in getattr(cls, struct, {}).items()
+    }
+    return attrs, attrs_tables
 
 
 class MDTablesStruct(Structure):
@@ -539,6 +614,8 @@ class ClrMetaDataTable(Generic[RowType]):
     name: str
     _row_class: Type[RowType]
 
+    _loaded=LoadState.Unloaded
+
     def __init__(
         self,
         tables_rowcounts: List[Optional[int]],
@@ -549,6 +626,7 @@ class ClrMetaDataTable(Generic[RowType]):
         strings_heap: Optional["stream.StringsHeap"],
         guid_heap: Optional["stream.GuidHeap"],
         blob_heap: Optional["stream.BlobHeap"],
+        lazy_load=False
     ):
         """
         Given the tables' row counts, sorted flag, and heap info.
@@ -574,23 +652,36 @@ class ClrMetaDataTable(Generic[RowType]):
         self.is_sorted: bool = is_sorted
         self.num_rows: int = num_rows
 
-        self.rows: List[RowType] = []
-        for i in range(num_rows):
+        def init_row():
+            return self._row_class(
+                tables_rowcounts,
+                strings_offset_size,
+                guid_offset_size,
+                blob_offset_size,
+                strings_heap,
+                guid_heap,
+                blob_heap,
+            )
+
+        self.rows: List[RowType]
+        if lazy_load and num_rows > 0:
+            self.rows = _LazyList(self._lazy_parse_rows, num_rows)
+            # Required for _get_row_size()
             try:
-                self.rows.append(self._row_class(
-                    tables_rowcounts,
-                    strings_offset_size,
-                    guid_offset_size,
-                    blob_offset_size,
-                    strings_heap,
-                    guid_heap,
-                    blob_heap,
-                ))
+                self.rows[0] = init_row()
             except errors.dnFormatError:
-                # this may occur when the offset to a stream is too large.
-                # this probably means invalid data.
-                logger.warning("failed to construct %s row %d", self.name, i)
-                break
+                logger.warning("failed to construct %s row %d", self.name, 0)
+                # truncate list
+                self.rows = []
+        else:
+            self.rows = []
+            for e in range(num_rows):
+                try:
+                    self.rows.append(init_row())
+                except errors.dnFormatError:
+                    # this may occur when the offset to a stream is too large.
+                    # this probably means invalid data.
+                    logger.warning("failed to construct %s row %d", self.name, e)
 
         # store heap info
         self._strings_heap: Optional["stream.StringsHeap"] = strings_heap
@@ -610,6 +701,56 @@ class ClrMetaDataTable(Generic[RowType]):
         r = self.rows[0]
         return r.row_size
 
+    def setup_lazy_load(self, table_rva: int, data: bytes, full_loader):
+        if not self._loaded == LoadState.Unloaded:
+            return
+        self.rva = table_rva
+        self._table_data = data
+        self._full_loader = full_loader
+        if len(data) < self.row_size * self.num_rows:
+            logger.warning("not enough data to parse %d rows", self.num_rows)
+        self._loaded = LoadState.LazyLoaded
+
+    def _lazy_parse_row(self, row, idx):
+        if row and row._loaded != LoadState.Unloaded:
+            return row
+
+        try:
+            row = self._row_class(
+                self._tables_rowcounts,
+                self._strings_offset_size,
+                self._guid_offset_size,
+                self._blob_offset_size,
+                self._strings_heap,
+                self._guid_heap,
+                self._blob_heap,
+            )
+        except errors.dnFormatError:
+            # this may occur when the offset to a stream is too large.
+            # this probably means invalid data.
+            logger.warning("failed to construct %s row %d",self.name, idx)
+            assert isinstance(self.rows, _LazyList)
+            self.rows.truncate(idx)
+            return
+
+        row.setup_lazy_load(self._full_loader)
+        offset = self.row_size * idx
+        if len(self._table_data) < offset + self.row_size:
+            logger.warning("not enough data to parse row %d", idx)
+            return row
+        row.set_data(self._table_data[offset:offset + self.row_size], offset=self.rva + offset)
+        return row
+
+    def _lazy_parse_rows(self, key, row):
+        # Guard if called before setup_lazy_load()
+        if self._loaded != LoadState.LazyLoaded:
+            return row
+
+        if isinstance(row, list):
+            return [self._lazy_parse_row(row, i) for row, i in zip(row, range(key.start, key.stop, key.step))]
+
+        return self._lazy_parse_row(row, key)
+
     def parse_rows(self, table_rva: int, data: bytes):
         """
         Given a byte sequence containing the rows, add data to each row in the
@@ -617,6 +758,10 @@ class ClrMetaDataTable(Generic[RowType]):
         parse() is called, which should not happen until all tables have been
         initialized and parse_rows() called on each.
         """
+        if self._loaded == LoadState.LazyLoaded:
+            # will be handled by lazy evaluation during parse()
+            return
+
         self._table_data = data
         if len(data) < self.row_size * self.num_rows:
             logger.warning("not enough data to parse %d rows", self.num_rows)
@@ -651,6 +796,7 @@ class ClrMetaDataTable(Generic[RowType]):
 
             # fully parse the row
             row.parse(tables, next_row=next_row)
+        self._loaded = LoadState.Loaded
 
     def __getitem__(self, index: int) -> RowType:
         return self.rows[index]
