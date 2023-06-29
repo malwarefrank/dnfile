@@ -2155,6 +2155,7 @@ class ClrMetaDataTableFactory(object):
         strings_heap: Optional["stream.StringsHeap"],
         guid_heap: Optional["stream.GuidHeap"],
         blob_heap: Optional["stream.BlobHeap"],
+        lazy_load=False
     ) -> ClrMetaDataTable:
         if number not in cls._table_number_map:
             raise errors.dnFormatError("invalid table index")
@@ -2168,5 +2169,6 @@ class ClrMetaDataTableFactory(object):
             strings_heap,
             guid_heap,
             blob_heap,
+            lazy_load,
         )
         return table

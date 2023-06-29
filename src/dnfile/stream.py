@@ -330,7 +330,7 @@ class MetaDataTables(base.ClrStream):
         self.GenericParamConstraint: Optional[mdtable.GenericParamConstraint] = None
         self.Unused: Optional[mdtable.Unused] = None
 
-    def parse(self, streams: List[base.ClrStream]):
+    def parse(self, streams: List[base.ClrStream], lazy_load=False):
         """
         this may raise an exception if the data cannot be parsed correctly.
         however, `self` may still be partially initialized with *some* data.
@@ -428,6 +428,7 @@ class MetaDataTables(base.ClrStream):
                         strings_heap,
                         guid_heap,
                         blob_heap,
+                        lazy_load,
                     )
                 except errors.dnFormatError as e:
                     table = None
@@ -454,22 +455,40 @@ class MetaDataTables(base.ClrStream):
                 if table.name:
                     setattr(self, table.name, table)
 
-        #### parse each table
-        # here, cur_rva points to start of table rows
-        for table in self.tables_list:
-            if table.row_size > 0 and table.num_rows > 0:
-                table_data = self.get_data_at_rva(
-                    cur_rva, table.row_size * table.num_rows
-                )
-                # parse structures (populates .struct for each row)
-                table.parse_rows(cur_rva, table_data)
-                table.rva = cur_rva
-                # move to next set of rows
-                cur_rva += table.row_size * table.num_rows
-        #### finalize parsing each table
-        # For each row, de-references indexes in the .struct and populates row attributes.
-        for table in self.tables_list:
-            table.parse(self.tables_list)
+
+        if lazy_load:
+            self._loaded = False
+            def full_loader():
+                if not self._loaded:
+                    # parse_rows is redundant for lazy loading
+                    for table in self.tables_list:
+                        table.parse(self.tables_list)
+                self._loaded = True
+
+            for table in self.tables_list:
+                if table.row_size > 0 and table.num_rows > 0:
+                    table_data = self.get_data_at_rva(
+                        cur_rva, table.row_size * table.num_rows
+                    )
+                    table.setup_lazy_load(cur_rva, table_data, full_loader)
+                    cur_rva += table.row_size * table.num_rows
+        else:
+            #### parse each table
+            # here, cur_rva points to start of table rows
+            for table in self.tables_list:
+                if table.row_size > 0 and table.num_rows > 0:
+                    table_data = self.get_data_at_rva(
+                        cur_rva, table.row_size * table.num_rows
+                    )
+                    # parse structures (populates .struct for each row)
+                    table.parse_rows(cur_rva, table_data)
+                    table.rva = cur_rva
+                    # move to next set of rows
+                    cur_rva += table.row_size * table.num_rows
+            #### finalize parsing each table
+            # For each row, de-references indexes in the .struct and populates row attributes.
+            for table in self.tables_list:
+                table.parse(self.tables_list)
 
         # raise warning/error
         if deferred_exceptions:
