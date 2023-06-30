@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from collections import deque
 import copy as _copymod
 import logging
 import functools as _functools
-from typing import Tuple, Optional, TypeVar, List
+from typing import List, Tuple, TypeVar, Optional, cast
+from collections import deque
 
 logger = logging.getLogger(__name__)
 
@@ -85,12 +85,14 @@ def num_bytes_to_struct_char(n: int) -> Optional[str]:
         logger.warning("invalid format specifier: %d", n)
         return None
 
+
 _ListType = TypeVar("_ListType")
 
+
 class LazyList(List[_ListType]):
-    def __init__(self, eval_func, initial_size: int ):
+    def __init__(self, eval_func, initial_size: int):
         self.eval_func = eval_func
-        super().__init__([None] * initial_size)
+        super().__init__(cast(List[_ListType], [None] * initial_size))
 
     def __getitem__(self, __key):
         __value = super().__getitem__(__key)
@@ -100,13 +102,13 @@ class LazyList(List[_ListType]):
         return new
 
     def __iter__(self):
-        i=0
+        i = 0
         for v in super().__iter__():
             new = self.eval_func(i, v)
             if v != new:
                 super().__setitem__(i, new)
             yield new
-            i+=1
+            i += 1
 
     def eval_all(self):
         deque(self, maxlen=0)

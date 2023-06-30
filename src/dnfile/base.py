@@ -6,9 +6,9 @@ Copyright (c) 2020-2022 MalwareFrank
 """
 import abc
 import enum
-import functools as _functools
 import struct as _struct
 import logging
+import functools as _functools
 from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Union, Generic, TypeVar, Optional, Sequence
 
 from pefile import Structure
@@ -233,7 +233,7 @@ class MDTableRow(abc.ABC):
     )
     # cannot be fully parsed without all tables being initialized
     CLASS_ATTRS_TABLES = (
-        "_struct_codedindexes", "_struct_indexes","_struct_lists"
+        "_struct_codedindexes", "_struct_indexes", "_struct_lists"
     )
 
     def setup_lazy_load(self, full_loader):
@@ -268,7 +268,6 @@ class MDTableRow(abc.ABC):
         self._parse_struct_indexes(tables, next_row)
         self._parse_struct_lists(tables, next_row)
         self._loaded = LoadState.Loaded
-
 
     def _parse_struct_asis(self):
         # if there are any fields to copy as-is
@@ -484,7 +483,7 @@ class MDTableRow(abc.ABC):
             return "I"
 
 
-@_functools.cache
+@_functools.lru_cache(None)
 def _row_class_struct_attrs(cls):
     attrs = {
         attr[0] if isinstance(attr, tuple) else attr: struct
@@ -614,7 +613,7 @@ class ClrMetaDataTable(Generic[RowType]):
     name: str
     _row_class: Type[RowType]
 
-    _loaded=LoadState.Unloaded
+    _loaded = LoadState.Unloaded
 
     def __init__(
         self,
@@ -728,7 +727,7 @@ class ClrMetaDataTable(Generic[RowType]):
         except errors.dnFormatError:
             # this may occur when the offset to a stream is too large.
             # this probably means invalid data.
-            logger.warning("failed to construct %s row %d",self.name, idx)
+            logger.warning("failed to construct %s row %d", self.name, idx)
             assert isinstance(self.rows, _LazyList)
             self.rows.truncate(idx)
             return

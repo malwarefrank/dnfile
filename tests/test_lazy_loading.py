@@ -1,8 +1,8 @@
 import fixtures
 
 import dnfile
-from dnfile.mdtable import TypeRefRow, MemberRefRow
 from dnfile.utils import LazyList
+from dnfile.mdtable import TypeRefRow, MemberRefRow
 
 
 def test_lazy_loading():
