@@ -161,8 +161,6 @@ class MDTableRow(abc.ABC):
     _struct_enums: Dict[str, Tuple[str, Type[enum.IntEnum]]]         # also enum.IntEnum subclassA
     _struct_lists: Dict[str, Tuple[str, str]]                        # also Metadata table name
 
-    _loaded = LoadState.Unloaded
-
     def __init__(
         self,
         tables_rowcounts: List[Optional[int]],
@@ -184,6 +182,8 @@ class MDTableRow(abc.ABC):
         tables_rowcounts is indexed by table number.  The value is the row count, if it exists, or None.
         """
         assert hasattr(self.__class__, "_struct_class")
+
+        self._loaded = LoadState.Unloaded
 
         self._tables_rowcnt = tables_rowcounts
         self._strings: Optional["stream.StringsHeap"] = strings_heap
@@ -613,8 +613,6 @@ class ClrMetaDataTable(Generic[RowType]):
     name: str
     _row_class: Type[RowType]
 
-    _loaded = LoadState.Unloaded
-
     def __init__(
         self,
         tables_rowcounts: List[Optional[int]],
@@ -639,6 +637,8 @@ class ClrMetaDataTable(Generic[RowType]):
         assert hasattr(self, "number")
         assert hasattr(self, "name")
         assert hasattr(self, "_row_class")
+
+        self._loaded = LoadState.Unloaded
 
         # default value
         self.rva: int = 0
