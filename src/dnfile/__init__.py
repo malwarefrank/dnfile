@@ -426,10 +426,11 @@ class ClrData(DataContainer):
     Flags: Optional[enums.ClrHeaderFlags]
 
     _resources: Optional[List[base.ClrResource]]
+
     @property
     def resources(self) -> List[base.ClrResource]:
         if self._resources is None:
-            self._init_resources(self._pe)
+            self._init_resources(getattr(self, "_pe"))
             assert self._resources is not None
         return self._resources
 

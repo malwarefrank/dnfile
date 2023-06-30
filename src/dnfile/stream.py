@@ -455,9 +455,9 @@ class MetaDataTables(base.ClrStream):
                 if table.name:
                     setattr(self, table.name, table)
 
-
         if lazy_load:
             self._loaded = False
+
             def full_loader():
                 if not self._loaded:
                     # parse_rows is redundant for lazy loading
