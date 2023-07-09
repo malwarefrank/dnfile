@@ -525,9 +525,15 @@ class ClrData(DataContainer):
         if not lazy_load:
             self._init_resources(pe)
         else:
+            # store the dnPE reference for lazy-loading
             setattr(self, "_pe", pe)
 
     def _init_resources(self, pe):
+        """Parse and initialize assembly resources.
+
+        This is separate from `ClrData.__init__` to allow for mdtable lazy-loading since
+        parsing `ManifestResourceRow.Implementation` requires all tables to be loaded.
+        """
         self._resources = []
         # parse the resources
         if self.struct.ResourcesRva > 0 and self.mdtables and self.mdtables.ManifestResource and self.mdtables.ManifestResource.num_rows > 0:
