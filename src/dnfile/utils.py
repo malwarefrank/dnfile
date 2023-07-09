@@ -90,7 +90,18 @@ _ListType = TypeVar("_ListType")
 
 
 class LazyList(List[_ListType]):
+    """A List that transparently initializes each item as it is accessed.
+
+    Note that calling `str` or `repr` with an instance of this class will force
+    all items to be initialized.
+    """
+
     def __init__(self, eval_func, initial_size: int):
+        """Create a lazily initialized list of the specified size.
+
+        `eval_func` is called with the index and value (or slice and list of values)
+        for items retrieved through `__getitem__` *every time they are accessed*.
+        """
         self.eval_func = eval_func
         super().__init__(cast(List[_ListType], [None] * initial_size))
 
@@ -102,7 +113,7 @@ class LazyList(List[_ListType]):
         return new
 
     def __iter__(self):
-        i = 0
+        i = 0  # `eval_func` requires an index
         for v in super().__iter__():
             new = self.eval_func(i, v)
             if v != new:
@@ -111,9 +122,11 @@ class LazyList(List[_ListType]):
             i += 1
 
     def eval_all(self):
-        deque(self, maxlen=0)
+        """Ensure all items in the list are initialized by iterating through them."""
+        deque(self, maxlen=0)  # Fully consumes iterator without overhead (https://stackoverflow.com/a/50938015)
 
     def truncate(self, length: int):
+        """Truncate the list without evaluating any items."""
         keep = super().__getitem__(slice(0, length))
         self.clear()
         self.extend(keep)

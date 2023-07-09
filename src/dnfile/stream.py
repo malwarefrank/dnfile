@@ -459,12 +459,15 @@ class MetaDataTables(base.ClrStream):
             self._loaded = False
 
             def full_loader():
+                # Called if a property is accessed that requires data from other tables.
+                # This will be called multiple times while parsing tables.
                 if not self._loaded:
+                    self._loaded = True
                     # parse_rows is redundant for lazy loading
                     for table in self.tables_list:
                         table.parse(self.tables_list)
-                self._loaded = True
 
+            # Setup lazy loading for all tables
             for table in self.tables_list:
                 if table.row_size > 0 and table.num_rows > 0:
                     table_data = self.get_data_at_rva(

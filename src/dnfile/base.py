@@ -42,7 +42,7 @@ class ClrStream(abc.ABC):
         self._stream_table_entry_size = stream_struct.sizeof()
         self._data_size = len(stream_data)
 
-    def parse(self, streams: List, lazy_load: bool):
+    def parse(self, streams: List, lazy_load: bool = False):
         """
         Parse the stream.
 
@@ -200,10 +200,6 @@ class MDTableRow(abc.ABC):
         self.struct: RowStruct = self.__class__._struct_class(format=self._format)
         self.row_size: int = self.struct.sizeof()
 
-        self._class_struct_attrs, self._class_struct_attrs_tables = (
-            _row_class_struct_attrs(self.__class__)
-        )
-
     @abc.abstractmethod
     def _compute_format(self) -> Tuple[str, Sequence[str]]:
         """
@@ -237,16 +233,38 @@ class MDTableRow(abc.ABC):
     )
 
     def setup_lazy_load(self, full_loader):
+        """Mark this row for lazy-loading.
+
+        `full_loader` will be called if a property is requested that requires
+        loading all mdtables before it can be parsed.
+        """
+        if not self._loaded == LoadState.Unloaded:
+            return
         self._loaded = LoadState.LazyLoaded
         self._full_loader = full_loader
+        # Retrieve the properties that this row *could* have, along with
+        # their associated struct type. These are used to determine what
+        # _parse function needs to be called to load the property.
+        self._class_struct_attrs, self._class_struct_attrs_tables = (
+            _row_class_struct_attrs(self.__class__)
+        )
 
     def __getattr__(self, attr):
+        """If this row is marked for lazy-loading, attempt to load the struct
+        that contains the requested property and try again.
+
+        If the requested property requires data from other
+        mdtables, all tables will be loaded.
+        """
         if self._loaded == LoadState.LazyLoaded:
             if attr in self._class_struct_attrs:
                 loader = getattr(self, "_parse" + self._class_struct_attrs[attr])
                 loader()
+                # If something were to go wrong with loading the correct struct, this
+                # would cause a StackOverflow from recursive __getattr__ calls.
                 return getattr(self, attr)
             if attr in self._class_struct_attrs_tables:
+                # This property requires data from other tables, trigger a full load.
                 self._full_loader()
                 return getattr(self, attr)
         raise AttributeError(attr)
@@ -483,8 +501,16 @@ class MDTableRow(abc.ABC):
             return "I"
 
 
+# Computing this for each class takes some time, especially if it is done for every row,
+# but it *should* remain consistent for any given class and therefore can be cached.
 @_functools.lru_cache(None)
-def _row_class_struct_attrs(cls):
+def _row_class_struct_attrs(cls: Type[MDTableRow]):
+    """Retrieve all possible attributes for a `MDTableRow` class,
+    along with their associated struct type.
+
+    Attributes are separated based on whether they can be loaded without data from
+    any other tables.
+    """
     attrs = {
         attr[0] if isinstance(attr, tuple) else attr: struct
         for struct in MDTableRow.CLASS_ATTRS
@@ -665,12 +691,12 @@ class ClrMetaDataTable(Generic[RowType]):
         self.rows: List[RowType]
         if lazy_load and num_rows > 0:
             self.rows = _LazyList(self._lazy_parse_rows, num_rows)
-            # Required for _get_row_size()
             try:
+                # `_get_row_size` uses the size of the first row.
                 self.rows[0] = init_row()
             except errors.dnFormatError:
                 logger.warning("failed to construct %s row %d", self.name, 0)
-                # truncate list
+                # "truncate" the list since the following data is assumed invalid.
                 self.rows = []
         else:
             self.rows = []
@@ -701,6 +727,11 @@ class ClrMetaDataTable(Generic[RowType]):
         return r.row_size
 
     def setup_lazy_load(self, table_rva: int, data: bytes, full_loader):
+        """Mark this table for lazy-loading.
+
+        `full_loader` will be called if a row property is requested that requires
+        loading all mdtables before it can be parsed.
+        """
         if not self._loaded == LoadState.Unloaded:
             return
         self.rva = table_rva
@@ -711,6 +742,9 @@ class ClrMetaDataTable(Generic[RowType]):
         self._loaded = LoadState.LazyLoaded
 
     def _lazy_parse_row(self, row, idx):
+        """If the row has not been loaded, return a new lazy-loaded row initialized
+        with the proper data for the row index.
+        """
         if row and row._loaded != LoadState.Unloaded:
             return row
 
@@ -728,24 +762,29 @@ class ClrMetaDataTable(Generic[RowType]):
             # this may occur when the offset to a stream is too large.
             # this probably means invalid data.
             logger.warning("failed to construct %s row %d", self.name, idx)
+            # truncate the row list to the current index since the following data is
+            # assumed invalid.
             assert isinstance(self.rows, _LazyList)
             self.rows.truncate(idx)
-            return
+            return None
 
         row.setup_lazy_load(self._full_loader)
         offset = self.row_size * idx
         if len(self._table_data) < offset + self.row_size:
             logger.warning("not enough data to parse row %d", idx)
+            # we could truncate here as well, but regular loading would still be
+            # left with a full-length list in the equivalent situation.
             return row
         row.set_data(self._table_data[offset:offset + self.row_size], offset=self.rva + offset)
         return row
 
     def _lazy_parse_rows(self, key, row):
+        """Convenience function to handle both indexing and slicing of the LazyList."""
         # Guard if called before setup_lazy_load()
         if self._loaded != LoadState.LazyLoaded:
             return row
 
-        if isinstance(row, list):
+        if isinstance(key, slice):
             return [self._lazy_parse_row(row, i) for row, i in zip(row, range(key.start, key.stop, key.step))]
 
         return self._lazy_parse_row(row, key)
