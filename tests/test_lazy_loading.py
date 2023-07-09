@@ -32,7 +32,9 @@ def test_lazy_loading():
     # The first item of the rows list is a special case, because it is
     # initialized without data before lazy-loading is setup.
     # Make sure that it behaves the same as any other row when accessed.
-    typeref_row = dn.net.mdtables.TypeRef.rows[0]
+    # We can also verify that slicing works, since it too needs to be
+    # handled appropriately.
+    typeref_row = dn.net.mdtables.TypeRef.rows[:3:2][0]
     assert isinstance(typeref_row, TypeRefRow)
 
     assert "ResolutionScope" not in typeref_row.__dict__

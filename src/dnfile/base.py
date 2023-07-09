@@ -9,6 +9,7 @@ import enum
 import struct as _struct
 import logging
 import functools as _functools
+import itertools as _itertools
 from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Union, Generic, TypeVar, Optional, Sequence
 
 from pefile import Structure
@@ -785,7 +786,12 @@ class ClrMetaDataTable(Generic[RowType]):
             return row
 
         if isinstance(key, slice):
-            return [self._lazy_parse_row(row, i) for row, i in zip(row, range(key.start, key.stop, key.step))]
+            # normally not knowing the length of the list a slice was taken from
+            # would be an issue, but we can just keep going until `row` is exhausted.
+            return [
+                self._lazy_parse_row(row, i)
+                for row, i in zip(row, _itertools.count(key.start or 0, key.step or 1))
+            ]
 
         return self._lazy_parse_row(row, key)
 
