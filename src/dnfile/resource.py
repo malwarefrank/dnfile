@@ -416,13 +416,13 @@ class ResourceSet(object):
             try:
                 e.struct.Name, size = self.read_serialized_data(offset)
                 e.name = e.struct.Name.decode("utf-16")
+            except UnicodeDecodeError:
+                # entry name is initialized to None, so just ignore
+                pass
             except ValueError:
                 # further entries may be ok; delay this exception
                 problems.append("CLR ResourceSet error: expected more data for entries at '{}' rsrc offset {}".format(self.parent.name, offset))
                 continue
-            except UnicodeDecodeError:
-                # entry name is initialized to None, so just ignore
-                pass
             offset += size
             e.struct.DataOffset = int.from_bytes(self._data[offset:offset + 4], byteorder="little")
             if self.struct.DataSectionOffset is None:
