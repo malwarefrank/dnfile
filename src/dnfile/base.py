@@ -263,11 +263,14 @@ class MDTableRow(abc.ABC):
                 loader()
                 # If something were to go wrong with loading the correct struct, this
                 # would cause a StackOverflow from recursive __getattr__ calls.
-                return getattr(self, attr)
-            if attr in self._class_struct_attrs_tables:
+                if hasattr(self, attr):
+                    return getattr(self, attr)
+            elif attr in self._class_struct_attrs_tables:
                 # This property requires data from other tables, trigger a full load.
                 self._full_loader()
-                return getattr(self, attr)
+                if hasattr(self, attr):
+                    return getattr(self, attr)
+        # TODO: more descriptive exception?
         raise AttributeError(attr)
 
     def parse(self, tables: List["ClrMetaDataTable"], next_row: Optional["MDTableRow"]):
