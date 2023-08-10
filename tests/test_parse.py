@@ -195,13 +195,26 @@ def test_typedef_members():
     assert typedefs[5].TypeName == "ModuleLoadException"
 
     assert len(typedefs[0].FieldList) == 52
-    assert len(typedefs[5].FieldList) == 0
+    assert len(typedefs[5].FieldList) == 1
 
     assert len(typedefs[0].MethodList) == 76
     assert len(typedefs[5].MethodList) == 3
 
     assert typedefs[0].MethodList[0].row.Name == "rc4_init"
     assert typedefs[5].MethodList[0].row.Name == ".ctor"
+
+
+def test_typedef_methodlist():
+    path = fixtures.get_data_path_by_name("EmptyClass_x86.exe")
+
+    dn = dnfile.dnPE(path)
+    assert dn.net is not None
+
+    typedefs = dn.net.mdtables.TypeDef
+    assert typedefs[0].TypeName == "<Module>"
+    assert typedefs[0].MethodList is not None
+    assert len(typedefs[0].MethodList) == 1
+    assert typedefs[0].MethodList[0].row.Name == "_mainCRTStartup"
 
 
 def test_method_params():

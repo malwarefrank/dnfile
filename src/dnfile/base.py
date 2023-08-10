@@ -460,7 +460,7 @@ class MDTableRow(abc.ABC):
                     # when this run starts at the last index,
                     # start == end and end == max_row.
                     # otherwise, if start == end, then run is empty.
-                    if (run_start_index != run_end_index) or (run_end_index == max_row):
+                    if run_start_index <= run_end_index:
                         # row indexes are inclusive, so our range goes to end+1
                         for row_index in range(run_start_index, run_end_index + 1):
                             run.append(MDTableIndex(table, row_index))
