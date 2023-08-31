@@ -624,8 +624,9 @@ class ClrStreamFactory(object):
         stream_struct.__unpack__(struct_data)
         # remove trailing NULLs from name
         stream_struct.Name = stream_struct.Name.rstrip(b"\x00")
+        stream_rva = metadata_rva + stream_struct.Offset
         stream_data = pe.get_data(
-            metadata_rva + stream_struct.Offset, stream_struct.Size
+            stream_rva, stream_struct.Size
         )
         name = stream_struct.Name
         # use GenericStream for any non-standard streams
@@ -633,6 +634,7 @@ class ClrStreamFactory(object):
         try:
             # construct stream, like stream.StreagsHeap ctor or GenericStream ctor
             s = stream_class(metadata_rva, stream_struct, stream_data)
+            s.file_offset = pe.get_offset_from_rva(stream_rva)
         except errors.dnFormatError as e:
             logger.warning("failed to parse stream: %s", e)
             return None

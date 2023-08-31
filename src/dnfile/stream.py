@@ -354,7 +354,7 @@ class MetaDataTables(base.ClrStream):
             raise errors.dnFormatError("Unable to read .NET metadata tables")
 
         #### parse header
-        header_struct = MDTablesStruct(self._format, file_offset=self.rva)
+        header_struct = MDTablesStruct(self._format, file_offset=self.file_offset)
         header_struct.__unpack__(self.__data__)
         self.header = header_struct
 
@@ -474,6 +474,7 @@ class MetaDataTables(base.ClrStream):
                         cur_rva, table.row_size * table.num_rows
                     )
                     table.setup_lazy_load(cur_rva, table_data, full_loader)
+                    table.file_offset = self.get_file_offset(cur_rva)
                     cur_rva += table.row_size * table.num_rows
         else:
             #### parse each table
@@ -483,9 +484,10 @@ class MetaDataTables(base.ClrStream):
                     table_data = self.get_data_at_rva(
                         cur_rva, table.row_size * table.num_rows
                     )
+                    table.rva = cur_rva
+                    table.file_offset = self.get_file_offset(cur_rva)
                     # parse structures (populates .struct for each row)
                     table.parse_rows(cur_rva, table_data)
-                    table.rva = cur_rva
                     # move to next set of rows
                     cur_rva += table.row_size * table.num_rows
             #### finalize parsing each table
