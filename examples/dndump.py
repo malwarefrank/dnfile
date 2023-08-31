@@ -189,6 +189,7 @@ def render_pe(ostream: Formatter, dn):
             with indenting(ostream):
                 for i, row in enumerate(table.rows):
                     ostream.writeln("[%d]:" % (i + 1))
+                    ostream.writeln("File offset: " + str(row.struct.get_file_offset()))
                     with indenting(ostream):
                         rows = []
                         for fields in row.struct.__keys__:
