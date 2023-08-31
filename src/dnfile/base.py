@@ -39,6 +39,7 @@ class ClrStream(abc.ABC):
     ):
         self.struct: StreamStruct = stream_struct
         self.rva: int = metadata_rva + stream_struct.Offset
+        self.file_offset: Optional[int] = None
         self.__data__: bytes = stream_data
         self._stream_table_entry_size = stream_struct.sizeof()
         self._data_size = len(stream_data)
@@ -63,6 +64,17 @@ class ClrStream(abc.ABC):
         Return the size of this stream, in bytes.
         """
         return self._data_size
+
+    def get_file_offset(self, rva=None):
+        """
+        Return the file offset of the given RVA within this stream.
+        If no RVA given, then return the file offset of this stream.
+        """
+        if self.file_offset is not None and rva is not None:
+            stream_offset = rva - self.rva
+            if stream_offset >= 0:
+                return self.file_offset + stream_offset
+        return self.file_offset
 
     def get_data_at_offset(self, offset, size):
         if size == 0 or offset >= self.sizeof():
@@ -211,7 +223,7 @@ class MDTableRow(abc.ABC):
         """
         ...
 
-    def set_data(self, data: bytes, offset: Optional[int] = None):
+    def set_data(self, data: bytes, file_offset: Optional[int] = None):
         """
         Parse the data and set struct for this row.
 
@@ -219,7 +231,7 @@ class MDTableRow(abc.ABC):
         parse() is called after all tables have had parse_rows() called on them.
         """
         self._data = data
-        self.struct = self.__class__._struct_class(format=self._format, file_offset=offset)
+        self.struct = self.__class__._struct_class(format=self._format, file_offset=file_offset)
         self.struct.__unpack__(data)
 
     # can be safely parsed without all tables being initialized
@@ -639,6 +651,7 @@ class ClrMetaDataTable(Generic[RowType]):
     #       _row_class = ModuleRow
     #
     rva: int
+    file_offset: int
     number: int
     name: str
     _row_class: Type[RowType]
@@ -672,6 +685,7 @@ class ClrMetaDataTable(Generic[RowType]):
 
         # default value
         self.rva: int = 0
+        self.file_offset = 0
 
         num_rows = tables_rowcounts[self.number]
         if num_rows is None:
@@ -779,7 +793,7 @@ class ClrMetaDataTable(Generic[RowType]):
             # we could truncate here as well, but regular loading would still be
             # left with a full-length list in the equivalent situation.
             return row
-        row.set_data(self._table_data[offset:offset + self.row_size], offset=self.rva + offset)
+        row.set_data(self._table_data[offset:offset + self.row_size], file_offset=self.file_offset + offset)
         return row
 
     def _lazy_parse_rows(self, key, row):
@@ -822,7 +836,7 @@ class ClrMetaDataTable(Generic[RowType]):
                 break
 
             self.rows[i].set_data(
-                data[offset:offset + self.row_size], offset=table_rva + offset
+                data[offset:offset + self.row_size], file_offset=self.file_offset + offset
             )
             offset += self.row_size
 
