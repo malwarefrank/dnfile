@@ -168,6 +168,12 @@ def render_pe(ostream: Formatter, dn):
                 ostream.writeln("(invalid){!r}".format(stream.struct.Name))
 
             with indenting(ostream):
+                stream: dnfile.base.ClrStream
+                file_offset = stream.get_file_offset()
+                if file_offset is not None:
+                    file_offset = hex(file_offset)
+                ostream.writeln("File offset: " + str(file_offset))
+
                 render_pefile_struct(ostream, stream.struct)
 
                 ostream.writeln("data:")
@@ -189,8 +195,11 @@ def render_pe(ostream: Formatter, dn):
             with indenting(ostream):
                 for i, row in enumerate(table.rows):
                     ostream.writeln("[%d]:" % (i + 1))
-                    ostream.writeln("File offset: " + str(row.struct.get_file_offset()))
                     with indenting(ostream):
+                        file_offset = row.struct.get_file_offset()
+                        if file_offset is not None:
+                            file_offset = hex(file_offset)
+                        ostream.writeln("File offset: " + str(file_offset))
                         rows = []
                         for fields in row.struct.__keys__:
                             field = get_field_name(row, fields[0])
