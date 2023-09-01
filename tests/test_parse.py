@@ -27,22 +27,27 @@ def test_streams():
     assert dn.net is not None
     assert dn.net.metadata is not None
 
+    assert hasattr(dn.net.metadata, "streams")
     assert b"#~" in dn.net.metadata.streams
-    assert hasattr(dn.net, "metadata")
+    assert dn.net.metadata.streams[b"#~"].get_file_offset() == 0x2d4
 
     # strings used by #~
     assert b"#Strings" in dn.net.metadata.streams
     assert hasattr(dn.net, "strings")
+    assert dn.net.strings.get_file_offset() == 0x3d8
 
     # "user strings"
     assert b"#US" in dn.net.metadata.streams
     assert hasattr(dn.net, "user_strings")
+    assert dn.net.user_strings.get_file_offset() == 0x4dc
 
     assert b"#GUID" in dn.net.metadata.streams
     assert hasattr(dn.net, "guids")
+    assert dn.net.guids.get_file_offset() == 0x4f8
 
     assert b"#Blob" in dn.net.metadata.streams
     assert hasattr(dn.net, "blobs")
+    assert dn.net.blobs.get_file_offset() == 0x508
 
     assert b"#Foo" not in dn.net.metadata.streams
     assert not hasattr(dn.net, "foo")
@@ -67,6 +72,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 1,
         "RowSize": 10,
+        "file_offset": 0x310,
     }
     tables["TypeRef"] = {
         "RVA": 0x211a,
@@ -75,6 +81,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 6,
         "RowSize": 6,
+        "file_offset": 0x31a,
     }
     tables["TypeDef"] = {
         "RVA": 0x213e,
@@ -83,6 +90,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 2,
         "RowSize": 14,
+        "file_offset": 0x33e,
     }
     tables["MethodDef"] = {
         "RVA": 0x215a,
@@ -91,6 +99,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 2,
         "RowSize": 14,
+        "file_offset": 0x35a,
     }
     tables["Param"] = {
         "RVA": 0x2176,
@@ -99,6 +108,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 1,
         "RowSize": 6,
+        "file_offset": 0x376,
     }
     tables["MemberRef"] = {
         "RVA": 0x217c,
@@ -107,6 +117,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 5,
         "RowSize": 6,
+        "file_offset": 0x37c,
     }
     tables["CustomAttribute"] = {
         "RVA": 0x219a,
@@ -115,6 +126,7 @@ def test_tables():
         "IsSorted": True,
         "NumRows": 3,
         "RowSize": 6,
+        "file_offset": 0x39a,
     }
     tables["Assembly"] = {
         "RVA": 0x21ac,
@@ -123,6 +135,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 1,
         "RowSize": 22,
+        "file_offset": 0x3ac,
     }
     tables["AssemblyRef"] = {
         "RVA": 0x21c2,
@@ -131,6 +144,7 @@ def test_tables():
         "IsSorted": False,
         "NumRows": 1,
         "RowSize": 20,
+        "file_offset": 0x3c2,
     }
 
     for table in dn.net.mdtables.tables_list:
@@ -143,7 +157,7 @@ def test_tables():
         assert table.is_sorted == ref_table.get("IsSorted", None)
         assert table.num_rows == ref_table.get("NumRows", None)
         assert table.row_size == ref_table.get("RowSize", None)
-
+        assert table.file_offset == ref_table.get("file_offset")
 
 def test_module():
     path = fixtures.get_data_path_by_name("hello-world.exe")
