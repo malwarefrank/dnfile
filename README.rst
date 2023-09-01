@@ -7,8 +7,8 @@ dnfile
         :target: https://github.com/malwarefrank/dnfile/actions/workflows/lint.yml
 .. image:: https://img.shields.io/pypi/v/dnfile.svg
         :target: https://pypi.python.org/pypi/dnfile
-.. image:: https://pepy.tech/badge/dnfile
-        :target: https://pepy.tech/project/dnfile
+.. image:: https://img.shields.io/pypi/dm/dnfile
+        :target: https://pypistats.org/packages/dnfile
 
 
 Parse .NET executable files.
