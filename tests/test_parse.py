@@ -159,6 +159,7 @@ def test_tables():
         assert table.row_size == ref_table.get("RowSize", None)
         assert table.file_offset == ref_table.get("file_offset")
 
+
 def test_module():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
