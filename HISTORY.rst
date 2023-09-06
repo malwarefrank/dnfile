@@ -2,6 +2,18 @@
 History
 =======
 
+0.14.0 (2023)
+-------------
+* BREAKING CHANGE: Minimum required Python version is now 3.8
+* BUGFIX: ValueError fired before UnicodeDecodeError when parsing assembly resources
+* BUGFIX: mdtable row run-lists of size one were being ignored
+* BUGFIX: some struct file offsets were RVA values
+* FEATURE: Add ``clr_lazy_load`` option for lazy loading Metadata tables and assembly resources
+* move from legacy setup.py to pyproject.toml and tox
+* bump dev dependencies: mypy and isort
+* update tests and examples
+* update README badge to use download statistics from pypistats
+
 0.13.0 (2022)
 -------------
 * BREAKING CHANGE: rename GenericMethod mdtable to MethodSpec per ECMA 335
