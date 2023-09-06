@@ -2,6 +2,10 @@
 History
 =======
 
+0.14.1 (2023)
+-------------
+* fix github workflow
+
 0.14.0 (2023)
 -------------
 * BREAKING CHANGE: Minimum required Python version is now 3.8
