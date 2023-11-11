@@ -344,6 +344,7 @@ class MethodDefRow(MDTableRow):
     ImplFlags: enums.ClrMethodImpl
     Flags: enums.ClrMethodAttr
     Name: str
+    NameStringsHeapIndex: int
     Signature: bytes
     ParamList: List[MDTableIndex["ParamRow"]]
 
@@ -355,6 +356,9 @@ class MethodDefRow(MDTableRow):
     _struct_flags = {
         "ImplFlags": ("ImplFlags", enums.ClrMethodImpl),
         "Flags": ("Flags", enums.ClrMethodAttr),
+    }
+    _struct_strings_heap_offsets = {
+        "Name_StringIndex": "NameStringsHeapIndex",
     }
     _struct_strings = {
         "Name_StringIndex": "Name",

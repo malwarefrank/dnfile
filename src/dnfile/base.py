@@ -164,6 +164,7 @@ class MDTableRow(abc.ABC):
     #  - indexes: resolve via given table name
     #  - lists: resolve many items via given table name
     #  - codedindexes: resolve via candidate list of tables
+    _struct_strings_heap_offsets: Dict[str, str]
     _struct_strings: Dict[str, str]
     _struct_guids: Dict[str, str]
     _struct_blobs: Dict[str, str]
@@ -293,6 +294,7 @@ class MDTableRow(abc.ABC):
             next_row    the next row in the table, used for row lists (e.g. FieldList, MethodList)
         """
         self._parse_struct_asis()
+        self._parse_struct_strings_heap_offsets()
         self._parse_struct_strings()
         self._parse_struct_guids()
         self._parse_struct_blobs()
@@ -309,6 +311,16 @@ class MDTableRow(abc.ABC):
             for struct_name, attr_name in self.__class__._struct_asis.items():
                 # always define attribute, even if failed to parse
                 setattr(self, attr_name, getattr(self.struct, struct_name, None))
+
+    def _parse_struct_strings_heap_offsets(self):
+        if hasattr(self.__class__, "_struct_strings_heap_offsets"):
+            for struct_name, attr_name in self.__class__._struct_strings_heap_offsets.items():
+                setattr(self, attr_name, None)
+                if self._strings is None:
+                    logger.warning("failed to fetch string: no strings table")
+                    continue
+                i = getattr(self.struct, struct_name, None)
+                setattr(self, attr_name, i)
 
     def _parse_struct_strings(self):
         # if strings
