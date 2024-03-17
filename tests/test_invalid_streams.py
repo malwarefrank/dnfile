@@ -9,7 +9,7 @@ def test_duplicate_stream():
     dn = dnfile.dnPE(path)
 
     assert b"#US" in dn.net.metadata.streams
-    assert dn.net.user_strings.get_us(1).value == "BBBBBBBB"
+    assert dn.net.user_strings.get(1).value == "BBBBBBBB"
 
 
 def test_unknown_stream():
