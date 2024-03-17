@@ -57,6 +57,30 @@ def read_compressed_int(data) -> Optional[Tuple[int, int]]:
         return None
 
 
+def compress_int(i: int) -> Optional[bytes]:
+    """
+    Given integer, return bytes representing a compressed integer per
+    spec ECMA-335 II.23.2 Blobs and signatures.
+    """
+
+    if not isinstance(i, int):
+        raise TypeError(f"expected int, given {type(i)}")
+    if i < 0:
+        raise ValueError(f"expected positive int, given {i}")
+
+    if i <= 0x7f:
+        return int.to_bytes(i, length=1, byteorder="big")
+    elif i <= 0x3fff:
+        b = int.to_bytes(i, length=2, byteorder="big")
+        return bytes((0x80 | b[0], b[1]))
+    elif i <= 0x1fffffff:
+        b = int.to_bytes(i, length=4, byteorder="big")
+        return bytes((0x80 | 0x40 | b[0], b[1], b[2], b[3]))
+    else:
+        logger.warning(f"invalid int {i}, max value 0x1fffffff")
+        return None
+
+
 def two_way_dict(pairs):
     return dict([(e[1], e[0]) for e in pairs] + pairs)
 
