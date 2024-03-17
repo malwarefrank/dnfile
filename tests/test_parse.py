@@ -53,6 +53,17 @@ def test_streams():
     assert not hasattr(dn.net, "foo")
 
 
+def test_guids():
+    path = fixtures.get_data_path_by_name("hello-world.exe")
+
+    dn = dnfile.dnPE(path)
+    assert dn.net is not None
+    assert b"#GUID" in dn.net.metadata.streams
+    assert hasattr(dn.net, "guids")
+
+    assert dn.net.guids.get(0) is None
+    assert dn.net.guids.get(1).value == b"\x8c\x8b\xc5\x48\xff\x24\x91\x45\x9e\xc8\x94\xbf\xea\xbd\x9f\x3e"
+
 def test_tables():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
@@ -278,3 +289,50 @@ def test_flags():
     # these are flags from CorTypeAttrFlags
     assert cls.Flags.tdBeforeFieldInit is True
     assert cls.Flags.tdAbstract is False
+
+
+def test_heap_items():
+
+    # HeapItem
+    buf = b"1234567890"
+    item = dnfile.base.HeapItem(b"1234567890")
+    assert item.to_bytes() == b"1234567890"
+    assert item == b"1234567890"
+    assert item.raw_size == len(b"1234567890")
+    assert item.rva is None
+    assert item.value is None
+
+    item = dnfile.base.HeapItem(b"1234567890", rva=0x400)
+    assert item.rva == 0x400
+
+    # HeapItemString
+    buf = b"1234567890"
+    buf_decoded = buf.decode("utf-8")
+    str_item = dnfile.stream.HeapItemString(buf)
+    assert str_item.to_bytes() == buf
+    assert str_item.encoding == "utf-8"
+    assert str_item.value == buf_decoded
+    assert str_item == buf_decoded
+
+    # HeapItemBinary
+    buf_with_compressed_int_len = b"\x0a1234567890"
+    buf = b"1234567890"
+    bin_item = dnfile.stream.HeapItemBinary(buf_with_compressed_int_len)
+    assert bin_item.to_bytes() == buf_with_compressed_int_len
+    assert bin_item.raw_size == len(buf_with_compressed_int_len)
+    assert bin_item.item_size == len(buf)
+    assert bin_item == buf
+
+    # UserString
+    buf_with_flag = b"\x0b1234567890\x00"
+    buf = b"1234567890"
+    us_item = dnfile.stream.UserString(buf_with_flag)
+    assert us_item.to_bytes() == buf_with_flag
+
+    # GUID
+    guid_bytes = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+    guid_item = dnfile.stream.HeapItemGuid(guid_bytes)
+    assert guid_item is not None
+    assert guid_item.to_bytes() == guid_bytes
+    assert guid_item.value == guid_bytes
+    assert str(guid_item) == "03020100-0504-0706-0809-0a0b0c0d0e0f"
