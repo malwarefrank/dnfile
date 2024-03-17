@@ -2,7 +2,7 @@
 """
 .NET base classes
 
-Copyright (c) 2020-2022 MalwareFrank
+Copyright (c) 2020-2024 MalwareFrank
 """
 import abc
 import enum
@@ -15,13 +15,35 @@ from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Union, Generic, TypeV
 from pefile import Structure
 
 from . import enums, errors
-from .utils import LazyList as _LazyList
+from .utils import LazyList as _LazyList, read_compressed_int as _read_compressed_int
 
 if TYPE_CHECKING:
     from . import stream
 
 
 logger = logging.getLogger(__name__)
+
+
+class CompressedInt(int):
+    raw_size: Optional[int] = None
+    __data__: Optional[bytes] = None
+    value: Optional[int] = None
+    rva: Optional[int] = None
+
+    def to_bytes(self):
+        return self.__data__
+
+    @classmethod
+    def read(cls, data: bytes, rva: Optional[int] = None) -> "CompressedInt":
+        result = _read_compressed_int(data)
+        if result is None:
+            return None
+        ci = CompressedInt(result[0])
+        ci.raw_size = result[1]
+        ci.value = result[0]
+        ci.__data__ = data[:result[1]]
+        ci.rva = rva
+        return ci
 
 
 class StreamStruct(Structure):
@@ -92,6 +114,32 @@ class ClrStream(abc.ABC):
         # Little-endian
         i = _struct.unpack("<I", d)[0]
         return i
+
+
+class HeapItem(abc.ABC):
+    rva: Optional[int] = None
+    # original data from file
+    __data__: bytes = None
+    # interpreted value
+    value: Optional[bytes] = None
+
+    def __init__(self, data: bytes, rva: Optional[int] = None):
+        self.rva = rva
+        self.__data__ = data
+
+    def to_bytes(self):
+        return self.__data__
+
+    @property
+    def raw_size(self):
+        return len(self.__data__)
+
+    def __eq__(self, other):
+        if isinstance(other, HeapItem):
+            return self.to_bytes() == other.to_bytes() or (self.value is not None and self.value == other.value)
+        elif isinstance(other, bytes):
+            return self.to_bytes() == other
+        return False
 
 
 class ClrHeap(ClrStream):
