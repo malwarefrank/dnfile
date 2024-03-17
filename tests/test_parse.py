@@ -64,6 +64,7 @@ def test_guids():
     assert dn.net.guids.get(0) is None
     assert dn.net.guids.get(1).value == b"\x8c\x8b\xc5\x48\xff\x24\x91\x45\x9e\xc8\x94\xbf\xea\xbd\x9f\x3e"
 
+
 def test_tables():
     path = fixtures.get_data_path_by_name("hello-world.exe")
 
@@ -313,6 +314,8 @@ def test_heap_items():
     assert str_item.encoding == "utf-8"
     assert str_item.value == buf_decoded
     assert str_item == buf_decoded
+    assert len(str_item) == len(buf_decoded)
+    assert str_item[5] == buf_decoded[5]
 
     # HeapItemBinary
     buf_with_compressed_int_len = b"\x0a1234567890"
@@ -324,10 +327,14 @@ def test_heap_items():
     assert bin_item == buf
 
     # UserString
-    buf_with_flag = b"\x0b1234567890\x00"
-    buf = b"1234567890"
+    buf_with_flag = b"\x151\x002\x003\x004\x005\x006\x007\x008\x009\x000\x00\x00"
+    us_str = "1234567890"
     us_item = dnfile.stream.UserString(buf_with_flag)
     assert us_item.to_bytes() == buf_with_flag
+    assert us_item.value == us_str
+    assert us_item == us_str
+    assert len(us_item) == len(us_str)
+    assert us_item[5] == us_str[5]
 
     # GUID
     guid_bytes = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
