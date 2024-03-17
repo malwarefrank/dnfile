@@ -15,7 +15,8 @@ from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Union, Generic, TypeV
 from pefile import Structure
 
 from . import enums, errors
-from .utils import LazyList as _LazyList, read_compressed_int as _read_compressed_int
+from .utils import LazyList as _LazyList
+from .utils import read_compressed_int as _read_compressed_int
 
 if TYPE_CHECKING:
     from . import stream
@@ -25,16 +26,16 @@ logger = logging.getLogger(__name__)
 
 
 class CompressedInt(int):
-    raw_size: Optional[int] = None
-    __data__: Optional[bytes] = None
-    value: Optional[int] = None
+    raw_size: int
+    __data__: bytes
+    value: int
     rva: Optional[int] = None
 
     def to_bytes(self):
         return self.__data__
 
     @classmethod
-    def read(cls, data: bytes, rva: Optional[int] = None) -> "CompressedInt":
+    def read(cls, data: bytes, rva: Optional[int] = None) -> Optional["CompressedInt"]:
         result = _read_compressed_int(data)
         if result is None:
             return None
@@ -119,7 +120,7 @@ class ClrStream(abc.ABC):
 class HeapItem(abc.ABC):
     rva: Optional[int] = None
     # original data from file
-    __data__: bytes = None
+    __data__: bytes
     # interpreted value
     value: Optional[bytes] = None
 

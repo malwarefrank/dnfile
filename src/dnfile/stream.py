@@ -13,9 +13,9 @@ Copyright (c) 2020-2024 MalwareFrank
 
 import struct as _struct
 import logging
+import collections as _collections
 from typing import Dict, List, Tuple, Union, Optional
 from binascii import hexlify as _hexlify
-import collections as _collections
 
 from pefile import MAX_STRING_LENGTH, Structure
 
@@ -38,7 +38,7 @@ class HeapItemString(base.HeapItem, _collections.abc.Sequence):
     def __init__(self, data, encoding="utf-8"):
         super().__init__(data)
         self.encoding = encoding
-        self.value = self.__data__.decode(encoding)
+        self.value: str = self.__data__.decode(encoding)
 
     def __str__(self) -> str:
         return self.value
@@ -56,13 +56,14 @@ class HeapItemString(base.HeapItem, _collections.abc.Sequence):
 
 
 class HeapItemBinary(base.HeapItem, _collections.abc.Sequence):
-    item_size: Optional[base.CompressedInt]
+    item_size: base.CompressedInt
 
     def __init__(self, data: bytes, rva: Optional[int] = None):
         # read compressed int, which has a max size of four bytes
-        self.item_size = base.CompressedInt.read(data[:4], rva)
-        if self.item_size is None:
+        size = base.CompressedInt.read(data[:4], rva)
+        if size is None:
             raise ValueError("invalid compressed int")
+        self.item_size = size
         base.HeapItem.__init__(self, data[:self.item_size.raw_size + self.item_size], rva)
 
         # read data
@@ -217,6 +218,7 @@ class UserString(HeapItemBinary, HeapItemString, _collections.abc.Sequence):
         elif isinstance(data, HeapItemBinary):
             HeapItemBinary.__init__(self, data.to_bytes())
 
+        buf = self.to_bytes()[self.item_size.raw_size:]
         if self.item_size % 2 == 1:
             # > This final byte holds the value 1 if and only if any UTF16
             # > character within the string has any bit set in its top byte,
@@ -226,7 +228,6 @@ class UserString(HeapItemBinary, HeapItemString, _collections.abc.Sequence):
             # via ECMA-335 6th edition, II.24.2.4
             #
             # Trim this trailing flag, which is not part of the string.
-            buf = self.value
             self.flag = buf[-1]
             str_buf = buf[:-1]
             if self.flag == 0x00:
@@ -246,10 +247,10 @@ class UserString(HeapItemBinary, HeapItemString, _collections.abc.Sequence):
                 # these strings are probably best interpreted as bytes.
                 pass
             else:
-                logger.warning("unexpected string flag value: 0x%02x", flag)
+                logger.warning(f"unexpected string flag value: 0x{self.flag:02x}")
         else:
             logger.warning("string missing trailing flag")
-            str_buf = self.value
+            str_buf = buf
 
         self.value = str_buf.decode(encoding)
 
@@ -264,11 +265,12 @@ class UserString(HeapItemBinary, HeapItemString, _collections.abc.Sequence):
 
 
 class UserStringHeap(BinaryHeap):
-    def get(self, index) -> Optional[bytes]:
-        data = super(UserStringHeap, self).get(index)
-        if data is None:
+    def get_bytes(self, index) -> Optional[bytes]:
+        bin_item = super(UserStringHeap, self).get(index)
+        if bin_item is None:
             return None
 
+        data = bin_item.to_bytes()[bin_item.item_size.raw_size:]
         flag: int = 0
         if len(data) % 2 == 1:
             # > This final byte holds the value 1 if and only if any UTF16
@@ -304,7 +306,7 @@ class UserStringHeap(BinaryHeap):
 
         return data
 
-    def get_us(self, index, encoding="utf-16") -> Optional[UserString]:
+    def get(self, index, encoding="utf-16") -> Optional[UserString]:
         bin_item = super().get(index)
         if bin_item is None:
             return None
@@ -365,7 +367,7 @@ class GuidHeap(base.ClrHeap):
             parts[0], parts[1], parts[2], part3, part4
         )
 
-    def get(self, index) -> HeapItemGuid:
+    def get(self, index) -> Optional[HeapItemGuid]:
         if index is None or index < 1:
             return None
 

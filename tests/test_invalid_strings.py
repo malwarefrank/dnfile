@@ -14,9 +14,9 @@ def test_unpaired_surrogate():
     assert dn.net.user_strings is not None
 
     assert b"#US" in dn.net.metadata.streams
-    assert dn.net.user_strings.get(1) == b"\xD0\xDD"
+    assert dn.net.user_strings.get_bytes(1) == b"\xD0\xDD"
     with pytest.raises(UnicodeDecodeError):
-        assert dn.net.user_strings.get_us(1)
+        assert dn.net.user_strings.get(1)
 
 
 def test_raw_binary():
@@ -30,10 +30,10 @@ def test_raw_binary():
 
     # short MZ header
     assert b"#US" in dn.net.metadata.streams
-    assert dn.net.user_strings.get(1) == b"\x4D\x5A\x90\x00"
+    assert dn.net.user_strings.get_bytes(1) == b"\x4D\x5A\x90\x00"
 
     # somehow this is valid utf-16
-    s = dn.net.user_strings.get_us(1)
+    s = dn.net.user_strings.get(1)
     assert s is not None
     assert s.value == b"\x4D\x5A\x90\x00".decode("utf-16")
 
@@ -49,8 +49,8 @@ def test_string_decoder():
 
     # "Hello World" ^ 0xFF
     assert b"#US" in dn.net.metadata.streams
-    assert dn.net.user_strings.get(1) == b"\xb7\xff\x9a\xff\x93\xff\x93\xff\x90\xff\xdf\xff\xa8\xff\x90\xff\x8d\xff\x93\xff\x9b\xff"
+    assert dn.net.user_strings.get_bytes(1) == b"\xb7\xff\x9a\xff\x93\xff\x93\xff\x90\xff\xdf\xff\xa8\xff\x90\xff\x8d\xff\x93\xff\x9b\xff"
 
     # somehow this is valid utf-16
-    s = dn.net.user_strings.get_us(1)
+    s = dn.net.user_strings.get(1)
     assert s is not None
