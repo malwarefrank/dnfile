@@ -10,7 +10,7 @@ import struct as _struct
 import logging
 import functools as _functools
 import itertools as _itertools
-from typing import TYPE_CHECKING, Dict, List, Type, Tuple, Union, Generic, TypeVar, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Type, Tuple, Union, Generic, TypeVar, Optional, Sequence
 
 from pefile import Structure
 
@@ -118,34 +118,70 @@ class ClrStream(abc.ABC):
 
 
 class HeapItem(abc.ABC):
+    """
+    HeapItem is a base class for items retrieved from any of the
+    heap streams, for example #Strings, #US, #GUID, and #Blob.
+
+    It can be used to access the raw underlying data, the RVA
+    from which it was retrieved, an optional interpreted value,
+    and the bytes representation of the value.
+
+    Each heap stream .get() call returns a subclass with these
+    and optionally additional members.
+    """
+
     rva: Optional[int] = None
     # original data from file
     __data__: bytes
     # interpreted value
-    value: Optional[bytes] = None
+    value: Any = None
 
     def __init__(self, data: bytes, rva: Optional[int] = None):
         self.rva = rva
         self.__data__ = data
 
-    def to_bytes(self):
+    def value_bytes(self):
+        """
+        Return the raw bytes underlying the interpreted value.
+
+        For the base HeapItem, this is the same as the raw_data.
+        """
         return self.__data__
 
     @property
     def raw_size(self):
+        """
+        Number of bytes read from the stream, including any header,
+        value, and footer.
+        """
         return len(self.__data__)
 
+    @property
+    def raw_data(self):
+        """
+        The bytes read from the stream, including any header,
+        value, and footer
+        """
+        return self.__data__
+
     def __eq__(self, other):
+        """
+        Two HeapItems are equal if their raw data is the same or their
+        interpreted values are the same and not Noney.
+
+        A HeapItem is equal to a bytes object if the HeapItem's value as bytes
+        is equal to the bytes object.
+        """
         if isinstance(other, HeapItem):
-            return self.to_bytes() == other.to_bytes() or (self.value is not None and self.value == other.value)
+            return self.raw_data == other.raw_data or (self.value is not None and self.value == other.value)
         elif isinstance(other, bytes):
-            return self.to_bytes() == other
+            return self.value_bytes() == other
         return False
 
 
 class ClrHeap(ClrStream):
     @abc.abstractmethod
-    def get(self, index):
+    def get(self, index: int):
         raise NotImplementedError()
 
 

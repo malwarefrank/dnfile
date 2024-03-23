@@ -297,7 +297,8 @@ def test_heap_items():
     # HeapItem
     buf = b"1234567890"
     item = dnfile.base.HeapItem(b"1234567890")
-    assert item.to_bytes() == b"1234567890"
+    assert item.raw_data == b"1234567890"
+    assert item.value_bytes() == buf
     assert item == b"1234567890"
     assert item.raw_size == len(b"1234567890")
     assert item.rva is None
@@ -310,36 +311,36 @@ def test_heap_items():
     buf = b"1234567890"
     buf_decoded = buf.decode("utf-8")
     str_item = dnfile.stream.HeapItemString(buf)
-    assert str_item.to_bytes() == buf
+    assert str_item.raw_data == buf
     assert str_item.encoding == "utf-8"
     assert str_item.value == buf_decoded
+    assert str_item.value_bytes() == buf
     assert str_item == buf_decoded
-    assert len(str_item) == len(buf_decoded)
-    assert str_item[5] == buf_decoded[5]
 
     # HeapItemBinary
     buf_with_compressed_int_len = b"\x0a1234567890"
     buf = b"1234567890"
     bin_item = dnfile.stream.HeapItemBinary(buf_with_compressed_int_len)
-    assert bin_item.to_bytes() == buf_with_compressed_int_len
+    assert bin_item.raw_data == buf_with_compressed_int_len
     assert bin_item.raw_size == len(buf_with_compressed_int_len)
     assert bin_item.item_size == len(buf)
+    assert bin_item.value_bytes() == buf
     assert bin_item == buf
 
     # UserString
     buf_with_flag = b"\x151\x002\x003\x004\x005\x006\x007\x008\x009\x000\x00\x00"
     us_str = "1234567890"
     us_item = dnfile.stream.UserString(buf_with_flag)
-    assert us_item.to_bytes() == buf_with_flag
+    assert us_item.raw_data == buf_with_flag
+    assert us_item.value_bytes() == buf_with_flag[1:-1]
     assert us_item.value == us_str
     assert us_item == us_str
-    assert len(us_item) == len(us_str)
-    assert us_item[5] == us_str[5]
 
     # GUID
     guid_bytes = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
     guid_item = dnfile.stream.HeapItemGuid(guid_bytes)
     assert guid_item is not None
-    assert guid_item.to_bytes() == guid_bytes
+    assert guid_item.raw_data == guid_bytes
+    assert guid_item.value_bytes() == guid_bytes
     assert guid_item.value == guid_bytes
     assert str(guid_item) == "03020100-0504-0706-0809-0a0b0c0d0e0f"
