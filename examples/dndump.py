@@ -243,6 +243,13 @@ def render_pe(ostream: Formatter, dn):
                                         value = v
                                 elif isinstance(v, int):
                                     value = "0x%x" % (v)
+                                elif isinstance(v, dnfile.stream.HeapItemString):
+                                    if v.value is None:
+                                        value = "(invalid){!r}".format(v.value_bytes)
+                                    else:
+                                        value = v.value
+                                elif isinstance(v, dnfile.stream.HeapItemBinary):
+                                    value = v.value_bytes()
                                 else:
                                     value = str(v)
                             rows.append(("%s:" % (field), value))

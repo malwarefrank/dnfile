@@ -23,21 +23,23 @@ def show_strings(fname):
         offset = 1
         # while there is still data in the stream
         while offset < size:
+            # check if we are at padding bytes near end of stream
+            if offset + 4 >= size:
+                if b"\x00" == dn.get_data(us.rva + offset, 1):
+                    break
             # read the raw string bytes, and provide number of bytes read (includes encoded length)
-            ret = us.get_with_size(offset)
-            if ret is None:
+            item = us.get(offset)
+            if item is None:
+                print(f"Bad string: offset=0x{offset:08x}")
                 break
 
-            buf, readlen = ret
-            try:
-                # convert to a UserString object
-                s = dnfile.stream.UserString(buf)
+            if item.value is None:
+                print(f"Bad string: {item.raw_data}")
+            else:
                 # display the decoded string
-                print(s.value)
-            except UnicodeDecodeError:
-                print(f"Bad string: {buf}")
+                print(item.value)
             # continue to next entry
-            offset += readlen
+            offset += item.raw_size
 
 
 # for each filepath provided on command-line
