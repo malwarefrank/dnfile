@@ -13,7 +13,6 @@ Copyright (c) 2020-2024 MalwareFrank
 
 import struct as _struct
 import logging
-import collections as _collections
 from typing import Dict, List, Tuple, Union, Optional
 from binascii import hexlify as _hexlify
 
@@ -32,33 +31,44 @@ class GenericStream(base.ClrStream):
     pass
 
 
-class HeapItemString(base.HeapItem, _collections.abc.Sequence):
+class HeapItemString(base.HeapItem):
+    """
+    A HeapItemString is a HeapItem with an encoding.  The .value member
+    is the decoded string or None if there was a UnicodeDecodeError.
+
+    A HeapItemString can be compared directly to a str.
+    """
     encoding: Optional[str]
 
-    def __init__(self, data, encoding="utf-8"):
-        super().__init__(data)
+    def __init__(self, data: bytes, rva: Optional[int] = None, encoding="utf-8"):
+        super().__init__(data, rva=rva)
         self.encoding = encoding
-        self.value: str = self.__data__.decode(encoding)
+        try:
+            self.value: Optional[str] = self.__data__.decode(encoding)
+        except UnicodeDecodeError as e:
+            self.value = None
 
     def __str__(self) -> str:
-        return self.value
+        return self.value or ""
 
     def __eq__(self, other):
         if isinstance(other, str):
-            return str(self) == other
+            return self.value == other
         return super().__eq__(other)
 
-    def __getitem__(self, i):
-        return self.value[i]
 
-    def __len__(self):
-        return len(self.value)
+class HeapItemBinary(base.HeapItem):
+    """
+    A HeapItemBinary is a HeapItem with an item_size.  The .item_size
+    is the parsed compressed integer at the RVA in the binary heap.
+    The .value is the bytes following the compressed integer.
 
-
-class HeapItemBinary(base.HeapItem, _collections.abc.Sequence):
+    A HeapItemBinary can be compared directly to a bytes object.
+    """
     item_size: base.CompressedInt
 
     def __init__(self, data: bytes, rva: Optional[int] = None):
+        self.rva = rva
         # read compressed int, which has a max size of four bytes
         size = base.CompressedInt.read(data[:4], rva)
         if size is None:
@@ -70,18 +80,15 @@ class HeapItemBinary(base.HeapItem, _collections.abc.Sequence):
         offset = self.item_size.raw_size
         self.value = self.__data__[offset:offset + self.item_size]
 
+    def value_bytes(self):
+        return self.__data__[self.item_size.raw_size:]
+
     def __eq__(self, other):
         if isinstance(other, base.HeapItem):
             return base.HeapItem.__eq__(self, other)
         if isinstance(other, bytes):
             return self.value == other
         return False
-
-    def __getitem__(self, i):
-        return self.value[i]
-
-    def __len__(self):
-        return len(self.value)
 
 
 class StringsHeap(base.ClrHeap):
@@ -93,21 +100,15 @@ class StringsHeap(base.ClrHeap):
         Returns None on error, or string, or bytes if as_bytes is True.
         """
 
-        if not self.__data__ or index is None or not max_length:
+        item = self.get(index, max_length, encoding)
+
+        if item is None:
             return None
 
-        if index >= len(self.__data__):
-            raise IndexError("index out of range")
-
-        offset = index
-        end = self.__data__.find(b"\x00", offset)
-        if end - offset > max_length:
-            return None
-        data = self.__data__[offset:end]
         if as_bytes:
-            return data
-        s = data.decode(encoding)
-        return s
+            return item.value_bytes()
+
+        return item.value
 
     def get(self, index, max_length=MAX_STRING_LENGTH, encoding="utf-8") -> Optional[HeapItemString]:
         """
@@ -125,54 +126,35 @@ class StringsHeap(base.ClrHeap):
         if end - offset > max_length:
             return None
 
-        item = HeapItemString(self.__data__[offset:end], encoding)
-        item.rva = self.rva + offset
+        item = HeapItemString(self.__data__[offset:end], rva=self.rva + offset, encoding=encoding)
 
         return item
 
 
 class BinaryHeap(base.ClrHeap):
-    def get_with_size(self, index) -> Optional[Tuple[bytes, int]]:
-        if self.__data__ is None:
-            logger.warning("stream has no data")
-            return None
-
-        if index >= len(self.__data__):
-            logger.warning("stream is too small: wanted: 0x%x found: 0x%x", index, len(self.__data__))
-            return None
-
-        offset = index
-
-        # read compressed int length
-        buf = self.__data__[offset:offset + 4]
-        ret = read_compressed_int(buf)
-        if ret is None:
-            # invalid compressed int length, such as invalid leading flags.
-            logger.warning("stream entry has invalid compressed int")
-            return None
-
-        data_length, length_size = ret
-
-        # read data
-        offset = offset + length_size
-        data = self.__data__[offset:offset + data_length]
-
-        return data, length_size + data_length
-
-    def get_bytes(self, index) -> Optional[bytes]:
+    def get_with_size(self, index: int) -> Optional[Tuple[bytes, int]]:
         try:
-            ret = self.get_with_size(index)
+            item = self.get(index)
         except IndexError:
             return None
 
-        if ret is None:
+        if item is None:
             return None
 
-        data, _ = ret
+        return item.value_bytes(), item.raw_size
 
-        return data
+    def get_bytes(self, index: int) -> Optional[bytes]:
+        try:
+            item = self.get(index)
+        except IndexError:
+            return None
 
-    def get(self, index) -> Optional[HeapItemBinary]:
+        if item is None:
+            return None
+
+        return item.value_bytes()
+
+    def get(self, index: int) -> Optional[HeapItemBinary]:
         if self.__data__ is None:
             logger.warning("stream has no data")
             return None
@@ -184,13 +166,11 @@ class BinaryHeap(base.ClrHeap):
         offset = index
 
         try:
-            item = HeapItemBinary(self.__data__[index:])
+            item = HeapItemBinary(self.__data__[index:], rva=self.rva + offset)
         except ValueError as e:
             # possible invalid compressed int length, such as invalid leading flags.
-            logger.warning(f"stream entry error - {e} @ RVA=0x{hex(self.rva)}")
+            logger.warning(f"stream entry error - {e} @ RVA=0x{hex(self.rva + offset)}")
             return None
-
-        item.rva = self.rva + offset
 
         return item
 
@@ -199,7 +179,7 @@ class BlobHeap(BinaryHeap):
     pass
 
 
-class UserString(HeapItemBinary, HeapItemString, _collections.abc.Sequence):
+class UserString(HeapItemBinary, HeapItemString):
     """
     The #US or UserStrings stream should contain UTF-16 strings.
     Each entry in the stream includes a byte indicating whether
@@ -211,14 +191,14 @@ class UserString(HeapItemBinary, HeapItemString, _collections.abc.Sequence):
 
     flag: Optional[int] = None
 
-    def __init__(self, data: Union[bytes, HeapItemBinary], encoding="utf-16"):
+    def __init__(self, data: Union[bytes, HeapItemBinary], rva: Optional[int] = None, encoding="utf-16"):
         self.encoding = encoding
         if isinstance(data, bytes):
-            HeapItemBinary.__init__(self, data)
+            HeapItemBinary.__init__(self, data, rva=rva)
         elif isinstance(data, HeapItemBinary):
-            HeapItemBinary.__init__(self, data.to_bytes())
+            HeapItemBinary.__init__(self, data.raw_data, rva=rva or data.rva)
 
-        buf = self.to_bytes()[self.item_size.raw_size:]
+        buf = self.__data__[self.item_size.raw_size:]
         if self.item_size % 2 == 1:
             # > This final byte holds the value 1 if and only if any UTF16
             # > character within the string has any bit set in its top byte,
@@ -252,59 +232,29 @@ class UserString(HeapItemBinary, HeapItemString, _collections.abc.Sequence):
             logger.warning("string missing trailing flag")
             str_buf = buf
 
-        self.value = str_buf.decode(encoding)
+        try:
+            self.value = str_buf.decode(encoding)
+        except UnicodeDecodeError as e:
+            logger.warning(f"UserString decode error (rva:0x{self.rva:08x}): {e}")
+            self.value = None
+
+    def value_bytes(self):
+        if self.flag is None:
+            return self.__data__[self.item_size.raw_size:]
+        return self.__data__[self.item_size.raw_size:-1]
 
     def __eq__(self, other):
         return HeapItemString.__eq__(self, other)
 
-    def __getitem__(self, i):
-        return self.value[i]
-
-    def __len__(self):
-        return len(self.value)
-
 
 class UserStringHeap(BinaryHeap):
     def get_bytes(self, index) -> Optional[bytes]:
-        bin_item = super(UserStringHeap, self).get(index)
-        if bin_item is None:
+        item = self.get(index)
+
+        if item is None:
             return None
 
-        data = bin_item.to_bytes()[bin_item.item_size.raw_size:]
-        flag: int = 0
-        if len(data) % 2 == 1:
-            # > This final byte holds the value 1 if and only if any UTF16
-            # > character within the string has any bit set in its top byte,
-            # > or its low byte is any of the following:
-            # > 0x01–0x08, 0x0E–0x1F, 0x27, 0x2D, 0x7F.
-            #
-            # via ECMA-335 6th edition, II.24.2.4
-            #
-            # Trim this trailing flag, which is not part of the string.
-            flag = data[-1]
-            if flag == 0x00:
-                # > Otherwise, it holds 0.
-                #
-                # via ECMA-335 6th edition, II.24.2.4
-                #
-                # *should* be a normal UTF-16 string, but still not
-                # make sense.
-                pass
-            elif flag == 0x01:
-                # > The 1 signifies Unicode characters that require handling
-                # > beyond that normally provided for 8-bit encoding sets.
-                #
-                # via ECMA-335 6th edition, II.24.2.4
-                #
-                # these strings are probably best interpreted as bytes.
-                pass
-            else:
-                logger.warning("unexpected string flag value: 0x%02x", flag)
-            data = data[:-1]
-        else:
-            logger.warning("string missing trailing flag")
-
-        return data
+        return item.value_bytes()
 
     def get(self, index, encoding="utf-16") -> Optional[UserString]:
         bin_item = super().get(index)
@@ -312,8 +262,6 @@ class UserStringHeap(BinaryHeap):
             return None
 
         us_item = UserString(bin_item, encoding=encoding)
-        us_item.rva = bin_item.rva
-        us_item.item_size = bin_item.item_size
 
         return us_item
 
@@ -344,28 +292,15 @@ class GuidHeap(base.ClrHeap):
     offset_size = 0
 
     def get_str(self, index, as_bytes=False):
-        if index is None or index < 1:
+        item = self.get(index)
+
+        if item is None:
             return None
 
-        size = 128 // 8  # number of bytes in a guid
-        # offset into the GUID stream
-        offset = (index - 1) * size
-
-        if offset + size > len(self.__data__):
-            raise IndexError("index out of range")
-
-        data = self.__data__[offset:offset + size]
         if as_bytes:
-            return data
-        # convert to string
-        parts = _struct.unpack_from("<IHH", data)
-        part3 = _hexlify(data[8:10])
-        part4 = _hexlify(data[10:16])
-        part3 = part3.decode("ascii")
-        part4 = part4.decode("ascii")
-        return "{:08x}-{:04x}-{:04x}-{}-{}".format(
-            parts[0], parts[1], parts[2], part3, part4
-        )
+            return item.value_bytes()
+
+        return str(item)
 
     def get(self, index) -> Optional[HeapItemGuid]:
         if index is None or index < 1:
