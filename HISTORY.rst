@@ -2,6 +2,14 @@
 History
 =======
 
+0.15.0 (2024)
+-------------
+* BREAKING CHANGE: each heap stream's .get() returns a HeapItem instead of bytes
+* FEATURE: All HeapItem objects include the RVA of where they were retrieved
+* FEATURE: HeapItemBinary objects allow easy access to interpreted item size (CompressedInt)
+* FEATURE: HeapItemString and UserString allow easy access to raw bytes and interpreted value
+* improvements to pypi publishing and tox testing
+
 0.14.1 (2023)
 -------------
 * fix github workflow
