@@ -40,12 +40,12 @@ def read_compressed_int(data) -> Optional[Tuple[int, int]]:
     if data[0] & 0x80 == 0:
         # values 0x00 to 0x7f
         return data[0], 1
-    elif data[0] & 0x40 == 0:
+    elif len(data) >= 2 and data[0] & 0x40 == 0:
         # values 0x80 to 0x3fff
         value = (data[0] & 0x7F) << 8
         value |= data[1]
         return value, 2
-    elif data[0] & 0x20 == 0:
+    elif len(data) >= 4 and data[0] & 0x20 == 0:
         # values 0x4000 to 0x1fffffff
         value = (data[0] & 0x3F) << 24
         value |= data[1] << 16
