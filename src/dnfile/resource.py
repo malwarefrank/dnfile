@@ -225,11 +225,18 @@ class ResourceTypeFactory(object):
             tsize = 8
             final_bytes = data[offset:offset + tsize]
             x = struct.unpack("<q", final_bytes)[0]
+            # Value is stored in lower 62-bits
+            # https://github.com/dotnet/runtime/blob/17c55f1/src/libraries/System.Private.CoreLib/src/System/DateTime.cs#L130-L138
+            x = x & ((1 << 62) - 1)
             # https://stackoverflow.com/questions/3169517/python-c-sharp-binary-datetime-encoding
             secs = x / 10.0 ** 7
             delta = datetime.timedelta(seconds=secs)
-            dt = datetime.datetime(1, 1, 1) + delta
-            final_value = dt
+            try:
+                dt = datetime.datetime(1, 1, 1) + delta
+                final_value = dt
+            except OverflowError:
+                # TODO warn/error
+                pass
         elif type_name == "System.TimeSpan":
             # TODO return resourceDataFactory.Create(new TimeSpan(reader.ReadInt64()));
             tsize = 8
