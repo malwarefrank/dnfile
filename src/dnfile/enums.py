@@ -861,3 +861,17 @@ class AssemblyHashAlgorithm(_enum.IntEnum):
     SHA256  = 0x800c
     SHA384  = 0x800d
     SHA512  = 0x800e
+
+
+class DateTimeKind(_enum.IntEnum):
+    """
+    Per Microsoft documenation, provide additional context to DateTime instances.
+
+    REFERENCE:
+        https://github.com/dotnet/runtime/blob/main/src/libraries/System.Private.CoreLib/src/System/DateTime.cs
+        https://github.com/dotnet/runtime/blob/main/src/libraries/System.Private.CoreLib/src/System/DateTimeKind.cs
+    """
+    Unspecified = 0
+    Utc = 1
+    Local = 2
+    LocalAmbiguousDst = 3
