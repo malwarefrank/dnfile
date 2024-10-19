@@ -8,6 +8,7 @@ import abc
 import enum
 import struct as _struct
 import logging
+import datetime
 import functools as _functools
 import itertools as _itertools
 from typing import TYPE_CHECKING, Any, Dict, List, Type, Tuple, Union, Generic, TypeVar, Optional, Sequence
@@ -980,3 +981,32 @@ class ClrResource(abc.ABC):
     @abc.abstractmethod
     def parse(self):
         raise NotImplementedError()
+
+
+class DateTimeStruct(Structure):
+    Ticks: int
+    Kind: enums.DateTimeKind
+
+
+class DateTime(object):
+    def __init__(self, rva: int, raw_bytes: bytes):
+        self.struct: Optional[DateTimeStruct] = None
+        self.raw: bytes = raw_bytes
+        self.value: Optional[datetime.datetime] = None
+
+    def parse(self):
+        if not self.raw:
+            # TODO: warn/error
+            return
+        # Should be 64 bites
+        if len(self.raw) != 8:
+            # TODO: warn/error
+            return
+        x = _struct.unpack("<q", self.raw)[0]
+        self.struct = DateTimeStruct()
+        self.struct.Ticks = x & 0x3FFFFFFFFFFFFFFF
+        self.struct.Kind = x >> 62
+        # https://stackoverflow.com/questions/3169517/python-c-sharp-binary-datetime-encoding
+        secs = self.struct.Ticks / 10.0 ** 7
+        delta = datetime.timedelta(seconds=secs)
+        self.value = datetime.datetime(1, 1, 1) + delta
