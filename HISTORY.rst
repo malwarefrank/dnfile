@@ -2,6 +2,13 @@
 History
 =======
 
+0.15.1 (2024)
+-------------
+
+* BUGFIX: read_compressed_int() now returns None on invalid data len instead of IndexError
+* BUGFIX: when parsing resources, ignore DateTimeKind bits of a serialized System.DateTime
+* EXAMPLE: Iterate guids
+
 0.15.0 (2024)
 -------------
 * BREAKING CHANGE: each heap stream's .get() returns a HeapItem instead of bytes
