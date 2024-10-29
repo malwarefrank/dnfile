@@ -230,7 +230,7 @@ class ClrMetaDataStruct(Structure):
     MinorVersion: int
     Reserved: int
     VersionLength: int
-    Version: int
+    Version: bytes
     Flags: int
     NumberOfStreams: int
 
