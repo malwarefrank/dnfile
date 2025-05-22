@@ -13,8 +13,9 @@ Copyright (c) 2020-2024 MalwareFrank
 
 import struct as _struct
 import logging
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Tuple, Union, Optional, overload
 from binascii import hexlify as _hexlify
+from collections.abc import Sequence
 
 from pefile import MAX_STRING_LENGTH, Structure
 
@@ -268,6 +269,8 @@ class UserStringHeap(BinaryHeap):
 
 class HeapItemGuid(base.HeapItem):
 
+    ITEM_SIZE = 128 // 8  # number of bytes in a guid
+
     def __init__(self, data: bytes, rva: Optional[int] = None):
         super().__init__(data, rva)
 
@@ -288,7 +291,7 @@ class HeapItemGuid(base.HeapItem):
         return f"HeapItemGuid(data={self.__data__},rva={self.rva})"
 
 
-class GuidHeap(base.ClrHeap):
+class GuidHeap(base.ClrHeap, Sequence):
     offset_size = 0
 
     def get_str(self, index, as_bytes=False):
@@ -302,20 +305,47 @@ class GuidHeap(base.ClrHeap):
 
         return str(item)
 
-    def get(self, index) -> Optional[HeapItemGuid]:
-        if index is None or index < 1:
+    def get(self, index: int) -> Optional[HeapItemGuid]:
+        if not isinstance(index, int):
+            raise IndexError(f"unexpected type: {type(index)}")
+
+        # 1-based indexing
+        if index < 1 or index > len(self):
             return None
 
-        size = 128 // 8  # number of bytes in a guid
         # offset into the GUID stream
-        offset = (index - 1) * size
+        offset = (index - 1) * HeapItemGuid.ITEM_SIZE
 
-        if offset + size > len(self.__data__):
-            raise IndexError("index out of range")
-
-        item = HeapItemGuid(self.__data__[offset:offset + size], self.rva + offset)
+        item = HeapItemGuid(self.__data__[offset:offset + HeapItemGuid.ITEM_SIZE], self.rva + offset)
 
         return item
+
+    def __len__(self) -> int:
+        return len(self.__data__) // HeapItemGuid.ITEM_SIZE
+
+    @overload
+    def __getitem__(self, i: int) -> HeapItemGuid:
+        ...
+
+    @overload
+    def __getitem__(self, i: slice) -> List[HeapItemGuid]:
+        ...
+
+    def __getitem__(self, i):
+        if isinstance(i, int):
+            if i < 0:
+                # convert negative index into positive
+                index0 = len(self) + i
+            else:
+                index0 = i
+            item = self.get(index0 + 1)
+            if item is None:
+                raise IndexError(f"unexpected index: {i}")
+            return item
+        elif isinstance(i, slice):
+            start, stop, step = i.indices(len(self))
+            return [self[index] for index in range(start, stop, step)]
+        raise IndexError(f"unexpected type '{type(i)}'")
 
 
 class MDTablesStruct(Structure):

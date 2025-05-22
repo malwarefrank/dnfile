@@ -62,7 +62,22 @@ def test_guids():
     assert hasattr(dn.net, "guids")
 
     assert dn.net.guids.get(0) is None
+    assert isinstance(dn.net.guids.get(1), dnfile.stream.HeapItemGuid)
     assert dn.net.guids.get(1).value == b"\x8c\x8b\xc5\x48\xff\x24\x91\x45\x9e\xc8\x94\xbf\xea\xbd\x9f\x3e"
+
+
+def test_guids_as_sequence():
+    path = fixtures.get_data_path_by_name("hello-world.exe")
+
+    dn = dnfile.dnPE(path)
+    assert dn.net is not None
+    assert b"#GUID" in dn.net.metadata.streams
+    assert hasattr(dn.net, "guids")
+
+    assert len(dn.net.guids) == 1
+    assert dn.net.guids[0] is not None
+    assert hasattr(dn.net.guids[0], "value")
+    assert dn.net.guids[0].value == b"\x8c\x8b\xc5\x48\xff\x24\x91\x45\x9e\xc8\x94\xbf\xea\xbd\x9f\x3e"
 
 
 def test_tables():
