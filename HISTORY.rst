@@ -2,8 +2,8 @@
 History
 =======
 
-HEAD
-----
+0.16.0 (2025)
+-------------
 
 * BREAKING CHANGE: resource type DateTime is parsed into an object that exposes Kind value
 * FEATURE: access GUIDS stream like a 0-based sequence. GuidHeap subclasses abc.Sequence
