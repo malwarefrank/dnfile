@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   lint:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout dnfile
       uses: actions/checkout@v2
@@ -20,7 +20,7 @@ jobs:
       run: tox -e type
 
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout dnfile
       uses: actions/checkout@v2
