@@ -2,6 +2,11 @@
 History
 =======
 
+HEAD
+----
+
+* BREAKING CHANGE: resource type DateTime is parsed into an object that exposes Kind value
+
 0.15.1 (2024)
 -------------
 
