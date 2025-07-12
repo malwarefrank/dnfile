@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: testpypi
-      url: https://pypi.org/p/dnfile
+      url: https://test.pypi.org/p/dnfile
     permissions:
       id-token: write
     steps:
@@ -85,3 +85,5 @@ jobs:
         skip-existing: true
         verbose: true
         print-hash: true
+        # Temp workaround
+        attestations: false
