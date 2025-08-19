@@ -983,7 +983,7 @@ class ClrResource(abc.ABC):
         raise NotImplementedError()
 
 
-class DateTimeStruct(Structure):
+class DateTimeStruct(object):
     Ticks: int
     Kind: int
 
@@ -1018,10 +1018,10 @@ class DateTime(object):
         # https://github.com/dotnet/runtime/blob/17c55f1/src/libraries/System.Private.CoreLib/src/System/DateTime.cs#L130-L138
         self.struct.Kind = x >> 62
         # https://stackoverflow.com/questions/3169517/python-c-sharp-binary-datetime-encoding
-        self.Seconds = self.struct.Ticks / 10.0 ** 7
-        self.Kind = enums.DateTimeKind(self.struct.Kind)
-        delta = datetime.timedelta(seconds=self.Seconds)
-        if self.Kind == enums.DateTimeKind.Utc:
+        self.seconds = self.struct.Ticks / 10.0 ** 7
+        self.kind = enums.DateTimeKind(self.struct.Kind)
+        delta = datetime.timedelta(seconds=self.seconds)
+        if self.kind == enums.DateTimeKind.Utc:
             self.value = datetime.datetime(1, 1, 1, 0, 0, 0, 0, datetime.timezone.utc) + delta
         else:
             self.value = datetime.datetime(1, 1, 1, 0, 0, 0, 0) + delta

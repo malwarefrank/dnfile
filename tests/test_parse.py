@@ -1,4 +1,5 @@
 import pytest
+import datetime
 import fixtures
 
 import dnfile
@@ -359,3 +360,18 @@ def test_heap_items():
     assert guid_item.value_bytes() == guid_bytes
     assert guid_item.value == guid_bytes
     assert str(guid_item) == "03020100-0504-0706-0809-0a0b0c0d0e0f"
+
+
+def test_datetime():
+
+    # DateTime
+    buf = b"\xa8\xf6\x06\xbd\xd2\x51\xe3\x08"
+    item = dnfile.base.DateTime(buf)
+    item.parse()
+    assert isinstance(item.struct, dnfile.base.DateTimeStruct)
+    assert item.struct.Kind == 0
+    assert item.struct.Ticks == 0x08e351d2bd06f6a8
+    assert isinstance(item.kind, dnfile.enums.DateTimeKind)
+    assert item.kind == dnfile.enums.DateTimeKind.Unspecified
+    assert item.seconds == 64044553757.307459
+    assert isinstance(item.value, datetime.datetime)
