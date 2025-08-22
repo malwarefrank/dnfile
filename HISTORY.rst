@@ -2,6 +2,11 @@
 History
 =======
 
+0.17.0 (2025)
+-------------
+
+* BUGFIX: DateTime object creation error.
+
 0.16.0 (2025)
 -------------
 
