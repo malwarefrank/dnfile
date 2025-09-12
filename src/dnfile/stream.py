@@ -234,7 +234,7 @@ class UserString(HeapItemBinary, HeapItemString):
             str_buf = buf
 
         try:
-            self.value = str_buf.decode(encoding)
+            self.value = str_buf.decode(encoding, errors="surrogatepass")
         except UnicodeDecodeError as e:
             logger.warning(f"UserString decode error (rva:0x{self.rva:08x}): {e}")
             self.value = None
