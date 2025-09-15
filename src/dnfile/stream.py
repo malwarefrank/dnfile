@@ -192,7 +192,13 @@ class UserString(HeapItemBinary, HeapItemString):
 
     flag: Optional[int] = None
 
-    def __init__(self, data: Union[bytes, HeapItemBinary], rva: Optional[int] = None, encoding="utf-16"):
+    def __init__(
+        self,
+        data: Union[bytes, HeapItemBinary],
+        rva: Optional[int] = None,
+        encoding: str = "utf-16",
+        error_handler: str = "strict",
+    ):
         self.encoding = encoding
         if isinstance(data, bytes):
             HeapItemBinary.__init__(self, data, rva=rva)
@@ -234,7 +240,7 @@ class UserString(HeapItemBinary, HeapItemString):
             str_buf = buf
 
         try:
-            self.value = str_buf.decode(encoding)
+            self.value = str_buf.decode(encoding, errors=error_handler)
         except UnicodeDecodeError as e:
             logger.warning(f"UserString decode error (rva:0x{self.rva:08x}): {e}")
             self.value = None
@@ -257,12 +263,12 @@ class UserStringHeap(BinaryHeap):
 
         return item.value_bytes()
 
-    def get(self, index, encoding="utf-16") -> Optional[UserString]:
+    def get(self, index: int, encoding: str = "utf-16", error_handler: str = "strict") -> Optional[UserString]:
         bin_item = super().get(index)
         if bin_item is None:
             return None
 
-        us_item = UserString(bin_item, encoding=encoding)
+        us_item = UserString(bin_item, encoding=encoding, error_handler=error_handler)
 
         return us_item
 
