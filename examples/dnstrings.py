@@ -11,7 +11,7 @@ def show_strings(fname):
     # parse .NET executable
     dn = dnfile.dnPE(fname)
     # if no CLR data found, do nothing
-    if not hasattr(dn, "net"):
+    if not hasattr(dn, "net") or not hasattr(dn.net, "metadata") or not hasattr(dn.net.metadata, "streams"):
         return
 
     # get the (first) UserStrings stream
@@ -28,16 +28,16 @@ def show_strings(fname):
                 if b"\x00" == dn.get_data(us.rva + offset, 1):
                     break
             # read the raw string bytes, and provide number of bytes read (includes encoded length)
-            item = us.get(offset)
+            item = us.get(offset, errors="surrogatepass")
             if item is None:
-                print(f"Bad string: offset=0x{offset:08x}")
+                print(f"{fname} :: Bad string: offset=0x{offset:08x}")
                 break
 
             if item.value is None:
-                print(f"Bad string: {item.raw_data}")
+                print(f"{fname} :: Bad string: {item.raw_data}")
             else:
                 # display the decoded string
-                print(item.value)
+                print(f"{fname} :: {item.flag} :: {item.value}")
             # continue to next entry
             offset += item.raw_size
 
