@@ -88,6 +88,8 @@ def test_tables():
     dn = dnfile.dnPE(path)
     assert dn.net is not None
 
+    assert len(dn.net.mdtables.tables_list) == 9
+
     for table in ["Module", "TypeRef", "TypeDef", "MethodDef", "Param", "MemberRef", "CustomAttribute", "Assembly", "AssemblyRef"]:
         assert hasattr(dn.net.mdtables, table)
 

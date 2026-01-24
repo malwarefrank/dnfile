@@ -752,6 +752,7 @@ class ClrMetaDataTable(Generic[RowType]):
         strings_heap: Optional["stream.StringsHeap"],
         guid_heap: Optional["stream.GuidHeap"],
         blob_heap: Optional["stream.BlobHeap"],
+        mdtables: "stream.MetaDataTables",
         lazy_load=False
     ):
         """
@@ -793,6 +794,32 @@ class ClrMetaDataTable(Generic[RowType]):
             )
 
         self.rows: List[RowType]
+        # initialized table data to an empty byte sequence
+        self._table_data: bytes = b""
+
+        # store heap info
+        self._strings_heap: Optional["stream.StringsHeap"] = strings_heap
+        self._guid_heap: Optional["stream.GuidHeap"] = guid_heap
+        self._blob_heap: Optional["stream.BlobHeap"] = blob_heap
+        self._strings_offset_size = strings_offset_size
+        self._guid_offset_size = guid_offset_size
+        self._blob_offset_size = blob_offset_size
+        self._tables_rowcounts = tables_rowcounts
+
+        # calculate the row size and table size in bytes
+        fake_row = init_row()
+        self.row_size = fake_row.row_size
+        table_size = self.row_size * self.num_rows
+
+        # sanity check: if table size is larger than the containing stream
+        if self.rva + table_size > mdtables.rva + mdtables.sizeof():
+            # initialize an empty row list
+            self.rows = []
+            # indicate error
+            logger.warning(f"Metadata table {self.name} with row_size {self.row_size} and num_rows {self.num_rows} does not fit in MD stream size {mdtables.sizeof()}")
+            # do not try to parse rows in this table
+            return
+
         if lazy_load and num_rows > 0:
             self.rows = _LazyList(self._lazy_parse_rows, num_rows)
             try:
@@ -811,18 +838,6 @@ class ClrMetaDataTable(Generic[RowType]):
                     # this may occur when the offset to a stream is too large.
                     # this probably means invalid data.
                     logger.warning("failed to construct %s row %d", self.name, e)
-
-        # store heap info
-        self._strings_heap: Optional["stream.StringsHeap"] = strings_heap
-        self._guid_heap: Optional["stream.GuidHeap"] = guid_heap
-        self._blob_heap: Optional["stream.BlobHeap"] = blob_heap
-        self._strings_offset_size = strings_offset_size
-        self._guid_offset_size = guid_offset_size
-        self._blob_offset_size = blob_offset_size
-        self._tables_rowcounts = tables_rowcounts
-
-        self._table_data: bytes = b""
-        self.row_size: int = self._get_row_size()
 
     def _get_row_size(self):
         if not self.rows:
