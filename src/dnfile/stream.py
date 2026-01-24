@@ -550,7 +550,11 @@ class MetaDataTables(base.ClrStream):
             # if table bit is set
             if header_struct.MaskValid & 2 ** i != 0:
                 # read the row count
-                table_rowcounts.append(self.get_dword_at_rva(cur_rva))
+                row_count = self.get_dword_at_rva(cur_rva)
+                # sanity check
+                if row_count > self.sizeof():
+                    logger.warning(f"invalid table {i} row_count {row_count} larger than stream size {self.sizeof()}")
+                table_rowcounts.append(row_count)
                 # increment to next dword
                 cur_rva += 4
             else:
@@ -576,6 +580,7 @@ class MetaDataTables(base.ClrStream):
                         strings_heap,
                         guid_heap,
                         blob_heap,
+                        self,
                         lazy_load,
                     )
                 except errors.dnFormatError as e:
@@ -618,22 +623,47 @@ class MetaDataTables(base.ClrStream):
             # Setup lazy loading for all tables
             for table in self.tables_list:
                 if table.row_size > 0 and table.num_rows > 0:
+                    table.rva = cur_rva
+                    table.file_offset = self.get_file_offset(table.rva)
+                    # calculate the table size
+                    table_size = table.row_size * table.num_rows
+                    # sanity check: if table size is more than data in stream
+                    if cur_rva + table_size > self.rva + self.sizeof():
+                        # the table is too large
+                        err_msg = f"Metadata table {table.name} with row_size {table.row_size} and num_rows {table.num_rows} is larger than stream size {self.sizeof()}"
+                        deferred_exceptions.append(
+                            errors.dnFormatError(err_msg)
+                        )
+                        logging.warning(err_msg)
+                        # stop processing tables
+                        break
                     table_data = self.get_data_at_rva(
                         cur_rva, table.row_size * table.num_rows
                     )
                     table.setup_lazy_load(cur_rva, table_data, full_loader)
-                    table.file_offset = self.get_file_offset(cur_rva)
                     cur_rva += table.row_size * table.num_rows
         else:
             #### parse each table
             # here, cur_rva points to start of table rows
             for table in self.tables_list:
                 if table.row_size > 0 and table.num_rows > 0:
+                    table.rva = cur_rva
+                    table.file_offset = self.get_file_offset(cur_rva)
+                    # calculate the table size
+                    table_size = table.row_size * table.num_rows
+                    # sanity check: if table size is more than data in stream
+                    if cur_rva + table_size > self.rva + self.sizeof():
+                        # the table is too large
+                        err_msg = f"Metadata table {table.name} with row_size {table.row_size} and num_rows {table.num_rows} is larger than stream size {self.sizeof()}"
+                        deferred_exceptions.append(
+                            errors.dnFormatError(err_msg)
+                        )
+                        logging.warning(err_msg)
+                        # stop processing tables
+                        break
                     table_data = self.get_data_at_rva(
                         cur_rva, table.row_size * table.num_rows
                     )
-                    table.rva = cur_rva
-                    table.file_offset = self.get_file_offset(cur_rva)
                     # parse structures (populates .struct for each row)
                     table.parse_rows(cur_rva, table_data)
                     # move to next set of rows
