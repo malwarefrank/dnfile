@@ -2,6 +2,14 @@
 History
 =======
 
+0.18.0 (2026)
+-------------
+
+* BUGFIX: sanity check value of mdtable num_rows value; do not process if larger than stream size
+* FEATURE: UserString objects, add ability to set string decode error option
+* add py 3.10 and 3.11 to supported versions list
+* minor example changes
+
 0.17.0 (2025)
 -------------
 
