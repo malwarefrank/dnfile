@@ -128,8 +128,11 @@ class dnPE(_PE):
         result.extend(self._warnings)
         return result
 
-    def __parse__(self, fname, data, fast_load):
-        super().__parse__(fname, data, fast_load)
+    def __parse__(self, fname, data, fast_load, max_offset=None):
+        if max_offset is None:
+            super().__parse__(fname, data, fast_load)
+        else:
+            super().__parse__(fname, data, fast_load, max_offset)
 
         # NOTE: .NET loaders ignores NumberOfRvaAndSizes
         #   We check this elsewhere, but note it here.
