@@ -14,12 +14,12 @@ def test_metadata():
     assert dn.net is not None
     assert dn.net.metadata is not None
 
-    dn.net.metadata.struct.Signature == 0x424A5342
-    dn.net.metadata.struct.MajorVersion == 1
-    dn.net.metadata.struct.MinorVersion == 1
-    dn.net.metadata.struct.Version == "v4.0.30319"
-    dn.net.metadata.struct.Flags == 0x0
-    dn.net.metadata.struct.NumberOfStreams == 5
+    assert dn.net.metadata.struct.Signature == 0x424A5342
+    assert dn.net.metadata.struct.MajorVersion == 1
+    assert dn.net.metadata.struct.MinorVersion == 1
+    assert dn.net.metadata.struct.Version.rstrip(b"\x00") == b"v4.0.30319"
+    assert dn.net.metadata.struct.Flags == 0x0
+    assert dn.net.metadata.struct.NumberOfStreams == 5
 
 
 def test_streams():
@@ -189,6 +189,21 @@ def test_tables():
         assert table.num_rows == ref_table.get("NumRows", None)
         assert table.row_size == ref_table.get("RowSize", None)
         assert table.file_offset == ref_table.get("file_offset")
+        assert getattr(dn.net.mdtables, table.name) is table
+        assert dn.net.mdtables.tables[table.number] is table
+
+    assert dn.net.mdtables.Module[0].Name == "1-hello-world.exe"
+    assert dn.net.mdtables.TypeDef[0].TypeName == "<Module>"
+    assert dn.net.mdtables.TypeDef[1].TypeName == "HelloWorld"
+
+    extends = dn.net.mdtables.TypeDef[1].Extends
+    assert extends.table is not None
+    assert extends.table.name == "TypeRef"
+    assert extends.row_index == 5
+    assert extends.row.TypeNamespace == "System"
+    assert extends.row.TypeName == "Object"
+
+    assert dn.net.mdtables.AssemblyRef[0].Name == "mscorlib"
 
 
 def test_module():
