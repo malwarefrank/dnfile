@@ -33,6 +33,7 @@ class CompressedInt(int):
     rva: Optional[int] = None
 
     def to_bytes(self):
+        """Return the raw compressed-byte representation."""
         return self.__data__
 
     @classmethod
@@ -712,16 +713,18 @@ class CodedIndex(MDTableIndex[RowType]):
 
 class ClrMetaDataTable(Generic[RowType]):
     """
-    An abstract class for Metadata tables.  Rows can be accessed
-     directly like a list with bracket [] syntax.
-    Use `get_with_row_index` when you have a Rid/token/row_index,
-     since these are 1-indexed.
-    Use bracket [] syntax when you want 0-indexing.
+    Abstract base class for metadata tables.
 
-    Subclasses should make sure to set the following attributes:
-        number
-        name
-        _row_class
+    Rows can be accessed directly like a list with bracket syntax.
+    Use ``get_with_row_index`` when you have a RID, token, or row index,
+    since those values are 1-indexed. Use bracket syntax when you want
+    0-indexing.
+
+    Subclasses should define:
+
+    * ``number``
+    * ``name``
+    * ``_row_class``
     """
     #
     # required properties for subclasses.
