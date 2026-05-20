@@ -6,6 +6,7 @@ from dnfile.resource import InternalResource, ResourceSet
 
 
 def _resources_by_name(path):
+    # Normalize the resource list into a name-keyed mapping for direct assertions.
     dn = dnfile.dnPE(path)
 
     assert dn.net is not None
@@ -15,6 +16,7 @@ def _resources_by_name(path):
 
 
 def test_minimal_resource_fixture_parses():
+    """Verify the minimal fixture preserves one named resource and its decoded values."""
     path = fixtures.get_data_path_by_name("minimal-res.exe")
 
     dn, resources = _resources_by_name(path)
@@ -44,14 +46,18 @@ def test_minimal_resource_fixture_parses():
 
 
 def test_mal_resource_fixture_parses_modulo_resources():
+    """Verify the malware fixture exposes the expected resource set contents."""
     path = fixtures.get_data_path_by_name("387f15043f0198fd3a637b0758c2b6dde9ead795c3ed70803426fc355731b173.dll_")
+    # Skip the fixture when it is not present locally; this malware sample is optional.
     if not path.exists():
         raise pytest.xfail("test file 38741504... (DANGER: malware) not found in test fixtures")
 
     dn, resources = _resources_by_name(path)
 
+    # This fixture is intentionally richer and should expose many internal resources.
     assert len(resources) == 13
 
+    # Modulo.g.resources contains both BAML and SVG stream entries.
     resource = resources["Modulo.g.resources"]
     assert isinstance(resource, InternalResource)
     assert isinstance(resource.data, ResourceSet)
@@ -69,7 +75,9 @@ def test_mal_resource_fixture_parses_modulo_resources():
 
 
 def test_mal_resource_fixture_parses_costura_resources():
+    """Verify the malware fixture preserves empty, bitmap, and metadata resources."""
     path = fixtures.get_data_path_by_name("7f4ba9fc95b30baf8922a6933a4ff1c6a7fef41fae487bb31014c4963357770f.dll_")
+    # Skip the fixture when it is not present locally; this malware sample is optional.
     if not path.exists():
         raise pytest.xfail("test file 7f4ba9fc... (DANGER: malware) not found in test fixtures")
 
@@ -84,6 +92,7 @@ def test_mal_resource_fixture_parses_costura_resources():
     assert empty_resource.data.struct.NumberOfResources == 0
     assert empty_resource.data.entries == []
 
+    # Principal.Resources.resources is the main resource bundle to validate.
     resource = resources["Principal.Resources.resources"]
     assert isinstance(resource, InternalResource)
     assert isinstance(resource.data, ResourceSet)
