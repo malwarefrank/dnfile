@@ -1,7 +1,7 @@
 import fixtures
+import pytest
 
 import dnfile
-import pytest
 from dnfile.resource import InternalResource, ResourceSet
 
 

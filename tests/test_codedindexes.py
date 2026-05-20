@@ -2,7 +2,8 @@ import fixtures
 
 import dnfile
 from dnfile import codedindex
-from dnfile.mdtable import AssemblyRow, FieldRow, MemberRefRow, PropertyRow, TypeDefRow, TypeRefRow
+from dnfile.mdtable import (AssemblyRow, FieldRow, MemberRefRow, PropertyRow,
+                            TypeDefRow, TypeRefRow)
 
 
 def _assert_coded_index_target(index, table_name, row_index, row_type):
