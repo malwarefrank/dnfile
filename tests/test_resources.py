@@ -1,8 +1,8 @@
-import fixtures
 import pytest
+import fixtures
 
 import dnfile
-from dnfile.resource import InternalResource, ResourceSet
+from dnfile.resource import ResourceSet, InternalResource
 
 
 def _resources_by_name(path):
