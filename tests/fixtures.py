@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 CD = Path(__file__).parent
@@ -23,3 +24,23 @@ def get_data_path_by_name(name):
         return DATA / "minimal-resource" / "bin" / "minimal-res.exe"
 
     raise ValueError("unknown test file")
+
+
+def copy_fixture_to_tmp(tmp_path: Path, name: str) -> Path:
+    src = get_data_path_by_name(name)
+    dst = tmp_path / src.name
+    shutil.copyfile(src, dst)
+    return dst
+
+
+def patch_bytes(path: Path, offset: int, data: bytes) -> Path:
+    buf = bytearray(path.read_bytes())
+    buf[offset:offset + len(data)] = data
+    path.write_bytes(buf)
+    return path
+
+
+def truncate_file(path: Path, size: int) -> Path:
+    with path.open("r+b") as handle:
+        handle.truncate(size)
+    return path
