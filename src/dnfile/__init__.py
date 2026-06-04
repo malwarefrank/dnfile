@@ -496,6 +496,10 @@ class ClrData(DataContainer):
         self._resources = None
         self.Flags = None
 
+        # Set the flags according to the Flags member
+        flags_object = enums.ClrHeaderFlags(clr_struct.Flags)
+        self.Flags = flags_object
+
         try:
             self.metadata = ClrMetaData(pe, metadata_rva, metadata_size, lazy_load)
         except (errors.dnFormatError, PEFormatError) as e:
@@ -517,10 +521,6 @@ class ClrData(DataContainer):
                 self.blobs = s
             elif isinstance(s, stream.MetaDataTables):
                 self.mdtables: stream.MetaDataTables = s
-
-        # Set the flags according to the Flags member
-        flags_object = enums.ClrHeaderFlags(clr_struct.Flags)
-        self.Flags = flags_object
 
         if not lazy_load:
             self._init_resources(pe)
