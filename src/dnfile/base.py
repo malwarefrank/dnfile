@@ -847,8 +847,10 @@ class ClrMetaDataTable(Generic[RowType]):
     def _get_row_size(self):
         if not self.rows:
             return 0
-        r = self.rows[0]
-        return r.row_size
+        for row in self.rows:
+            if row is not None:
+                return row.row_size
+        return 0
 
     def setup_lazy_load(self, table_rva: int, data: bytes, full_loader):
         """Mark this table for lazy-loading.
@@ -936,10 +938,14 @@ class ClrMetaDataTable(Generic[RowType]):
 
         offset = 0
         # iterate through rows, stopping at num_rows or when there is not enough data left
-        for i in range(self.num_rows):
+        for i in range(len(self.rows)):
             if len(data) < offset + self.row_size:
                 logger.warning("not enough data to parse row %d", i)
                 break
+
+            if self.rows[i] is None:
+                offset += self.row_size
+                continue
 
             self.rows[i].set_data(
                 data[offset:offset + self.row_size], file_offset=self.file_offset + offset
@@ -957,9 +963,14 @@ class ClrMetaDataTable(Generic[RowType]):
 
         # for each row in table
         for i, row in enumerate(self.rows):
+            if row is None or getattr(row, "_data", b"") == b"":
+                continue
+
             next_row = None
-            if i + 1 < len(self.rows):
-                next_row = self.rows[i + 1]
+            for candidate in self.rows[i + 1:]:
+                if candidate is not None:
+                    next_row = candidate
+                    break
 
             # fully parse the row
             row.parse(tables, next_row=next_row)

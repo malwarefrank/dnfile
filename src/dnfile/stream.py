@@ -553,7 +553,11 @@ class MetaDataTables(base.ClrStream):
                 row_count = self.get_dword_at_rva(cur_rva)
                 # sanity check
                 if row_count > self.sizeof():
-                    logger.warning(f"invalid table {i} row_count {row_count} larger than stream size {self.sizeof()}")
+                    err_msg = (
+                        f"metadata table {i} row_count {row_count} larger than stream size {self.sizeof()}"
+                    )
+                    logger.warning(err_msg)
+                    deferred_exceptions.append(errors.dnFormatError(err_msg))
                 table_rowcounts.append(row_count)
                 # increment to next dword
                 cur_rva += 4
@@ -610,6 +614,7 @@ class MetaDataTables(base.ClrStream):
 
         if lazy_load:
             self._loaded = False
+            stream_end_rva = self.rva + self.sizeof()
 
             def full_loader():
                 # Called if a property is accessed that requires data from other tables.
@@ -635,7 +640,9 @@ class MetaDataTables(base.ClrStream):
                             errors.dnFormatError(err_msg)
                         )
                         logging.warning(err_msg)
-                        # stop processing tables
+                        available_size = max(0, stream_end_rva - cur_rva)
+                        table_data = self.get_data_at_rva(cur_rva, available_size)
+                        table.setup_lazy_load(cur_rva, table_data, full_loader)
                         break
                     table_data = self.get_data_at_rva(
                         cur_rva, table.row_size * table.num_rows
@@ -645,6 +652,7 @@ class MetaDataTables(base.ClrStream):
         else:
             #### parse each table
             # here, cur_rva points to start of table rows
+            stream_end_rva = self.rva + self.sizeof()
             for table in self.tables_list:
                 if table.row_size > 0 and table.num_rows > 0:
                     table.rva = cur_rva
@@ -659,7 +667,10 @@ class MetaDataTables(base.ClrStream):
                             errors.dnFormatError(err_msg)
                         )
                         logging.warning(err_msg)
-                        # stop processing tables
+                        available_size = max(0, stream_end_rva - cur_rva)
+                        table_data = self.get_data_at_rva(cur_rva, available_size)
+                        table.parse_rows(cur_rva, table_data)
+                        cur_rva += len(table_data)
                         break
                     table_data = self.get_data_at_rva(
                         cur_rva, table.row_size * table.num_rows
