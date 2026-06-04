@@ -11,7 +11,7 @@ import logging
 import datetime
 import functools as _functools
 import itertools as _itertools
-from typing import TYPE_CHECKING, Any, Dict, List, Type, Tuple, Union, Generic, TypeVar, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Type, Tuple, Union, Generic, TypeVar, Iterator, Optional, Sequence
 
 from pefile import Structure
 
@@ -943,11 +943,12 @@ class ClrMetaDataTable(Generic[RowType]):
                 logger.warning("not enough data to parse row %d", i)
                 break
 
-            if self.rows[i] is None:
+            row = self.rows[i]
+            if row is None:
                 offset += self.row_size
                 continue
 
-            self.rows[i].set_data(
+            row.set_data(
                 data[offset:offset + self.row_size], file_offset=self.file_offset + offset
             )
             offset += self.row_size
@@ -976,7 +977,7 @@ class ClrMetaDataTable(Generic[RowType]):
             row.parse(tables, next_row=next_row)
         self._loaded = LoadState.Loaded
 
-    def __getitem__(self, index: int) -> RowType:
+    def __getitem__(self, index: int) -> Optional[RowType]:
         return self.rows[index]
 
     def __len__(self):
@@ -986,10 +987,10 @@ class ClrMetaDataTable(Generic[RowType]):
         """
         return len(self.rows)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Optional[RowType]]:
         return iter(self.rows)
 
-    def get_with_row_index(self, row_index: int) -> RowType:
+    def get_with_row_index(self, row_index: int) -> Optional[RowType]:
         """
         fetch the row with the given row index.
         remember: row indices, at least those encoded within a .NET file, are 1-based.
