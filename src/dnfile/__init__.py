@@ -31,6 +31,22 @@ logger = logging.getLogger(__name__)
 CLR_METADATA_SIGNATURE = 0x424A5342
 
 
+def _recover_stream_entry_rva(pe: "dnPE", candidate_rva: int, metadata_end_rva: int):
+    known_names = (b"#~", b"#-", b"#Strings", b"#US", b"#GUID", b"#Blob")
+
+    probe_rva = candidate_rva
+    while probe_rva + 8 < metadata_end_rva:
+        name = pe.get_string_at_rva(probe_rva + 8)
+        # Keep this a strict check for known stream names since we don't
+        # want to accidentally recover a random pointer that happens to
+        # point at something that looks like a stream entry.
+        if name in known_names:
+            return probe_rva
+        probe_rva += 4
+
+    return None
+
+
 # These come from the great article[1] which contains great insights on
 # working with unicode in both Python 2 and 3.
 # [1]: http://python3porting.com/problems.html
@@ -286,7 +302,9 @@ class ClrMetaData(DataContainer):
         # dynamically create metadata header structure
         struct_format = _copymod.deepcopy(self.__class__._format)
         struct_data = pe.get_data(rva, size)
-        if len(struct_data) < size:
+        self.size = len(struct_data)
+        min_header_size = Structure(self.__class__._format).sizeof()
+        if len(struct_data) < min_header_size:
             raise errors.dnFormatError(
                 "Invalid CLR MetaData Structure size. Can't read %d "
                 "bytes at RVA: 0x%x" % (size, rva)
@@ -359,8 +377,15 @@ class ClrMetaData(DataContainer):
             if not stream:
                 logger.warning("Invalid .NET stream: {}".format(i + 1))
                 pe.add_warning("Invalid .NET stream: {}".format(i + 1))
-                # assume this throws off further parsing, so stop
-                break
+                recovered_rva = _recover_stream_entry_rva(
+                    pe,
+                    stream_entry_rva + 4,
+                    self.rva + self.size,
+                )
+                if recovered_rva is None:
+                    break
+                stream_entry_rva = recovered_rva
+                continue
 
             streams_list.append(stream)
             name = stream.struct.Name
@@ -503,6 +528,7 @@ class ClrData(DataContainer):
         try:
             self.metadata = ClrMetaData(pe, metadata_rva, metadata_size, lazy_load)
         except (errors.dnFormatError, PEFormatError) as e:
+            pe.add_warning("failed to parse .NET metadata: {}".format(e))
             logger.warning("failed to parse .NET metadata: %s", e)
             return
 
@@ -602,40 +628,40 @@ class ClrStreamFactory(object):
     def createStream(
         cls, pe: dnPE, stream_entry_rva: int, metadata_rva: int
     ) -> Optional[base.ClrStream]:
-        # start with structure template
-        struct_format = _copymod.deepcopy(cls._template_format)
-        # read name
-        name = pe.get_string_at_rva(stream_entry_rva + 8)
-        if name is None:
-            logger.warning("failed to read stream name")
-            return None
-
-        # round field length up to next 4-byte boundary.  Remember the NULL byte at end.
-        name_len = len(name) + (4 - (len(name) % 4))
-        # add name field to structure
-        struct_format[1].append("{0}s,Name".format(name_len))
-        # parse structure
-        stream_struct = base.StreamStruct(
-            struct_format,
-            file_offset=pe.get_offset_from_rva(stream_entry_rva)
-        )
-        struct_size = stream_struct.sizeof()
-        struct_data = pe.get_data(stream_entry_rva, struct_size)
-        stream_struct.__unpack__(struct_data)
-        # remove trailing NULLs from name
-        stream_struct.Name = stream_struct.Name.rstrip(b"\x00")
-        stream_rva = metadata_rva + stream_struct.Offset
-        stream_data = pe.get_data(
-            stream_rva, stream_struct.Size
-        )
-        name = stream_struct.Name
-        # use GenericStream for any non-standard streams
-        stream_class = cls._name_type_map.get(name, stream.GenericStream)
         try:
+            # start with structure template
+            struct_format = _copymod.deepcopy(cls._template_format)
+            # read name
+            name = pe.get_string_at_rva(stream_entry_rva + 8)
+            if name is None:
+                logger.warning("failed to read stream name")
+                return None
+
+            # round field length up to next 4-byte boundary.  Remember the NULL byte at end.
+            name_len = len(name) + (4 - (len(name) % 4))
+            # add name field to structure
+            struct_format[1].append("{0}s,Name".format(name_len))
+            # parse structure
+            stream_struct = base.StreamStruct(
+                struct_format,
+                file_offset=pe.get_offset_from_rva(stream_entry_rva)
+            )
+            struct_size = stream_struct.sizeof()
+            struct_data = pe.get_data(stream_entry_rva, struct_size)
+            stream_struct.__unpack__(struct_data)
+            # remove trailing NULLs from name
+            stream_struct.Name = stream_struct.Name.rstrip(b"\x00")
+            stream_rva = metadata_rva + stream_struct.Offset
+            stream_data = pe.get_data(
+                stream_rva, stream_struct.Size
+            )
+            name = stream_struct.Name
+            # use GenericStream for any non-standard streams
+            stream_class = cls._name_type_map.get(name, stream.GenericStream)
             # construct stream, like stream.StreagsHeap ctor or GenericStream ctor
             s = stream_class(metadata_rva, stream_struct, stream_data)
             s.file_offset = pe.get_offset_from_rva(stream_rva)
-        except errors.dnFormatError as e:
+        except (errors.dnFormatError, PEFormatError) as e:
             logger.warning("failed to parse stream: %s", e)
             return None
         else:
