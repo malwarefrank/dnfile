@@ -793,7 +793,7 @@ class ClrMetaDataTable(Generic[RowType]):
                 blob_heap,
             )
 
-        self.rows: List[RowType]
+        self.rows: List[Optional[RowType]] = []
         # initialized table data to an empty byte sequence
         self._table_data: bytes = b""
 
@@ -837,6 +837,11 @@ class ClrMetaDataTable(Generic[RowType]):
                 except errors.dnFormatError:
                     # this may occur when the offset to a stream is too large.
                     # this probably means invalid data.
+
+                    # we append None to keep the row indexes consistent with the
+                    # declared num_rows, even though we won't be able to parse any
+                    # rows after this point.
+                    self.rows.append(None)
                     logger.warning("failed to construct %s row %d", self.name, e)
 
     def _get_row_size(self):
