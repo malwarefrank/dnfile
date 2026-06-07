@@ -1265,6 +1265,12 @@ class TypeSpecRow(MDTableRow):
             (blob_ind_size + ",Signature_BlobIndex",),
         )
 
+    @property
+    def ParsedSignature(self):
+        if "ParsedSignature" not in self.__dict__:
+            self.__dict__["ParsedSignature"] = signatures.parse_type_signature(self.Signature)
+        return self.__dict__["ParsedSignature"]
+
 
 class TypeSpec(ClrMetaDataTable[TypeSpecRow]):
     name = "TypeSpec"
@@ -2042,6 +2048,12 @@ class MethodSpecRow(MDTableRow):
                 blob_ind_size + ",Instantiation_BlobIndex",
             ),
         )
+
+    @property
+    def ParsedInstantiation(self):
+        if "ParsedInstantiation" not in self.__dict__:
+            self.__dict__["ParsedInstantiation"] = signatures.parse_method_spec_instantiation(self.Instantiation)
+        return self.__dict__["ParsedInstantiation"]
 
 
 class MethodSpec(ClrMetaDataTable[MethodSpecRow]):
