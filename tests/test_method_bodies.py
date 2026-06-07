@@ -29,3 +29,24 @@ def test_fat_method_header_and_locals_token_are_decoded_for_module_code():
     assert body.code_size == 0x6E
     assert body.local_var_sig_tok == 0x11000005
     assert body.local_signature is dn.net.mdtables.StandAloneSig[4].ParsedSignature
+
+
+def test_exception_handler_sections_are_decoded_for_module_code():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("ModuleCode_x86.exe"))
+
+    method = next(
+        row for row in dn.net.mdtables.MethodDef.rows if getattr(row.Name, "value", row.Name) == "__get_default_appdomain"
+    )
+    body = method.Body
+
+    assert len(body.exception_handlers) == 1
+
+    handler = body.exception_handlers[0]
+    assert handler.clause_type == "catch"
+    assert handler.try_offset == 2
+    assert handler.try_length == 39
+    assert handler.handler_offset == 41
+    assert handler.handler_length == 8
+    assert handler.class_token == 0x01000013
+    assert handler.exception_type.row.TypeNamespace == "System"
+    assert handler.exception_type.row.TypeName == "Exception"
