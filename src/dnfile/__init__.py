@@ -25,7 +25,7 @@ from typing import Dict, List, Optional
 from pefile import PE as _PE
 from pefile import DIRECTORY_ENTRY, MAX_SYMBOL_EXPORT_COUNT, Dump, Structure, DataContainer, PEFormatError
 
-from . import base, enums, errors, stream, resource
+from . import base, cil, enums, errors, resource, signatures, stream
 
 logger = logging.getLogger(__name__)
 CLR_METADATA_SIGNATURE = 0x424A5342
@@ -547,6 +547,9 @@ class ClrData(DataContainer):
                 self.blobs = s
             elif isinstance(s, stream.MetaDataTables):
                 self.mdtables: stream.MetaDataTables = s
+
+        if self.mdtables is not None:
+            setattr(self.mdtables, "_pe", pe)
 
         if not lazy_load:
             self._init_resources(pe)

@@ -71,6 +71,12 @@ attribute of a dnPE object.
     # the last Metadata tables stream can also be accessed by a shortcut
     num_of_tables = len(pe.net.mdtables.tables_list)
 
+    # decoded signature and method body metadata are available from rows
+    method = pe.net.mdtables.MethodDef[0]
+    print(method.Name)
+    print(method.ParsedSignature.kind)
+    print(method.Body.header_format, method.Body.code_size)
+
     # create a set to hold the hashes of all resources
     res_hash = set()
     # access the resources

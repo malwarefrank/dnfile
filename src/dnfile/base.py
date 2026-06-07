@@ -769,6 +769,7 @@ class ClrMetaDataTable(Generic[RowType]):
         assert hasattr(self, "_row_class")
 
         self._loaded = LoadState.Unloaded
+        self._mdtables = mdtables
 
         # default value
         self.rva: int = 0
@@ -783,7 +784,7 @@ class ClrMetaDataTable(Generic[RowType]):
         self.num_rows: int = num_rows
 
         def init_row():
-            return self._row_class(
+            row = self._row_class(
                 tables_rowcounts,
                 strings_offset_size,
                 guid_offset_size,
@@ -792,6 +793,8 @@ class ClrMetaDataTable(Generic[RowType]):
                 guid_heap,
                 blob_heap,
             )
+            setattr(row, "_table", self)
+            return row
 
         self.rows: List[Optional[RowType]] = []
         # initialized table data to an empty byte sequence
@@ -894,6 +897,7 @@ class ClrMetaDataTable(Generic[RowType]):
             self.rows.truncate(idx)
             return None
 
+        setattr(row, "_table", self)
         row.setup_lazy_load(self._full_loader)
         offset = self.row_size * idx
         if len(self._table_data) < offset + self.row_size:

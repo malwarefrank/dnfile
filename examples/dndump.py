@@ -17,6 +17,7 @@ import tabulate
 import dnfile
 import dnfile.base
 import dnfile.enums
+import dnfile.mdtable
 
 logger = logging.getLogger(__name__)
 
@@ -254,6 +255,23 @@ def render_pe(ostream: Formatter, dn):
                                     value = str(v)
                             rows.append(("%s:" % (field), value))
                         ostream.rows(rows)
+
+                        if isinstance(row, dnfile.mdtable.MethodDefRow):
+                            ostream.writeln("ParsedSignature:")
+                            with indenting(ostream):
+                                ostream.writeln(str(row.ParsedSignature))
+                            ostream.writeln("Body:")
+                            with indenting(ostream):
+                                body = row.Body
+                                ostream.rows((
+                                    ("header_format:", body.header_format),
+                                    ("code_size:", hex(body.code_size)),
+                                    ("local_var_sig_tok:", hex(body.local_var_sig_tok)),
+                                ))
+                        elif isinstance(row, (dnfile.mdtable.MemberRefRow, dnfile.mdtable.StandAloneSigRow)):
+                            ostream.writeln("ParsedSignature:")
+                            with indenting(ostream):
+                                ostream.writeln(str(row.ParsedSignature))
 
                         # write lists second, so that in the above we can align columns
                         for fields in row.struct.__keys__:

@@ -14,7 +14,7 @@ Copyright (c) 2020-2022 MalwareFrank
 """
 from typing import TYPE_CHECKING, Dict, List, Type, Optional
 
-from . import enums, utils, errors, codedindex
+from . import cil, codedindex, enums, errors, signatures, utils
 from .base import RowStruct, MDTableRow, MDTableIndex, ClrMetaDataTable
 
 if TYPE_CHECKING:
@@ -382,6 +382,19 @@ class MethodDefRow(MDTableRow):
             ),
         )
 
+    @property
+    def ParsedSignature(self):
+        if "ParsedSignature" not in self.__dict__:
+            self.__dict__["ParsedSignature"] = signatures.parse_signature(self.Signature)
+        return self.__dict__["ParsedSignature"]
+
+    @property
+    def Body(self):
+        if "Body" not in self.__dict__:
+            pe = self._table._mdtables._pe
+            self.__dict__["Body"] = cil.parse_method_body(pe, self.Rva, self._table._mdtables)
+        return self.__dict__["Body"]
+
 
 class MethodDef(ClrMetaDataTable[MethodDefRow]):
     name = "MethodDef"
@@ -551,6 +564,12 @@ class MemberRefRow(MDTableRow):
                 blob_ind_size + ",Signature_BlobIndex",
             ),
         )
+
+    @property
+    def ParsedSignature(self):
+        if "ParsedSignature" not in self.__dict__:
+            self.__dict__["ParsedSignature"] = signatures.parse_signature(self.Signature)
+        return self.__dict__["ParsedSignature"]
 
 
 class MemberRef(ClrMetaDataTable[MemberRefRow]):
@@ -872,6 +891,12 @@ class StandAloneSigRow(MDTableRow):
             "CLR_METADATA_TABLE_STANDALONESIG",
             (blob_ind_size + ",Signature_BlobIndex",),
         )
+
+    @property
+    def ParsedSignature(self):
+        if "ParsedSignature" not in self.__dict__:
+            self.__dict__["ParsedSignature"] = signatures.parse_signature(self.Signature)
+        return self.__dict__["ParsedSignature"]
 
 
 class StandAloneSig(ClrMetaDataTable[StandAloneSigRow]):

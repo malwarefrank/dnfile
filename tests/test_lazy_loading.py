@@ -74,3 +74,19 @@ def test_non_lazy_loading():
 
     # _resources is the underlying field that would be lazy-loaded.
     assert dn.net._resources is not None
+
+
+def test_lazy_loading_exposes_parsed_signature_and_body_on_demand():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("hello-world.exe"), clr_lazy_load=True)
+    dn.parse_data_directories()
+
+    row = dn.net.mdtables.MethodDef[0]
+
+    assert "ParsedSignature" not in row.__dict__
+    assert "Body" not in row.__dict__
+
+    assert row.ParsedSignature.parameter_count == 1
+    assert row.Body.code_size == 13
+
+    assert "ParsedSignature" in row.__dict__
+    assert "Body" in row.__dict__
