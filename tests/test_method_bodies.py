@@ -50,3 +50,40 @@ def test_exception_handler_sections_are_decoded_for_module_code():
     assert handler.class_token == 0x01000013
     assert handler.exception_type.row.TypeNamespace == "System"
     assert handler.exception_type.row.TypeName == "Exception"
+
+
+def test_native_method_bodies_return_unsupported_sentinels():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("EmptyClass_x86.exe"))
+
+    native_stub = next(row for row in dn.net.mdtables.MethodDef.rows if row.Name == "_mainCRTStartup")
+    body = native_stub.Body
+
+    assert body.kind == "unsupported"
+    assert body.rva == native_stub.Rva
+    assert body.raw_header == bytes.fromhex("e8")
+    assert "unsupported method header format" in body.reason
+
+
+def test_missing_native_method_body_rvas_return_unsupported_sentinels():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("ModuleCode_x86.exe"))
+
+    native_stub = next(row for row in dn.net.mdtables.MethodDef.rows if row.Name == "DecodePointer")
+    body = native_stub.Body
+
+    assert body.kind == "unsupported"
+    assert body.rva == native_stub.Rva == 0
+    assert body.raw_header[:1] == b"M"
+    assert "unsupported method header format" in body.reason
+
+
+def test_unreadable_native_method_rvas_return_unsupported_sentinels():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("ModuleCode_x86.exe"))
+
+    native_stub = next(row for row in dn.net.mdtables.MethodDef.rows if getattr(row.Name, "value", row.Name) == "_cexit")
+    body = native_stub.Body
+
+    assert body.kind == "unsupported"
+    assert body.rva == native_stub.Rva
+    assert body.raw_header
+    assert body.raw_header[:1] == b"\xff"
+    assert body.reason.startswith("unsupported fat method header size")

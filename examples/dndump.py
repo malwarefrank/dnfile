@@ -259,15 +259,28 @@ def render_pe(ostream: Formatter, dn):
                         if isinstance(row, dnfile.mdtable.MethodDefRow):
                             ostream.writeln("ParsedSignature:")
                             with indenting(ostream):
-                                ostream.writeln(str(row.ParsedSignature))
+                                signature = row.ParsedSignature
+                                if getattr(signature, "kind", None) == "method":
+                                    method_name = getattr(row.Name, "value", row.Name)
+                                    ostream.writeln(signature.to_programmer_string(method_name))
+                                else:
+                                    ostream.writeln(str(signature))
                             ostream.writeln("Body:")
                             with indenting(ostream):
                                 body = row.Body
-                                ostream.rows((
-                                    ("header_format:", body.header_format),
-                                    ("code_size:", hex(body.code_size)),
-                                    ("local_var_sig_tok:", hex(body.local_var_sig_tok)),
-                                ))
+                                if hasattr(body, "raw_header"):
+                                    ostream.rows((
+                                        ("kind:", body.kind),
+                                        ("rva:", hex(body.rva)),
+                                        ("reason:", body.reason),
+                                        ("raw_header:", body.raw_header.hex()),
+                                    ))
+                                else:
+                                    ostream.rows((
+                                        ("header_format:", body.header_format),
+                                        ("code_size:", hex(body.code_size)),
+                                        ("local_var_sig_tok:", hex(body.local_var_sig_tok)),
+                                    ))
                         elif isinstance(row, (dnfile.mdtable.MemberRefRow, dnfile.mdtable.StandAloneSigRow)):
                             ostream.writeln("ParsedSignature:")
                             with indenting(ostream):
