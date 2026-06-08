@@ -98,9 +98,6 @@ class TypeSignature:
             return "object"
         return self.element_type.lower()
 
-    def __str__(self) -> str:
-        return self.to_programmer_string()
-
 
 @dataclass(frozen=True)
 class MethodSignature:
@@ -123,16 +120,13 @@ class MethodSignature:
 
         return f"{self.return_type.to_programmer_string()} {name}({parameter_text})"
 
-    def __str__(self) -> str:
-        return self.to_programmer_string()
-
 
 @dataclass(frozen=True)
 class LocalVarSignature:
     kind: str
     locals: List[TypeSignature]
 
-    def __str__(self) -> str:
+    def to_programmer_string(self) -> str:
         locals_text = ", ".join(local.to_programmer_string() for local in self.locals)
         return f"locals({locals_text})"
 
@@ -143,7 +137,7 @@ class UnsupportedSignature:
     raw: bytes
     reason: str
 
-    def __str__(self) -> str:
+    def to_programmer_string(self) -> str:
         return f"unsupported signature: {self.reason}"
 
 
@@ -153,7 +147,7 @@ class MethodSpecInstantiation:
     argument_count: int
     arguments: List[TypeSignature]
 
-    def __str__(self) -> str:
+    def to_programmer_string(self) -> str:
         arguments_text = ", ".join(argument.to_programmer_string() for argument in self.arguments)
         return f"methodspec({arguments_text})"
 

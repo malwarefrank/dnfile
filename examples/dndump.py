@@ -284,7 +284,12 @@ def render_pe(ostream: Formatter, dn):
                         elif isinstance(row, (dnfile.mdtable.MemberRefRow, dnfile.mdtable.StandAloneSigRow)):
                             ostream.writeln("ParsedSignature:")
                             with indenting(ostream):
-                                ostream.writeln(str(row.ParsedSignature))
+                                signature = row.ParsedSignature
+                                if getattr(signature, "kind", None) == "method":
+                                    method_name = getattr(row.Name, "value", row.Name)
+                                    ostream.writeln(signature.to_programmer_string(method_name))
+                                else:
+                                    ostream.writeln(str(signature))
 
                         # write lists second, so that in the above we can align columns
                         for fields in row.struct.__keys__:
