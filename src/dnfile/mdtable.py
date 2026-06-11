@@ -385,7 +385,7 @@ class MethodDefRow(MDTableRow):
     @property
     def ParsedSignature(self):
         if "ParsedSignature" not in self.__dict__:
-            self.__dict__["ParsedSignature"] = signatures.parse_signature(self.Signature)
+            self.__dict__["ParsedSignature"] = signatures.parse_signature(self.Signature, self._table._mdtables)
         return self.__dict__["ParsedSignature"]
 
     @property
@@ -568,7 +568,7 @@ class MemberRefRow(MDTableRow):
     @property
     def ParsedSignature(self):
         if "ParsedSignature" not in self.__dict__:
-            self.__dict__["ParsedSignature"] = signatures.parse_signature(self.Signature)
+            self.__dict__["ParsedSignature"] = signatures.parse_signature(self.Signature, self._table._mdtables)
         return self.__dict__["ParsedSignature"]
 
 
@@ -895,7 +895,7 @@ class StandAloneSigRow(MDTableRow):
     @property
     def ParsedSignature(self):
         if "ParsedSignature" not in self.__dict__:
-            self.__dict__["ParsedSignature"] = signatures.parse_signature(self.Signature)
+            self.__dict__["ParsedSignature"] = signatures.parse_signature(self.Signature, self._table._mdtables)
         return self.__dict__["ParsedSignature"]
 
 
@@ -1268,7 +1268,7 @@ class TypeSpecRow(MDTableRow):
     @property
     def ParsedSignature(self):
         if "ParsedSignature" not in self.__dict__:
-            self.__dict__["ParsedSignature"] = signatures.parse_type_signature(self.Signature)
+            self.__dict__["ParsedSignature"] = signatures.parse_type_signature(self.Signature, self._table._mdtables)
         return self.__dict__["ParsedSignature"]
 
 
@@ -2052,7 +2052,7 @@ class MethodSpecRow(MDTableRow):
     @property
     def ParsedInstantiation(self):
         if "ParsedInstantiation" not in self.__dict__:
-            self.__dict__["ParsedInstantiation"] = signatures.parse_method_spec_instantiation(self.Instantiation)
+            self.__dict__["ParsedInstantiation"] = signatures.parse_method_spec_instantiation(self.Instantiation, self._table._mdtables)
         return self.__dict__["ParsedInstantiation"]
 
 

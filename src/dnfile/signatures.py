@@ -3,10 +3,16 @@
 .NET signature blob parsing.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
-from . import errors, utils
+from . import base, codedindex, errors, utils
+
+
+def _format_token(value: Optional[int]) -> str:
+    if value is None:
+        return "0x?"
+    return f"0x{value:02x}"
 
 
 @dataclass(frozen=True)
@@ -21,6 +27,7 @@ class TypeSignature:
     array_rank: Optional[int] = None
     array_sizes: Optional[List[int]] = None
     array_lower_bounds: Optional[List[int]] = None
+    resolved_name: Optional[str] = field(default=None, repr=False, compare=False)
     kind: str = "type"
 
     def to_programmer_string(self) -> str:
@@ -67,9 +74,9 @@ class TypeSignature:
         if self.element_type == "MVAR":
             return f"M{self.number}"
         if self.element_type == "VALUETYPE":
-            return f"valuetype 0x{self.type_token:x}"
+            return self.resolved_name or f"valuetype {_format_token(self.type_token)}"
         if self.element_type == "CLASS":
-            return f"class 0x{self.type_token:x}"
+            return self.resolved_name or f"class {_format_token(self.type_token)}"
         if self.element_type == "SZARRAY":
             return f"{self.inner.to_programmer_string()}[]" if self.inner is not None else "[]"
         if self.element_type == "PTR":
@@ -77,16 +84,16 @@ class TypeSignature:
         if self.element_type == "BYREF":
             return f"ref {self.inner.to_programmer_string()}" if self.inner is not None else "ref"
         if self.element_type == "CMOD_REQD":
-            modifier = f"modreq(0x{self.type_token:x})"
+            modifier = f"modreq({self.resolved_name or _format_token(self.type_token)})"
             return f"{modifier} {self.inner.to_programmer_string()}" if self.inner is not None else modifier
         if self.element_type == "CMOD_OPT":
-            modifier = f"modopt(0x{self.type_token:x})"
+            modifier = f"modopt({self.resolved_name or _format_token(self.type_token)})"
             return f"{modifier} {self.inner.to_programmer_string()}" if self.inner is not None else modifier
         if self.element_type == "PINNED":
             return f"pinned {self.inner.to_programmer_string()}" if self.inner is not None else "pinned"
         if self.element_type == "GENERICINST":
             arguments = ", ".join(argument.to_programmer_string() for argument in self.arguments or [])
-            return f"{self.generic_kind.lower()} 0x{self.type_token:x}<{arguments}>"
+            return f"{self.generic_kind.lower()} {self.resolved_name or _format_token(self.type_token)}<{arguments}>"
         if self.element_type == "ARRAY":
             inner = self.inner.to_programmer_string() if self.inner is not None else "?"
             if not self.array_rank or self.array_rank == 1:
@@ -156,9 +163,10 @@ ParsedSignature = Union[MethodSignature, LocalVarSignature, TypeSignature, Unsup
 
 
 class _SignatureReader:
-    def __init__(self, raw: bytes):
+    def __init__(self, raw: bytes, mdtables=None):
         self.raw = raw
         self.offset = 0
+        self.mdtables = mdtables
 
     def read_byte(self) -> int:
         if self.offset >= len(self.raw):
@@ -214,6 +222,30 @@ class _SignatureReader:
             inner=self.parse_type(),
         )
 
+    def _resolve_type_def_or_ref_name(self, token: int) -> Optional[str]:
+        if self.mdtables is None:
+            return None
+
+        tag = token & ((1 << codedindex.TypeDefOrRef.tag_bits) - 1)
+        row_index = token >> codedindex.TypeDefOrRef.tag_bits
+        if row_index == 0:
+            return None
+
+        table_name = codedindex.TypeDefOrRef.table_names[tag]
+        table = getattr(self.mdtables, table_name, None)
+        if table is None:
+            return None
+
+        row = table.get_with_row_index(row_index)
+        if row is None:
+            return None
+
+        namespace = str(getattr(row, "TypeNamespace", "") or "").strip()
+        name = str(getattr(row, "TypeName", "") or "").strip()
+        if namespace:
+            return f"{namespace}.{name}"
+        return name or None
+
     def _parse_array_type(self) -> TypeSignature:
         inner = self.parse_type()
         rank = self.read_compressed_int()
@@ -263,9 +295,19 @@ class _SignatureReader:
         if element == 0x10:
             return self._parse_wrapped_type("BYREF")
         if element == 0x11:
-            return TypeSignature(element_type="VALUETYPE", type_token=self.read_compressed_int())
+            type_token = self.read_compressed_int()
+            return TypeSignature(
+                element_type="VALUETYPE",
+                type_token=type_token,
+                resolved_name=self._resolve_type_def_or_ref_name(type_token),
+            )
         if element == 0x12:
-            return TypeSignature(element_type="CLASS", type_token=self.read_compressed_int())
+            type_token = self.read_compressed_int()
+            return TypeSignature(
+                element_type="CLASS",
+                type_token=type_token,
+                resolved_name=self._resolve_type_def_or_ref_name(type_token),
+            )
         if element == 0x13:
             return TypeSignature(element_type="VAR", number=self.read_compressed_int())
         if element == 0x14:
@@ -286,6 +328,7 @@ class _SignatureReader:
                 generic_kind=generic_kind_name,
                 type_token=type_token,
                 arguments=arguments,
+                resolved_name=self._resolve_type_def_or_ref_name(type_token),
             )
         if element == 0x1B:
             return self._parse_fnptr_type()
@@ -294,32 +337,44 @@ class _SignatureReader:
         if element == 0x1E:
             return TypeSignature(element_type="MVAR", number=self.read_compressed_int())
         if element == 0x1F:
-            return self._parse_wrapped_type("CMOD_REQD", type_token=self.read_compressed_int())
+            type_token = self.read_compressed_int()
+            return TypeSignature(
+                element_type="CMOD_REQD",
+                type_token=type_token,
+                inner=self.parse_type(),
+                resolved_name=self._resolve_type_def_or_ref_name(type_token),
+            )
         if element == 0x20:
-            return self._parse_wrapped_type("CMOD_OPT", type_token=self.read_compressed_int())
+            type_token = self.read_compressed_int()
+            return TypeSignature(
+                element_type="CMOD_OPT",
+                type_token=type_token,
+                inner=self.parse_type(),
+                resolved_name=self._resolve_type_def_or_ref_name(type_token),
+            )
         if element == 0x45:
             return self._parse_wrapped_type("PINNED")
         raise errors.dnFormatError(f"unsupported element type: 0x{element:02x}")
 
 
-def parse_type_signature(blob) -> ParsedSignature:
+def parse_type_signature(blob, mdtables=None) -> ParsedSignature:
     if blob is None:
         return UnsupportedSignature(kind="unsupported", raw=b"", reason="missing signature")
 
     raw = blob.value_bytes() if hasattr(blob, "value_bytes") else bytes(blob)
     try:
-        return _SignatureReader(raw).parse_type()
+        return _SignatureReader(raw, mdtables).parse_type()
     except errors.dnFormatError as error:
         return UnsupportedSignature(kind="unsupported", raw=raw, reason=str(error))
 
 
-def parse_method_spec_instantiation(blob) -> Union[MethodSpecInstantiation, UnsupportedSignature]:
+def parse_method_spec_instantiation(blob, mdtables=None) -> Union[MethodSpecInstantiation, UnsupportedSignature]:
     if blob is None:
         return UnsupportedSignature(kind="unsupported", raw=b"", reason="missing signature")
 
     raw = blob.value_bytes() if hasattr(blob, "value_bytes") else bytes(blob)
     try:
-        reader = _SignatureReader(raw)
+        reader = _SignatureReader(raw, mdtables)
         prefix = reader.read_byte()
         if prefix != 0x0A:
             raise errors.dnFormatError(f"unsupported methodspec prefix: 0x{prefix:02x}")
@@ -330,12 +385,12 @@ def parse_method_spec_instantiation(blob) -> Union[MethodSpecInstantiation, Unsu
         return UnsupportedSignature(kind="unsupported", raw=raw, reason=str(error))
 
 
-def parse_signature(blob) -> ParsedSignature:
+def parse_signature(blob, mdtables=None) -> ParsedSignature:
     if blob is None:
         return UnsupportedSignature(kind="unsupported", raw=b"", reason="missing signature")
 
     raw = blob.value_bytes() if hasattr(blob, "value_bytes") else bytes(blob)
     try:
-        return _SignatureReader(raw).parse()
+        return _SignatureReader(raw, mdtables).parse()
     except errors.dnFormatError as error:
         return UnsupportedSignature(kind="unsupported", raw=raw, reason=str(error))

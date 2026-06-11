@@ -56,6 +56,18 @@ def test_methoddef_signature_handles_custom_modifiers_and_pointers():
     assert signature.parameters[1].inner.element_type == "U1"
 
 
+def test_methoddef_signature_renders_named_types_in_programmer_strings():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("ModuleCode_x86.exe"))
+
+    method = next(row for row in dn.net.mdtables.MethodDef.rows if row.Name == "rc4_init")
+    signature = method.ParsedSignature
+
+    assert (
+        signature.to_programmer_string()
+        == "modopt(System.Runtime.CompilerServices.CallConvCdecl) void(RC4_STATE_*, byte*, int)"
+    )
+
+
 def test_memberref_signature_handles_object_parameters():
     dn = dnfile.dnPE(fixtures.get_data_path_by_name("ModuleCode_x86.exe"))
 
