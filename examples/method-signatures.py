@@ -64,7 +64,7 @@ def _format_method_row(assembly_name, module_name, class_name, method_row):
     return f"{signature.return_type.to_programmer_string()} {assembly_name}.{module_name}.{class_name}.{method_name}({parameters})"
 
 
-def render_file(path):
+def render_file(path, verbose=False):
     dn = dnfile.dnPE(path)
     if dn.net is None or dn.net.mdtables is None:
         return
@@ -89,10 +89,13 @@ def render_file(path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Print method signatures in a programmer-friendly format.")
     parser.add_argument("input", nargs="+", help="Path(s) to .NET module(s) to inspect")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Show more details")
     args = parser.parse_args(argv)
 
     for path in args.input:
-        render_file(path)
+        if args.verbose:
+            print(f"Processing {path}...")
+        render_file(path, args.verbose)
 
 
 if __name__ == "__main__":
