@@ -152,6 +152,13 @@ def get_field_name(row, field):
     return fieldname
 
 
+def get_row_name_value(row):
+    name = getattr(row, "Name", None)
+    if hasattr(name, "value"):
+        return name.value
+    return name
+
+
 def render_pe(ostream: Formatter, dn):
     # IMAGE_NET_DIRECTORY
     render_pefile_struct(ostream, dn.net.struct)
@@ -261,7 +268,7 @@ def render_pe(ostream: Formatter, dn):
                             with indenting(ostream):
                                 signature = row.ParsedSignature
                                 if getattr(signature, "kind", None) == "method":
-                                    method_name = getattr(row.Name, "value", row.Name)
+                                    method_name = get_row_name_value(row)
                                     ostream.writeln(signature.to_programmer_string(method_name))
                                 ostream.writeln(str(signature))
                             ostream.writeln("Body:")
@@ -285,7 +292,7 @@ def render_pe(ostream: Formatter, dn):
                             with indenting(ostream):
                                 signature = row.ParsedSignature
                                 if getattr(signature, "kind", None) == "method":
-                                    method_name = getattr(row.Name, "value", row.Name)
+                                    method_name = get_row_name_value(row)
                                     ostream.writeln(signature.to_programmer_string(method_name))
                                 ostream.writeln(str(signature))
 
