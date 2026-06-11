@@ -14,7 +14,7 @@ Copyright (c) 2020-2022 MalwareFrank
 """
 from typing import TYPE_CHECKING, Dict, List, Type, Optional
 
-from . import cil, codedindex, enums, errors, signatures, utils
+from . import codedindex, enums, errors, method, signatures, utils
 from .base import RowStruct, MDTableRow, MDTableIndex, ClrMetaDataTable
 
 if TYPE_CHECKING:
@@ -392,7 +392,7 @@ class MethodDefRow(MDTableRow):
     def Body(self):
         if "Body" not in self.__dict__:
             pe = self._table._mdtables._pe
-            self.__dict__["Body"] = cil.parse_method_body(pe, self.Rva, self._table._mdtables)
+            self.__dict__["Body"] = method.parse_method_body(pe, self.Rva, self._table._mdtables)
         return self.__dict__["Body"]
 
 
