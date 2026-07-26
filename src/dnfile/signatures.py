@@ -93,7 +93,7 @@ class TypeSignature:
             return f"pinned {self.inner.to_programmer_string()}" if self.inner is not None else "pinned"
         if self.element_type == "GENERICINST":
             arguments = ", ".join(argument.to_programmer_string() for argument in self.arguments or [])
-            return f"{self.generic_kind.lower()} {self.resolved_name or _format_token(self.type_token)}<{arguments}>"
+            return f"{self.generic_kind.lower() if self.generic_kind else '_UnknownGeneric_'} {self.resolved_name or _format_token(self.type_token)}<{arguments}>"
         if self.element_type == "ARRAY":
             inner = self.inner.to_programmer_string() if self.inner is not None else "?"
             if not self.array_rank or self.array_rank == 1:
