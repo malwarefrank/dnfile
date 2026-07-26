@@ -26,14 +26,14 @@ class Method:
     def name(self):
         return str(self.source_row.Name)
 
+    @property
+    def parsed_signature(self):
+        return self.source_row.ParsedSignature
+
 
 @dataclass(frozen=True)
 class InternalMethod(Method):
     kind: str = "internal"
-
-    @property
-    def parsed_signature(self):
-        return self.source_row.ParsedSignature
 
     @property
     def body(self):
@@ -44,10 +44,6 @@ class InternalMethod(Method):
 class ExternalMethod(Method):
     kind: str = "external"
     body: object = None
-
-    @property
-    def parsed_signature(self):
-        return self.source_row.ParsedSignature
 
 
 @dataclass(frozen=True)
