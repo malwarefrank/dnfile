@@ -25,7 +25,22 @@ def test_methoddef_signature_can_render_like_a_programmer_would_expect():
     signature = main_method.ParsedSignature
 
     assert signature.to_programmer_string("Main") == "void Main(string[])"
-    assert str(signature) == "MethodSignature(kind='method', has_this=False, explicit_this=False, generic_param_count=0, parameter_count=1, return_type=TypeSignature(element_type='VOID', number=None, type_token=None, generic_kind=None, arguments=None, inner=None, signature=None, array_rank=None, array_sizes=None, array_lower_bounds=None, kind='type'), parameters=[TypeSignature(element_type='SZARRAY', number=None, type_token=None, generic_kind=None, arguments=None, inner=TypeSignature(element_type='STRING', number=None, type_token=None, generic_kind=None, arguments=None, inner=None, signature=None, array_rank=None, array_sizes=None, array_lower_bounds=None, kind='type'), signature=None, array_rank=None, array_sizes=None, array_lower_bounds=None, kind='type')])"
+    assert str(signature) == (
+        "MethodSignature(kind='method', has_this=False, explicit_this=False, "
+        "generic_param_count=0, parameter_count=1, "
+        "return_type=TypeSignature(element_type='VOID', number=None, "
+        "type_token=None, generic_kind=None, arguments=None, inner=None, "
+        "signature=None, array_rank=None, array_sizes=None, "
+        "array_lower_bounds=None, kind='type'), "
+        "parameters=[TypeSignature(element_type='SZARRAY', number=None, "
+        "type_token=None, generic_kind=None, arguments=None, "
+        "inner=TypeSignature(element_type='STRING', number=None, "
+        "type_token=None, generic_kind=None, arguments=None, inner=None, "
+        "signature=None, array_rank=None, array_sizes=None, "
+        "array_lower_bounds=None, kind='type'), signature=None, "
+        "array_rank=None, array_sizes=None, array_lower_bounds=None, "
+        "kind='type')])"
+    )
 
 
 def test_methoddef_signature_is_decoded_for_empty_class_native_int_return():

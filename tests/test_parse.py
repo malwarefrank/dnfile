@@ -4,7 +4,7 @@ import pytest
 import fixtures
 
 import dnfile
-from dnfile.mdtable import TypeRefRow, AssemblyRefRow, MemberRefRow
+from dnfile.mdtable import TypeRefRow, MemberRefRow, AssemblyRefRow
 
 
 def test_metadata():

@@ -14,7 +14,7 @@ Copyright (c) 2020-2022 MalwareFrank
 """
 from typing import TYPE_CHECKING, Dict, List, Type, Optional
 
-from . import codedindex, enums, errors, method, signatures, utils
+from . import enums, utils, errors, method, codedindex, signatures
 from .base import RowStruct, MDTableRow, MDTableIndex, ClrMetaDataTable
 
 if TYPE_CHECKING:

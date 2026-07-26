@@ -4,13 +4,12 @@
 """
 
 import struct
-from dataclasses import dataclass
 from typing import List, Optional
+from dataclasses import dataclass
 
 from pefile import PEFormatError
 
 from . import base, enums
-
 
 COR_ILMETHOD_SECT_EH_TABLE = 0x1
 COR_ILMETHOD_SECT_FAT_FORMAT = 0x40
@@ -143,17 +142,21 @@ def _parse_exception_handler_section(data: bytes, mdtables) -> List[ExceptionHan
 
     if kind & COR_ILMETHOD_SECT_FAT_FORMAT:
         clause_size = 24
-        unpacker = lambda chunk: struct.unpack("<IIIIII", chunk)
+
+        def unpacker(chunk):
+            return struct.unpack("<IIIIII", chunk)
     else:
         clause_size = 12
-        unpacker = lambda chunk: (
-            int.from_bytes(chunk[0:2], "little"),
-            int.from_bytes(chunk[2:4], "little"),
-            chunk[4],
-            int.from_bytes(chunk[5:7], "little"),
-            chunk[7],
-            int.from_bytes(chunk[8:12], "little"),
-        )
+
+        def unpacker(chunk):
+            return (
+                int.from_bytes(chunk[0:2], "little"),
+                int.from_bytes(chunk[2:4], "little"),
+                chunk[4],
+                int.from_bytes(chunk[5:7], "little"),
+                chunk[7],
+                int.from_bytes(chunk[8:12], "little"),
+            )
 
     handlers = []
     for offset in range(0, len(payload), clause_size):

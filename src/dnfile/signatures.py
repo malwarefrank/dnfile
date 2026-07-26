@@ -3,10 +3,10 @@
 .NET signature blob parsing.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional, Union
+from typing import List, Union, Optional
+from dataclasses import field, dataclass
 
-from . import base, codedindex, errors, utils
+from . import base, utils, errors, codedindex
 
 
 def _format_token(value: Optional[int]) -> str:

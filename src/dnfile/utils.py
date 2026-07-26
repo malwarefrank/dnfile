@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import copy as _copymod
-import logging
 import struct
+import logging
 import functools as _functools
 from typing import List, Tuple, TypeVar, Optional, cast
 from collections import deque
