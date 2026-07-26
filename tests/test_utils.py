@@ -106,6 +106,15 @@ def test_compressed_int():
     assert (0x3f8f, 2) == dnfile.utils.read_compressed_int(b"\xbf\x8f")
     assert (0x1eadbeef, 4) == dnfile.utils.read_compressed_int(b"\xde\xad\xbe\xef")
 
+    assert (3, 1) == dnfile.utils.read_compressed_int(b"\x06", signed=True)
+    assert (-3, 1) == dnfile.utils.read_compressed_int(b"\x7b", signed=True)
+    assert (64, 2) == dnfile.utils.read_compressed_int(b"\x80\x80", signed=True)
+    assert (-64, 1) == dnfile.utils.read_compressed_int(b"\x01", signed=True)
+    assert (8192, 4) == dnfile.utils.read_compressed_int(b"\xc0\x00\x40\x00", signed=True)
+    assert (-8192, 2) == dnfile.utils.read_compressed_int(b"\x80\x01", signed=True)
+    assert (268435455, 4) == dnfile.utils.read_compressed_int(b"\xdf\xff\xff\xfe", signed=True)
+    assert (-268435456, 4) == dnfile.utils.read_compressed_int(b"\xc0\x00\x00\x01", signed=True)
+
 
 def test_struct_char():
     assert None is dnfile.utils.num_bytes_to_struct_char(42)

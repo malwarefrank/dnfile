@@ -2,6 +2,7 @@
 
 import copy as _copymod
 import logging
+import struct
 import functools as _functools
 from typing import List, Tuple, TypeVar, Optional, cast
 from collections import deque
@@ -29,7 +30,19 @@ def lru_cache(maxsize=128, typed=False, copy=False):
     return decorator
 
 
-def read_compressed_int(data) -> Optional[Tuple[int, int]]:
+def rol(val: int, r_bits: int, max_bits: int) -> int:
+    return (val << r_bits % max_bits) & (2 ** max_bits - 1) | (
+        (val & (2 ** max_bits - 1)) >> (max_bits - (r_bits % max_bits))
+    )
+
+
+def ror(val: int, r_bits: int, max_bits: int) -> int:
+    return ((val & (2 ** max_bits - 1)) >> r_bits % max_bits) | (
+        val << (max_bits - (r_bits % max_bits)) & (2 ** max_bits - 1)
+    )
+
+
+def read_compressed_int(data: bytes, signed: bool = False) -> Optional[Tuple[int, int]]:
     """
     Given bytes, read a compressed integer per
     spec ECMA-335 II.23.2 Blobs and signatures.
@@ -37,24 +50,38 @@ def read_compressed_int(data) -> Optional[Tuple[int, int]]:
     """
     if not data:
         return None
-    if data[0] & 0x80 == 0:
-        # values 0x00 to 0x7f
-        return data[0], 1
-    elif len(data) >= 2 and data[0] & 0x40 == 0:
-        # values 0x80 to 0x3fff
-        value = (data[0] & 0x7F) << 8
-        value |= data[1]
-        return value, 2
-    elif len(data) >= 4 and data[0] & 0x20 == 0:
-        # values 0x4000 to 0x1fffffff
-        value = (data[0] & 0x3F) << 24
-        value |= data[1] << 16
-        value |= data[2] << 8
-        value |= data[3]
-        return value, 4
-    else:
+    b1 = data[0]
+
+    if not signed:
+        if b1 & 0x80 == 0:
+            return struct.unpack(">B", bytes((b1,)))[0], 1
+        elif len(data) >= 2 and b1 & 0x40 == 0:
+            return struct.unpack(">H", bytes((b1 & 0x7F, data[1])))[0], 2
+        elif len(data) >= 4 and b1 & 0x20 == 0:
+            return struct.unpack(">I", bytes((b1 & 0x3F, data[1], data[2], data[3])))[0], 4
         logger.warning("invalid compressed int: leading byte: 0x%02x", data[0])
         return None
+
+    if b1 & 0x80 == 0:
+        n = ror(b1, 1, 7)
+        if n & (1 << 6):
+            n |= 1 << 7
+        return struct.unpack(">b", struct.pack(">B", n))[0], 1
+    elif len(data) >= 2 and b1 & 0x40 == 0:
+        n = struct.unpack(">h", bytes((b1 & 0x7F, data[1])))[0]
+        n = ror(n, 1, 14)
+        if n & (1 << 13):
+            n |= (1 << 14) | (1 << 15)
+        return struct.unpack(">h", struct.pack(">H", n))[0], 2
+    elif len(data) >= 4 and b1 & 0x20 == 0:
+        n = struct.unpack(">i", bytes((b1 & 0x3F, data[1], data[2], data[3])))[0]
+        n = ror(n, 1, 29)
+        if n & (1 << 28):
+            n |= (1 << 29) | (1 << 30) | (1 << 31)
+        return struct.unpack(">i", struct.pack(">I", n))[0], 4
+
+    logger.warning("invalid compressed int: leading byte: 0x%02x", data[0])
+    return None
 
 
 def compress_int(i: int) -> Optional[bytes]:
