@@ -61,7 +61,7 @@ def _format_method_row(assembly_name, module_name, class_name, method_row):
         method_name = f"{method_name}<{generic_arguments}>"
 
     parameters = _format_method_parameters(method_row, signature)
-    return f"{signature.return_type.to_programmer_string()} {assembly_name}.{module_name}.{class_name}.{method_name}({parameters})"
+    return f"{signature.return_type.to_programmer_string()} Assembly<{assembly_name}>.Module<{module_name}>.{class_name}.{method_name}({parameters})"
 
 
 def render_file(path, verbose=False):
