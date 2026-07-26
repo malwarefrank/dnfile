@@ -69,7 +69,7 @@ class MethodBody:
     local_var_sig_tok: int
     code: bytes
     local_signature: Optional[object] = None
-    exception_handlers: List[ExceptionHandler] = None
+    exception_handlers: Optional[List[ExceptionHandler]] = None
 
 
 @dataclass(frozen=True)
@@ -85,7 +85,7 @@ class UnsupportedMethodBody:
     local_var_sig_tok: int = 0
     code: bytes = b""
     local_signature: Optional[object] = None
-    exception_handlers: List[ExceptionHandler] = None
+    exception_handlers: Optional[List[ExceptionHandler]] = None
 
 
 def is_method_memberref_signature(blob: bytes) -> bool:
