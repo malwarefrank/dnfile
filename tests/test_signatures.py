@@ -226,3 +226,13 @@ def test_typespec_generic_instance_can_decode_boolean_arguments():
     assert generic_instance.element_type == "GENERICINST"
     assert len(generic_instance.arguments) == 2
     assert [argument.element_type for argument in generic_instance.arguments] == ["CHAR", "BOOLEAN"]
+
+
+def test_type_rows_render_namespace_qualified_names():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("hello-world.exe"))
+
+    type_ref = dn.net.mdtables.TypeRef[0]
+    type_def = dn.net.mdtables.TypeDef[0]
+
+    assert str(type_ref) == f"{type_ref.TypeNamespace}.{type_ref.TypeName}"
+    assert str(type_def) == f"{type_def.TypeNamespace}.{type_def.TypeName}"
