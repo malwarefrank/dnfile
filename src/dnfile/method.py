@@ -21,6 +21,7 @@ COR_ILMETHOD_MORE_SECTS = 0x8
 @dataclass(frozen=True)
 class Method:
     source_row: object
+    kind: Optional[str] = None
 
     @property
     def name(self):
@@ -29,6 +30,10 @@ class Method:
     @property
     def parsed_signature(self):
         return self.source_row.ParsedSignature
+
+    @property
+    def body(self):
+        return None
 
 
 @dataclass(frozen=True)
@@ -43,7 +48,6 @@ class InternalMethod(Method):
 @dataclass(frozen=True)
 class ExternalMethod(Method):
     kind: str = "external"
-    body: object = None
 
 
 @dataclass(frozen=True)
