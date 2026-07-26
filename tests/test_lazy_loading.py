@@ -90,3 +90,28 @@ def test_lazy_loading_exposes_parsed_signature_and_body_on_demand():
 
     assert "ParsedSignature" in row.__dict__
     assert "Body" in row.__dict__
+
+
+def test_lazy_loading_methods_shortcut_is_available_without_breaking_row_lazy_fields():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("hello-world.exe"), clr_lazy_load=True)
+    dn.parse_data_directories()
+
+    methods = dn.net.methods
+    assert methods is not None
+    assert methods is dn.net.methods
+
+    internal = next(m for m in methods if isinstance(m, dnfile.method.InternalMethod))
+    row = internal.source_row
+    assert "ParsedSignature" not in row.__dict__
+    assert "Body" not in row.__dict__
+
+    _ = internal.parsed_signature
+    assert "ParsedSignature" in row.__dict__
+    assert "Body" not in row.__dict__
+
+    _ = internal.body
+    assert "Body" in row.__dict__
+
+    assert internal.name == "Main"
+    assert internal.parsed_signature.parameter_count == 1
+    assert internal.body.code_size == 13

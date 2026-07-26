@@ -453,6 +453,35 @@ class ClrData(DataContainer):
     _resources: Optional[List[base.ClrResource]]
 
     @property
+    def methods(self):
+        """Cached method wrapper list for the current CLR metadata snapshot.
+
+        The cache is built once on first successful access and is not
+        automatically invalidated if metadata tables are later mutated.
+        """
+        if "_methods_cache" in self.__dict__:
+            return self.__dict__["_methods_cache"]
+
+        if not getattr(self, "mdtables", None):
+            return None
+
+        result = []
+        method_table = getattr(self.mdtables, "MethodDef", None)
+        if method_table:
+            for row in method_table.rows:
+                result.append(method.method_from_methoddef_row(row))
+
+        memberref_table = getattr(self.mdtables, "MemberRef", None)
+        if memberref_table:
+            for row in memberref_table.rows:
+                external = method.method_from_memberref_row(row)
+                if external is not None:
+                    result.append(external)
+
+        self.__dict__["_methods_cache"] = result
+        return self.__dict__["_methods_cache"]
+
+    @property
     def resources(self) -> List[base.ClrResource]:
         if self._resources is None:
             self._init_resources(getattr(self, "_pe"))

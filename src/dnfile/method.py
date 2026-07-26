@@ -19,6 +19,38 @@ COR_ILMETHOD_MORE_SECTS = 0x8
 
 
 @dataclass(frozen=True)
+class Method:
+    source_row: object
+
+    @property
+    def name(self):
+        return str(self.source_row.Name)
+
+
+@dataclass(frozen=True)
+class InternalMethod(Method):
+    kind: str = "internal"
+
+    @property
+    def parsed_signature(self):
+        return self.source_row.ParsedSignature
+
+    @property
+    def body(self):
+        return self.source_row.Body
+
+
+@dataclass(frozen=True)
+class ExternalMethod(Method):
+    kind: str = "external"
+    body: object = None
+
+    @property
+    def parsed_signature(self):
+        return self.source_row.ParsedSignature
+
+
+@dataclass(frozen=True)
 class ExceptionHandler:
     clause_type: str
     try_offset: int
@@ -55,6 +87,31 @@ class UnsupportedMethodBody:
     code: bytes = b""
     local_signature: Optional[object] = None
     exception_handlers: List[ExceptionHandler] = None
+
+
+def is_method_memberref_signature(blob: bytes) -> bool:
+    if not blob:
+        return False
+
+    if hasattr(blob, "value_bytes"):
+        blob = blob.value_bytes()
+    elif hasattr(blob, "value"):
+        blob = blob.value
+    elif not isinstance(blob, (bytes, bytearray)):
+        blob = bytes(blob)
+
+    return (blob[0] & 0x0F) != 0x06
+
+
+def method_from_methoddef_row(row):
+    return InternalMethod(source_row=row)
+
+
+def method_from_memberref_row(row):
+    if not is_method_memberref_signature(row.Signature):
+        return None
+
+    return ExternalMethod(source_row=row)
 
 
 def _resolve_metadata_token(mdtables, token: int) -> Optional[base.MDTableIndex]:

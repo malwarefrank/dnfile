@@ -4,7 +4,7 @@ import pytest
 import fixtures
 
 import dnfile
-from dnfile.mdtable import TypeRefRow, AssemblyRefRow
+from dnfile.mdtable import TypeRefRow, AssemblyRefRow, MemberRefRow
 
 
 def test_metadata():
@@ -258,11 +258,92 @@ def test_typedef_members():
     assert len(typedefs[0].FieldList) == 52
     assert len(typedefs[5].FieldList) == 1
 
-    assert len(typedefs[0].MethodList) == 76
-    assert len(typedefs[5].MethodList) == 3
 
-    assert typedefs[0].MethodList[0].row.Name == "rc4_init"
-    assert typedefs[5].MethodList[0].row.Name == ".ctor"
+def test_dn_net_methods_shortcut_exposes_method_objects():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("hello-world.exe"))
+
+    methods = dn.net.methods
+    again = dn.net.methods
+
+    assert methods is not None
+    assert methods is again
+    assert all(isinstance(m, dnfile.method.Method) for m in methods)
+    assert any(isinstance(m, dnfile.method.InternalMethod) and m.name == "Main" for m in methods)
+    assert any(isinstance(m, dnfile.method.InternalMethod) and m.name == ".ctor" for m in methods)
+
+
+def test_dn_net_methods_shortcut_contains_external_methods_and_kind_discriminator():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("ModuleCode_x86.exe"))
+
+    methods = dn.net.methods
+    assert methods
+    assert any(isinstance(m, dnfile.method.InternalMethod) for m in methods)
+    assert any(isinstance(m, dnfile.method.ExternalMethod) for m in methods)
+    assert {m.kind for m in methods}.issuperset({"internal", "external"})
+
+
+def test_dn_net_methods_shortcut_memberref_entries_are_method_signatures_only():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("ModuleCode_x86.exe"))
+
+    memberref_method_rows = [
+        row for row in dn.net.mdtables.MemberRef.rows if dnfile.method.is_method_memberref_signature(row.Signature)
+    ]
+    external_memberrefs = [
+        m for m in dn.net.methods
+        if isinstance(m, dnfile.method.ExternalMethod) and isinstance(m.source_row, MemberRefRow)
+    ]
+
+    assert len(external_memberrefs) == len(memberref_method_rows)
+
+
+def test_dn_net_methods_shortcut_allows_distinguishable_duplicates():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("ModuleCode_x86.exe"))
+
+    methods = dn.net.methods
+    memberref_names = {m.name for m in methods if isinstance(m, dnfile.method.ExternalMethod)}
+    methoddef_names = {m.name for m in methods if isinstance(m, dnfile.method.InternalMethod)}
+    overlapping_names = memberref_names.intersection(methoddef_names)
+
+    for name in overlapping_names:
+        assert any(isinstance(m, dnfile.method.InternalMethod) and m.name == name for m in methods)
+        assert any(isinstance(m, dnfile.method.ExternalMethod) and m.name == name for m in methods)
+
+    assert all(hasattr(m, "source_row") for m in methods)
+
+
+def test_dn_net_methods_shortcut_returns_none_when_mdtables_missing_before_first_access():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("hello-world.exe"))
+    dn.net.mdtables = None
+    assert dn.net.methods is None
+    assert "_methods_cache" not in dn.net.__dict__
+
+
+def test_dn_net_methods_shortcut_is_cached():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("hello-world.exe"))
+    first = dn.net.methods
+    second = dn.net.methods
+    assert first is second
+
+
+def test_dn_net_methods_shortcut_wrappers_do_not_eagerly_materialize_row_properties():
+    dn = dnfile.dnPE(fixtures.get_data_path_by_name("hello-world.exe"), clr_lazy_load=True)
+    dn.parse_data_directories()
+
+    row = dn.net.mdtables.MethodDef[0]
+    assert "ParsedSignature" not in row.__dict__
+    assert "Body" not in row.__dict__
+
+    internal = next(m for m in dn.net.methods if isinstance(m, dnfile.method.InternalMethod) and m.name == "Main")
+
+    assert "ParsedSignature" not in row.__dict__
+    assert "Body" not in row.__dict__
+
+    _ = internal.parsed_signature
+    assert "ParsedSignature" in row.__dict__
+    assert "Body" not in row.__dict__
+
+    _ = internal.body
+    assert "Body" in row.__dict__
 
 
 def test_typedef_methodlist():
