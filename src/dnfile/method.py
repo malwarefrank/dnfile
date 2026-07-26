@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-.NET Common Intermediate Language method body parsing.
+.NET Common Intermediate Language method metadata parsing.
 """
 
 import struct
