@@ -91,6 +91,9 @@ class HeapItemBinary(base.HeapItem):
             return self.value == other
         return False
 
+    def __bytes__(self) -> bytes:
+        return self.value_bytes()
+
 
 class StringsHeap(base.ClrHeap):
     offset_size = 0

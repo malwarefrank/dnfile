@@ -567,6 +567,8 @@ class ClrData(DataContainer):
         if self.struct.ResourcesRva > 0 and self.mdtables and self.mdtables.ManifestResource and self.mdtables.ManifestResource.num_rows > 0:
             # for each row
             for row in self.mdtables.ManifestResource.rows:
+                if row is None or row._loaded == base.LoadState.Unloaded:
+                    continue
                 # TODO: handle external resources
                 if row.Implementation is None:
                     # internal resource, embedded in this file
@@ -611,8 +613,11 @@ class ClrData(DataContainer):
             # TODO: handle external methods
             # for each MethodDef row
             for row in self.mdtables.MethodDef.rows:
+                if row is None or row._loaded == base.LoadState.Unloaded:
+                    continue
                 m = MethodFactory.createMethod(pe, row)
-                self.methods.append(m)
+                if m is not None:
+                    self.methods.append(m)
             for m in self.methods:
                 try:
                     m.parse()
@@ -729,7 +734,11 @@ class MethodFactory(object):
     def createMethod(
         cls, pe: dnPE, row: mdtable.MethodDefRow
     ) -> Optional[method.Method]:
-        m = method.InternalMethod(row.Name, row.Signature)
+        try:
+            m = method.InternalMethod(row.Name, bytes(row.Signature))
+        except AttributeError:
+            # Row data may be incomplete after metadata truncation.
+            return None
         # populate params list
         for p_index in row.ParamList:
             param = ParamFactory.createParam(pe, p_index.row)

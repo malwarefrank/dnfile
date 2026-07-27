@@ -369,7 +369,7 @@ class MDTableRow(abc.ABC):
                 if hasattr(self, attr):
                     return getattr(self, attr)
         # TODO: more descriptive exception?
-        raise AttributeError(attr)
+        raise AttributeError(attr, f"loaded state: {self._loaded}")
 
     def parse(self, tables: List["ClrMetaDataTable"], next_row: Optional["MDTableRow"]):
         """
