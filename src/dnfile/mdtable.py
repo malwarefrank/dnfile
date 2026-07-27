@@ -211,7 +211,7 @@ class TypeDefRow(MDTableRow):
         )
 
     def __str__(self) -> str:
-        #return super().__str__()
+        # return super().__str__()
         return f"{self.TypeNamespace}.{self.TypeName}"
 
 

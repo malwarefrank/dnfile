@@ -5,9 +5,9 @@ import dnfile.signature
 
 
 # heading
-H="===="
+H = "===="
 # indent
-I="    "
+INDENT = "    "
 
 
 def main(fpath: str):
@@ -20,14 +20,14 @@ def main(fpath: str):
     if warns:
         print(H, "WARNINGS:")
         for w in warns:
-            print(I, w)
+            print(INDENT, w)
     for m in pe.net.methods:
         print(H, m.name)
-        print(I, m.signature)
+        print(INDENT, m.signature)
         if m.params:
-            print(I, "Params:")
+            print(INDENT, "Params:")
             for p in m.params:
-                s = f"{I*2}{p.sequence} {p.name} {p.type_str}"
+                s = f"{INDENT*2}{p.sequence} {p.name} {p.type_str}"
                 for name, val in p.flags:
                     if val:
                         s += f" {name}"

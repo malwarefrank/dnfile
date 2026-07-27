@@ -59,6 +59,7 @@ class SimpleFlags(object):
 
 CALLING_CONVENTION_MASK = 0x0F
 
+
 class CallingConvention(enum.IntEnum):
     DEFAULT  = 0x00
 
@@ -146,10 +147,11 @@ class ClrCallingConvention(SimpleFlags):
         "UNMANAGED": "Unmanaged",
         "GENERICINST": "GenericInst",
         "NATIVEVARARG": "NativeVarArg",
-        }
+    }
 
 
 SIGNATURE_FLAGS_MASK = 0xF0
+
 
 class SignatureFlags(enum.IntFlag):
     GENERIC = 0x10
@@ -165,6 +167,7 @@ class SignatureFlags(enum.IntFlag):
     # via II.15.3
     EXPLICIT_THIS = 0x40
 
+
 class ClrSignatureFlags(SimpleFlags):
     Generic         = False
     HasThis         = False
@@ -176,7 +179,7 @@ class ClrSignatureFlags(SimpleFlags):
         "GENERIC": "Generic",
         "HAS_THIS": "HasThis",
         "EXPLICIT_THIS": "ExplicitThis",
-        }
+    }
 
 
 class Param(object):
@@ -224,8 +227,8 @@ class ElementType(enum.Enum):
     ARRAY        = 0x14  # type rank boundsCount bound1 ... loCount lo1 ...
     GENERICINST  = 0x15  # Generic type instantiation. Followed by type type-arg-count type-1 ... type-n
     TYPEDBYREF   = 0x16
-    I            = 0x18  # System.IntPtr
-    U            = 0x19  # System.UIntPtr
+    INTPTR       = 0x18  # System.IntPtr
+    UINTPTR      = 0x19  # System.UIntPtr
     FNPTR        = 0x1b  # Followed by full method signature
     OBJECT       = 0x1c  # System.Object
     SZARRAY      = 0x1d  # Single-dim array with 0 lower bound
@@ -249,11 +252,11 @@ class ElementType(enum.Enum):
     def is_simple_type(self):
         # https://referencesource.microsoft.com/mscorlib/system/reflection/emit/signaturehelper.cs.html
         return self.is_primitive() or self.value in (
-                ElementType.TYPEDBYREF.value,
-                ElementType.I.value,
-                ElementType.U.value,
-                ElementType.OBJECT.value,
-                )
+            ElementType.TYPEDBYREF.value,
+            ElementType.INTPTR.value,
+            ElementType.UINTPTR.value,
+            ElementType.OBJECT.value,
+        )
 
     def is_prefix(self):
         return self.value in (
@@ -312,9 +315,9 @@ class Element:
             return "string"
         elif self.cor_type == ElementType.OBJECT:
             return "object"
-        elif self.cor_type == ElementType.I:
+        elif self.cor_type == ElementType.INTPTR:
             return "IntPtr"
-        elif self.cor_type == ElementType.U:
+        elif self.cor_type == ElementType.UINTPTR:
             return "UIntPtr"
         elif self.cor_type == ElementType.TYPEDBYREF:
             return "TypedReference"
@@ -415,7 +418,7 @@ class ArrayElement(Element):
 # > operations on a value or location. Example constraints would be whether a
 # > location can be overwritten with a different value or whether a value can
 # > ever be changed.
-# > 
+# >
 # > All locations have signatures, as do all values. Assignment compatibility
 # > requires that the signature of the value, including constraints, be
 # > compatible with the signature of the location, including constraints. There
@@ -423,7 +426,7 @@ class ArrayElement(Element):
 # > location signatures (see I.8.6.1.2), parameter signatures (see I.8.6.1.4),
 # > and method signatures (see I.8.6.1.5). (A fifth kind, a local signature
 # > (see I.8.6.1.3) is really a version of a location signature.)
-# 
+#
 # However, per ECMA-335 II.23.2:
 # > The word signature is conventionally used to describe the type info for a
 # > function or method; that is, the type of each of its parameters, and the
@@ -450,6 +453,7 @@ class SignatureStruct(Structure):
     Flags: int
     CallingConvention: int
 
+
 class ClrSignature(object):
     struct: SignatureStruct
     Flags: ClrSignatureFlags
@@ -459,14 +463,18 @@ class ClrSignature(object):
         self.struct.CallingConvention = start_value & CALLING_CONVENTION_MASK
         self.struct.Flags = start_value & SIGNATURE_FLAGS_MASK
 
+
 class TypeSignature(ClrSignature):
     ...
+
 
 class LocationSignature(ClrSignature):
     ...
 
+
 class ParameterSignature(ClrSignature):
     ...
+
 
 class MethodSignature(ClrSignature):
     method_name: str
@@ -521,9 +529,9 @@ class MethodSignature(ClrSignature):
 
         if self.flags & SignatureFlags.GENERIC:
             parts.append("<")
-            i=0
+            i = 0
             for i in range(self.generic_params_count):
-                if i>0:
+                if i > 0:
                     parts.append(",")
                 parts.append(f"T{i}")
             parts.append(">")
@@ -740,7 +748,7 @@ class SignatureReader(io.BytesIO):
     def read_token(self) -> int:
         return self.read_compressed_u32()
 
-    def read_type_signature(self) -> Generator[Union[typeinfo.ClrType,typeinfo.Constraint], None, None]:
+    def read_type_signature(self) -> Generator[Union[typeinfo.ClrType, typeinfo.Constraint], None, None]:
         clrType = None
         ty = ElementType(self.read_u8())
         #### primitive and simple types
@@ -770,9 +778,9 @@ class SignatureReader(io.BytesIO):
             yield typeinfo.StringType()
         elif ty == ElementType.TYPEDBYREF:
             yield typeinfo.TypedReferenceType()
-        elif ty == ElementType.I:
+        elif ty == ElementType.INTPTR:
             yield typeinfo.IntPtrType()
-        elif ty == ElementType.U:
+        elif ty == ElementType.UINTPTR:
             yield typeinfo.UIntPtrType()
         elif ty == ElementType.OBJECT:
             yield typeinfo.ObjectType()
@@ -860,7 +868,6 @@ class SignatureReader(io.BytesIO):
             # TODO: PROPERTY
             # TODO: ENUM
             raise NotImplementedError(ty)
-
 
     def read_type(self) -> Element:
         ty = ElementType(self.read_u8())
