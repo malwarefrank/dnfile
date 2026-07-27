@@ -12,7 +12,7 @@ This is because we expect the user to know how they want to interpret/format dat
 we couldn't guess at all the uses for interacting with signatures.
 
 The best references for this parsing are:
-  - ECMA-335 6th Edition, II.23.1 and II.23.2
+  - ECMA-335 6th Edition, I.8.6.1 and II.23.1 and II.23.2
   - https://github.com/0xd4d/dnlib/blob/master/src/DotNet/SignatureReader.cs
   - https://github.com/jimschubert/clr-profiler/blob/master/src/ILRewrite10Source/ILRewriteProfiler/sigparse.inl
 """
@@ -21,14 +21,45 @@ import io
 import abc
 import enum
 import struct
-from typing import Any, List, Union, Optional, Sequence
+from typing import Any, List, Dict, Union, Optional, Sequence, Generator
 
 from dnfile.utils import ror
+from dnfile.base import Structure
+from dnfile.enums import _getvars
+from dnfile import typeinfo, codedindex
+
+
+class SimpleFlags(object):
+    _mask: int
+    _field_mapping: Dict
+
+    def __init__(self, value):
+        if hasattr(self, "_mask_class"):
+            mask_class = self._mask_class
+            masked_value = self._mask & value
+            entry = mask_class(masked_value)
+            for src_name, dst_name in self._field_mapping.items():
+                setattr(self, dst_name, value == getattr(entry, src_name))
+        elif hasattr(self, "_flag_class"):
+            flag_class = self._flag_class
+            masked_value = self._mask & value
+            entry: enum.IntFlag = flag_class(masked_value)
+            for src_name, dst_name in self._field_mapping.items():
+                setattr(self, dst_name, value & getattr(flag_class, src_name) != 0)
+
+    def __iter__(self):
+        for name in _getvars(self):
+            val = getattr(self, name)
+            if isinstance(val, bool):
+                yield name, val
+
+    def __repr__(self):
+        return '\n'.join(["{:<40}{:>8}".format(n, str(v)) for n, v in self])
+
 
 CALLING_CONVENTION_MASK = 0x0F
 
-
-class CallingConvention(enum.Enum):
+class CallingConvention(enum.IntEnum):
     DEFAULT  = 0x00
 
     # unmanaged cdecl is the calling convention used by Standard C
@@ -79,8 +110,46 @@ class CallingConvention(enum.Enum):
             raise NotImplementedError("calling convention: " + repr(self))
 
 
-SIGNATURE_FLAGS_MASK = 0xF0
+class ClrCallingConvention(SimpleFlags):
+    Default  = False
+    # unmanaged cdecl is the calling convention used by Standard C
+    C        = False
+    # unmanaged stdcall specifies a standard C++ call
+    StdCall  = False
+    # unmanaged thiscall is a C++ call that passes a this pointer to the method
+    ThisCall = False
+    # unmanaged fastcall is a special optimized C++ calling convention
+    FastCall = False
+    VarArg   = False
 
+    Field        = False
+    LocalSig     = False
+    Property     = False
+    # Unmanaged calling convention encoded as modopts
+    Unmanaged    = False
+    GenericInst  = False
+    # used ONLY for 64bit vararg PInvoke calls
+    NativeVarArg = False
+
+    _mask_class = CallingConvention
+    _mask = CALLING_CONVENTION_MASK
+    _field_mapping = {
+        "DEFAULT": "Default",
+        "C": "C",
+        "STDCALL": "StdCall",
+        "THISCALL": "ThisCall",
+        "FASTCALL": "FastCall",
+        "VARARG": "VarArg",
+        "FIELD": "Field",
+        "LOCALSIG": "LocalSig",
+        "PROPERTY": "Property",
+        "UNMANAGED": "Unmanaged",
+        "GENERICINST": "GenericInst",
+        "NATIVEVARARG": "NativeVarArg",
+        }
+
+
+SIGNATURE_FLAGS_MASK = 0xF0
 
 class SignatureFlags(enum.IntFlag):
     GENERIC = 0x10
@@ -95,6 +164,37 @@ class SignatureFlags(enum.IntFlag):
     # > the types of the parameters themselves.
     # via II.15.3
     EXPLICIT_THIS = 0x40
+
+class ClrSignatureFlags(SimpleFlags):
+    Generic         = False
+    HasThis         = False
+    ExplicitThis    = False
+
+    _flag_class = SignatureFlags
+    _mask = SIGNATURE_FLAGS_MASK
+    _field_mapping = {
+        "GENERIC": "Generic",
+        "HAS_THIS": "HasThis",
+        "EXPLICIT_THIS": "ExplicitThis",
+        }
+
+
+class Param(object):
+    # ref ECMA-335 II.23.2.10
+    constraints: List[typeinfo.Constraint]
+    clrType: Optional[typeinfo.ClrType]
+
+    def __init__(self, clrType: Optional[typeinfo.ClrType] = None):
+        self.clrType = clrType
+
+    def __str__(self) -> str:
+        prefix = ""
+        if self.constraints:
+            for c in self.constraints:
+                prefix += f"{c} "
+            return f"{prefix}{self.clrType}"
+        else:
+            return str(self.clrType)
 
 
 class ElementType(enum.Enum):
@@ -154,6 +254,17 @@ class ElementType(enum.Enum):
                 ElementType.U.value,
                 ElementType.OBJECT.value,
                 )
+
+    def is_prefix(self):
+        return self.value in (
+            ElementType.PTR.value,
+            ElementType.BYREF.value,
+            ElementType.VALUETYPE.value,
+            ElementType.CLASS.value,
+            ElementType.FNPTR.value,
+            ElementType.CMOD_REQD.value,
+            ElementType.CMOD_OPT.value,
+        )
 
 
 class Element:
@@ -294,13 +405,86 @@ class ArrayElement(Element):
             return super().__str__()
 
 
-class MethodSignature:
+####################
+# Signature classes
+#
+# Per ECMA-335 I.8.6.1:
+# > Signatures are the part of a contract that can be checked and automatically
+# > enforced. Signatures are formed by adding constraints to types and other
+# > signatures. A constraint is a limitation on the use of or allowed
+# > operations on a value or location. Example constraints would be whether a
+# > location can be overwritten with a different value or whether a value can
+# > ever be changed.
+# > 
+# > All locations have signatures, as do all values. Assignment compatibility
+# > requires that the signature of the value, including constraints, be
+# > compatible with the signature of the location, including constraints. There
+# > are four fundamental kinds of signatures: type signatures (see I.8.6.1.1),
+# > location signatures (see I.8.6.1.2), parameter signatures (see I.8.6.1.4),
+# > and method signatures (see I.8.6.1.5). (A fifth kind, a local signature
+# > (see I.8.6.1.3) is really a version of a location signature.)
+# 
+# However, per ECMA-335 II.23.2:
+# > The word signature is conventionally used to describe the type info for a
+# > function or method; that is, the type of each of its parameters, and the
+# > type of its return value. Within metadata, the word signature is also used
+# > to describe the type info for fields, properties, and local variables. Each
+# > Signature is stored as a (counted) byte array in the Blob heap. There are
+# > several kinds of Signature, as follows:
+# > - MethodRefSig (differs from a MethodDefSig only for VARARG calls)
+# > - MethodDefSig
+# > - FieldSig
+# > - PropertySig
+# > - LocalVarSig
+# > - TypeSpec
+# > - MethodSpec
+# >
+# > The value of the first byte of a Signature 'blob' indicates what kind of
+# > Signature it is. Its lowest 4 bits hold one of the following: C , DEFAULT ,
+# > FASTCALL , STDCALL , THISCALL , or VARARG (whose values are defined in
+# > II.23.2.3), which qualify method signatures; FIELD , which denotes a field
+# > signature (whose value is defined in II.23.2.4); or PROPERTY, which denotes
+# > a property signature (whose value is defined in §II.23.2.5).
+
+class SignatureStruct(Structure):
+    Flags: int
+    CallingConvention: int
+
+class ClrSignature(object):
+    struct: SignatureStruct
+    Flags: ClrSignatureFlags
+    CallingConvention: ClrCallingConvention
+
+    def __init__(self, start_value):
+        self.struct.CallingConvention = start_value & CALLING_CONVENTION_MASK
+        self.struct.Flags = start_value & SIGNATURE_FLAGS_MASK
+
+class TypeSignature(ClrSignature):
+    ...
+
+class LocationSignature(ClrSignature):
+    ...
+
+class ParameterSignature(ClrSignature):
+    ...
+
+class MethodSignature(ClrSignature):
+    method_name: str
+
     def __init__(self, flags: SignatureFlags, calling_convention: CallingConvention, ret: Element, params: List[Element], generic_params_count: int = 0):
         self.flags = flags
         self.calling_convention = calling_convention
         self.ret = ret
         self.params = params
         self.generic_params_count: int = generic_params_count
+        self.method_name = "f"
+        #########
+        # each method has:
+        #   1 return type
+        #   0+ constraints
+        #   number of generics
+        #   0+ params
+        #       each param has: 0+ constraints, 1 type
 
     # TODO: __eq__
     # Equality is complicated, see ECMA-335 I.8.6.1.6:
@@ -333,7 +517,7 @@ class MethodSignature:
         parts.append(str(self.ret))
         parts.append(" ")
 
-        parts.append("f")
+        parts.append(f"{self.method_name}")
 
         if self.flags & SignatureFlags.GENERIC:
             parts.append("<")
@@ -556,6 +740,128 @@ class SignatureReader(io.BytesIO):
     def read_token(self) -> int:
         return self.read_compressed_u32()
 
+    def read_type_signature(self) -> Generator[Union[typeinfo.ClrType,typeinfo.Constraint], None, None]:
+        clrType = None
+        ty = ElementType(self.read_u8())
+        #### primitive and simple types
+        if ty == ElementType.VOID:
+            yield typeinfo.VoidType()
+        elif ty == ElementType.BOOLEAN:
+            yield typeinfo.BooleanType()
+        elif ty == ElementType.CHAR:
+            yield typeinfo.CharType()
+        elif ty == ElementType.I1:
+            yield typeinfo.SignedByteType()
+        elif ty == ElementType.U1:
+            yield typeinfo.ByteType()
+        elif ty == ElementType.I2:
+            yield typeinfo.Int16Type()
+        elif ty == ElementType.U2:
+            yield typeinfo.UInt16Type()
+        elif ty == ElementType.I8:
+            yield typeinfo.Int32Type()
+        elif ty == ElementType.U8:
+            yield typeinfo.UInt32Type()
+        elif ty == ElementType.R4:
+            yield typeinfo.SingleType()
+        elif ty == ElementType.R8:
+            yield typeinfo.DoubleType()
+        elif ty == ElementType.STRING:
+            yield typeinfo.StringType()
+        elif ty == ElementType.TYPEDBYREF:
+            yield typeinfo.TypedReferenceType()
+        elif ty == ElementType.I:
+            yield typeinfo.IntPtrType()
+        elif ty == ElementType.U:
+            yield typeinfo.UIntPtrType()
+        elif ty == ElementType.OBJECT:
+            yield typeinfo.ObjectType()
+        #### other types
+        ########### CONTINUE HERE ############
+        elif ty == ElementType.END:
+            # TODO
+            return Element(ty)
+        elif ty in (ElementType.PTR, ElementType.BYREF):
+            if ty == ElementType.PTR:
+                yield typeinfo.PointerConstraint
+            elif ty == ElementType.BYREF:
+                yield typeinfo.ByRefConstraint
+            yield from self.read_type_signature()
+        elif ty == ElementType.VALUETYPE:
+            # TODO
+            token = TypeDefOrRefToken(self.read_token())
+            return Element(ty, token)
+        elif ty == ElementType.CLASS:
+            # TODO
+            token = TypeDefOrRefToken(self.read_token())
+            return Element(ty, token)
+        elif ty == ElementType.SZARRAY:
+            # TODO
+            t = self.read_type_signature()
+            a = typeinfo.ArrayType(t)
+            yield a
+        elif ty == ElementType.GENERICINST:
+            # TODO
+            # type
+            val = self.read_type()
+            # type-arg-count
+            arg_count = self.read_compressed_u32()
+            # types
+            arg_types = list()
+            for _ in range(arg_count):
+                arg_types.append(self.read_type())
+            return GenericInstElement(ty, val, arg_types)
+        elif ty == ElementType.VAR or ty == ElementType.MVAR:
+            # TODO
+            val = self.read_compressed_u32()  # index into generics/template list?
+            return typeinfo.GenericType("T", order=val)
+        elif ty == ElementType.ARRAY:
+            # TODO
+            # type
+            val = self.read_type()
+            # number of dimensions
+            rank = self.read_compressed_u32()
+            # size
+            bound_count = self.read_compressed_u32()
+            if bound_count > rank:
+                # this shouldn't happen!  TODO: warn
+                bound_count = rank
+            bounds = list()
+            for _ in range(bound_count):
+                bound = self.read_compressed_i32()
+                bounds.append(bound)
+            # lower bounds
+            low_bound_count = self.read_compressed_u32()
+            if low_bound_count > rank:
+                # this shouldn't happen!  TODO: warn
+                low_bound_count = rank
+            low_bounds = list()
+            for _ in range(low_bound_count):
+                low_bound = self.read_compressed_i32()
+                low_bounds.append(low_bound)
+            return ArrayElement(ty, val, rank, bounds, low_bounds)
+        elif ty == ElementType.CMOD_OPT or ty == ElementType.CMOD_REQD:
+            # TODO
+            token = TypeDefOrRefToken(self.read_token())
+            return Element(ty, token)
+        elif ty == ElementType.FNPTR:
+            # TODO
+            method_sig = self.read_method_signature()
+            return Element(ty, method_sig)
+        else:
+            # TODO: INTERNAL
+            # TODO: MODIFIER
+            # TODO: SENTINEL
+            # TODO: PINNED
+            # TODO: SYSTEM_TYPE
+            # TODO: BOXED_OBJECT
+            # TODO: RESERVED
+            # TODO: FIELD
+            # TODO: PROPERTY
+            # TODO: ENUM
+            raise NotImplementedError(ty)
+
+
     def read_type(self) -> Element:
         ty = ElementType(self.read_u8())
         if ty.is_primitive():
@@ -654,6 +960,9 @@ class SignatureReader(io.BytesIO):
         ret_type = self.read_type()
 
         params = []
+        # TODO: fix, this is wrong?
+        # param_count is the count of params, not count of types
+        # should self.read_type() really be self.read_param() ?
         for _ in range(param_count):
             param = self.read_type()
 
