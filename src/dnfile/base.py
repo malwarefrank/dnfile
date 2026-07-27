@@ -692,19 +692,20 @@ class CodedIndex(MDTableIndex[RowType]):
     tag_bits: int
     table_names: Sequence[str]
 
-    def __init__(self, value, tables: List["ClrMetaDataTable[RowType]"]):
+    def __init__(self, value, tables: Optional[List["ClrMetaDataTable[RowType]"]]):
         assert hasattr(self, "tag_bits")
         assert hasattr(self, "table_names")
 
-        table_name = self.table_names[value & (2 ** self.tag_bits - 1)]
+        self.table_name = self.table_names[value & (2 ** self.tag_bits - 1)]
         self.row_index = value >> self.tag_bits
 
-        for t in tables:
-            if t.name != table_name:
-                continue
+        if tables:
+            for t in tables:
+                if t.name != self.table_name:
+                    continue
 
-            self.table = t
-            return
+                self.table = t
+                return
 
         # this may not be a problem, e.g. when ManifestResource Implementation=0
         self.table = None
