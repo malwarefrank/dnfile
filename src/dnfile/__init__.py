@@ -63,6 +63,9 @@ def handler(err):
 codecs.register_error("backslashreplace_", handler)
 
 
+def func_has_arg(func, arg):
+    return arg in func.__code__.co_varnames
+
 class dnPE(_PE):
     def add_warning(self, msg):
         self._warnings.append(msg)
@@ -74,10 +77,15 @@ class dnPE(_PE):
         fast_load=None,
         max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT,
         clr_lazy_load=False,
+        *, # args after this are keyword-only
+        max_offset=0x10000000,
     ):
         self._warnings = list()
         self.clr_lazy_load = clr_lazy_load
-        super().__init__(name, data, fast_load)
+        if func_has_arg(super().__init__,'max_offset'):
+            super().__init__(name, data, fast_load, max_offset=max_offset)
+        else:
+            super().__init__(name, data, fast_load)
 
     def dump_info(self, dump=None, encoding="utf-8"):
         """
@@ -144,8 +152,11 @@ class dnPE(_PE):
         result.extend(self._warnings)
         return result
 
-    def __parse__(self, fname, data, fast_load):
-        super().__parse__(fname, data, fast_load)
+    def __parse__(self, fname, data, fast_load, max_offset=None):
+        if func_has_arg(super().__parse__,max_offset):
+            super().__parse__(fname, data, fast_load, max_offset=max_offset)
+        else:
+            super().__parse__(fname, data, fast_load)
 
         # NOTE: .NET loaders ignores NumberOfRvaAndSizes
         #   We check this elsewhere, but note it here.
