@@ -98,6 +98,9 @@ class ParamFlags(object):
 
 
 class Param:
+    """
+    See ECMA-335 6th Edition II.22.33
+    """
     sequence: Optional[int]
     name: Optional[str]
     flags: Optional[ParamFlags]
@@ -127,8 +130,13 @@ class Param:
         self.type_str = None
         self.prefix = None
 
-    def set_type(self, t: Union[_sig.Element, str]):
-        self.cor_type = t
+    # accessor for type_str, which is derived from cor_type
+    @property
+    def type_str(self) -> Optional[str]:
+        if self.cor_type:
+            return str(self.cor_type)
+        else:
+            return None
 
     def __str__(self) -> str:
         if self.prefix:
@@ -145,17 +153,21 @@ class Method:
 
     Each method may have:
     - parameters
+    - return type (part of signature)
+    - constraints (part of signature)
+    - number of generics (part of signature)
+
+    See ECMA-335 6th Edition II.22.26
     """
 
     def __init__(self, name: str, signature: bytes):
         self.name: str = name
         self._sigraw: bytes = signature
+        # signature contains the return type, number of generics, and constraints
         self.signature: Optional[_sig.MethodSignature] = None
-        # TODO: how is the MethodDef row ParamList used versus
-        #       the params in the method signature?  Do either
-        #       matter at runtime?  And if there is a
-        #       difference, which takes precedence?
-        self.params: List[Param] = list()
+        # TODO: the MethodDef row ParamList is used for parameter names and flags.
+        #       the params in the method signature are used for parameter types.
+        self.params: List[Param] = list()   # populated by MethodFactory
 
     def parse(self) -> None:
         """
@@ -181,19 +193,21 @@ class InternalMethod(Method):
 
     rva: int
     flags: Optional[MethodFlags]
-    params: List[Param]
-    # TODO: parse()
 
     def __init__(self, name: str, signature: bytes):
         super().__init__(name, signature)
         self.rva: int = 0
         self.flags: Optional[MethodFlags] = None
-        self.params: List[Param] = list()
 
     def parse(self):
         super().parse()
         ### parse _sigraw to signature
         self.signature = _sig.parse_method_signature(self._sigraw)
+        if not self.signature:
+            return
+        # signature has the return type, number of generics, and constraints,
+        # but we need to copy the method name so that it can be str with context
+        self.signature.method_name = self.name
         # copy flags from signature
         if self.signature.flags & _sig.SignatureFlags.HAS_THIS:
             self.flags.HasThis = True
@@ -201,15 +215,24 @@ class InternalMethod(Method):
             self.flags.ExplicitThis = True
         if self.signature.flags & _sig.SignatureFlags.GENERIC:
             self.flags.Generic = True
-        copy_max = len(self.params)
-        if copy_max != len(self.signature.params):
-            # TODO: warn or error
-            copy_max = min(copy_max, len(self.signature.params))
-        for i in range(copy_max):
-            # copy type from MethodDefSig to Param object
-            p = self.params[i]
-            if self.signature.params[i].value:
-                p.prefix = self.signature.params[i].cor_type
-                p.set_type(self.signature.params[i].value)
-            else:
-                p.set_type(self.signature.params[i])
+        # copy types from signature to params
+        if self.signature:
+            for p in self.params:
+                if p.sequence < len(self.signature.params):
+                    p.cor_type = self.signature.params[p.sequence].cor_type
+        # create dummy list of params same size as signature params
+        new_params_list = [None] * len(self.signature.params)
+        for p in self.params:
+            if p.sequence == 0:
+                # TODO: handle sequence=0 (return type)
+                continue
+            p.cor_type = self.signature.params[p.sequence - 1].cor_type
+            new_params_list[p.sequence - 1] = p
+        # if we are missing any params, create a dummy param with just the type
+        for i in range(len(new_params_list)):
+            if new_params_list[i] is None:
+                # all we know is sequence and type
+                p = Param(i + 1, None, None, None, None)
+                p.cor_type = self.signature.params[i].cor_type
+                new_params_list[i] = p
+        self.params = new_params_list

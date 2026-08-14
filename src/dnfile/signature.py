@@ -477,6 +477,9 @@ class ParameterSignature(ClrSignature):
 
 
 class MethodSignature(ClrSignature):
+    """
+    See ECMA-335 6th Edition I.8.6.1.5
+    """
     method_name: str
 
     def __init__(self, flags: SignatureFlags, calling_convention: CallingConvention, ret: Element, params: List[Element], generic_params_count: int = 0):
@@ -485,6 +488,7 @@ class MethodSignature(ClrSignature):
         self.ret = ret
         self.params = params
         self.generic_params_count: int = generic_params_count
+        # placeholder method name, will be replaced by Method subclasses
         self.method_name = "f"
         #########
         # each method has:

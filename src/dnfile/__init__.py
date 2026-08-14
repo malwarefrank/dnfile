@@ -743,7 +743,6 @@ class MethodFactory(object):
         for p_index in row.ParamList:
             param = ParamFactory.createParam(pe, p_index.row)
             m.params.append(param)
-        # TODO: test if signature params agree with ParamList
         m.rva = row.Rva
         # flags = Flags + ImplFlags + signature.flags
         m.flags = method.MethodFlags()
